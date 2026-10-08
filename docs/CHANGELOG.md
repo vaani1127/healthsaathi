@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### P4 - Smart contracts
+
+- `ClinicRegistry`: registers a clinic's signer key hash and poster address, and rotates keys
+  with history. Every change needs two of the three admins to send the same call.
+- `AuditAnchor`: only the clinic's poster can anchor; tree size must increase and `prevRoot` must
+  equal the last anchored root. Emits `Anchored(clinicId, treeSize, root, sthDigest, timestamp)`.
+- `ConsentRegistry`: optional append-only consent commitments, tested but not used yet.
+- Unit and fuzz tests (1024 runs, fixed seed), committed gas snapshot checked in CI, Slither in CI.
+- Deploy script for anvil (`make contracts-local`, uses anvil's unlocked accounts), Polygon Amoy
+  (`make contracts-amoy`) and any RPC (`make contracts-deploy NETWORK=...`). Addresses are written
+  to `contracts/deployments/<network>.json`.
+- New env vars: `AMOY_RPC_URL`, `CUSTOM_RPC_URL`, `DEPLOYER_PRIVATE_KEY`, `REGISTRY_ADMIN_1..3`.
+
 ### P3 - Ledger: canonical JSON, hash chain, Merkle, signed tree heads
 
 - `e2d_core.ledger`: RFC 8785 canonical JSON, the per-clinic hash chain from SPEC 6, RFC 6962

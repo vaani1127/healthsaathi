@@ -12,6 +12,8 @@ fs_permissions = [{ access = "read-write", path = "./deployments" }]
 
 [fuzz]
 runs = 1024
+# Fixed seed so the committed gas snapshot is reproducible.
+seed = "0x4853"
 
 [fmt]
 line_length = 100

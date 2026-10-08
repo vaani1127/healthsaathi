@@ -2,7 +2,7 @@ COMPOSE := docker compose -f infra/docker-compose.dev.yml
 UV := uv run
 PY_TYPED := packages/e2d-core/src apps/api
 
-.PHONY: help env install dev vectors dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
+.PHONY: help env install dev vectors contracts-local contracts-local-stop contracts-amoy 	contracts-deploy dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
 	test-sol migrate seed sim exp audit
 
 help:
@@ -65,6 +65,22 @@ test-js:
 
 test-sol:
 	cd contracts && forge test
+	cd contracts && forge snapshot --check
+
+# Start anvil (if needed) and deploy the contracts to it.
+contracts-local:
+	sh contracts/script/deploy-local.sh
+
+contracts-local-stop:
+	-kill $$(cat contracts/.anvil.pid) && rm -f contracts/.anvil.pid
+
+# Polygon Amoy. Needs AMOY_RPC_URL, DEPLOYER_PRIVATE_KEY and REGISTRY_ADMIN_1..3 in .env.
+contracts-amoy:
+	set -a && . ./.env && set +a && cd contracts && DEPLOY_NETWORK=amoy forge script 		script/Deploy.s.sol --rpc-url "$$AMOY_RPC_URL" --broadcast --private-key "$$DEPLOYER_PRIVATE_KEY"
+
+# Any other EVM chain (for example the Besu test network): make contracts-deploy NETWORK=besu
+contracts-deploy:
+	set -a && . ./.env && set +a && cd contracts && DEPLOY_NETWORK=$(NETWORK) forge script 		script/Deploy.s.sol --rpc-url "$$CUSTOM_RPC_URL" --broadcast --private-key "$$DEPLOYER_PRIVATE_KEY"
 
 # Regenerate the ledger test vectors shared by e2d-core and receipt-verify.
 vectors:
