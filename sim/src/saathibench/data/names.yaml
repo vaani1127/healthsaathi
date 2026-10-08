@@ -1,0 +1,144 @@
+# Common Indian given names and surnames, written for this project. They are combined at random,
+# so the full names in the output are synthetic and do not describe real people.
+female:
+  - Aarti
+  - Aditi
+  - Anita
+  - Anjali
+  - Asha
+  - Bhavna
+  - Deepa
+  - Divya
+  - Farida
+  - Gauri
+  - Geeta
+  - Harpreet
+  - Indu
+  - Jaya
+  - Jyoti
+  - Kavita
+  - Kiran
+  - Lakshmi
+  - Lata
+  - Manisha
+  - Meena
+  - Meera
+  - Neha
+  - Nisha
+  - Pooja
+  - Preeti
+  - Priya
+  - Radha
+  - Rekha
+  - Ritu
+  - Sakshi
+  - Sangeeta
+  - Sarita
+  - Shabnam
+  - Shalini
+  - Simran
+  - Sneha
+  - Sunita
+  - Swati
+  - Uma
+  - Usha
+  - Vandana
+male:
+  - Aakash
+  - Abdul
+  - Ajay
+  - Amit
+  - Anil
+  - Arjun
+  - Arun
+  - Ashok
+  - Deepak
+  - Dinesh
+  - Gaurav
+  - Gurpreet
+  - Harish
+  - Imran
+  - Jagdish
+  - Karan
+  - Kishore
+  - Mahesh
+  - Manoj
+  - Mohan
+  - Mukesh
+  - Naresh
+  - Nitin
+  - Pankaj
+  - Prakash
+  - Rahul
+  - Rajesh
+  - Rakesh
+  - Ramesh
+  - Ravi
+  - Rohit
+  - Sanjay
+  - Satish
+  - Sunil
+  - Suresh
+  - Tarun
+  - Varun
+  - Vijay
+  - Vikas
+  - Vinod
+  - Yusuf
+surnames:
+  - Agarwal
+  - Ahmed
+  - Bansal
+  - Bhatia
+  - Chauhan
+  - Chopra
+  - Das
+  - Dhillon
+  - Dubey
+  - Gill
+  - Goyal
+  - Gupta
+  - Iyer
+  - Jain
+  - Joshi
+  - Kapoor
+  - Khan
+  - Kaur
+  - Kumar
+  - Malhotra
+  - Mehta
+  - Mishra
+  - Nair
+  - Pandey
+  - Patel
+  - Rao
+  - Reddy
+  - Saini
+  - Sandhu
+  - Saxena
+  - Sethi
+  - Shah
+  - Sharma
+  - Singh
+  - Sinha
+  - Srivastava
+  - Thakur
+  - Tiwari
+  - Verma
+  - Yadav
+cities:
+  - [Patiala, Punjab]
+  - [Ludhiana, Punjab]
+  - [Ambala, Haryana]
+  - [Karnal, Haryana]
+  - [Meerut, Uttar Pradesh]
+  - [Kanpur, Uttar Pradesh]
+  - [Jaipur, Rajasthan]
+  - [Indore, Madhya Pradesh]
+  - [Nagpur, Maharashtra]
+  - [Nashik, Maharashtra]
+  - [Surat, Gujarat]
+  - [Mysuru, Karnataka]
+  - [Coimbatore, Tamil Nadu]
+  - [Kochi, Kerala]
+  - [Patna, Bihar]

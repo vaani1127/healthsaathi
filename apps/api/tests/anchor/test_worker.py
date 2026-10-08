@@ -1,12 +1,14 @@
 from datetime import timedelta
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app import worker
 from app.anchor import job
 from app.core.config import get_settings
 from app.core.db import TenantContext, tenant_session
+from app.db import models as m
 from app.ledger.checkpoint import build_checkpoint
 from app.ledger.writer import append_audit_event
 from tests.helpers import make_clinic
@@ -17,8 +19,20 @@ async def test_overdue_follows_the_latest_checkpoint(admin_engine: AsyncEngine) 
     async with tenant_session(TenantContext(clinic_id=clinic, role="system")) as db:
         await append_audit_event(db, clinic, "test", {"i": 0})
     await build_checkpoint(clinic)
-    assert await worker.anchor_is_overdue(timedelta(0)) is True
-    assert await worker.anchor_is_overdue(timedelta(days=1)) is False
+    # Other tests sign checkpoints with chosen times, so compare against the newest one there is.
+    async with AsyncSession(admin_engine) as s:
+        last = max(
+            t
+            for t in (
+                await s.scalar(select(func.max(m.MerkleCheckpoint.signed_at))),
+                await s.scalar(select(func.max(m.AnchorReceipt.submitted_at))),
+            )
+            if t is not None
+        )
+    hour = timedelta(hours=1)
+    assert await worker.anchor_is_overdue(hour, now=last + 2 * hour) is True
+    assert await worker.anchor_is_overdue(hour, now=last + hour) is True
+    assert await worker.anchor_is_overdue(hour, now=last + hour / 2) is False
 
 
 async def test_fallback_runs_only_when_enabled_and_overdue(

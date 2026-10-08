@@ -1,0 +1,30 @@
+# One general practitioner with a small team. Values are simulation design choices, not
+# measurements of real clinics.
+name: solo_gp
+staff: {doctor: 1, nurse: 1, reception: 1, lab_tech: 1, clinic_admin: 1}
+sessions:
+  weekday: [["09:00", "13:00"], ["17:00", "20:30"]]
+  saturday: [["09:00", "13:00"], ["17:00", "20:00"]]
+  sunday: [["09:30", "12:30"]]
+slot_minutes: 10
+visits_per_doctor_session: 17
+walkin_share: 0.28
+no_show_rate: 0.08
+cancel_rate: 0.04
+initial_patients: 1800
+new_patient_share: 0.18
+chronic_share: 0.22
+anc_share: 0.03
+portal_share: 0.12
+lab_order_rate: 0.18
+referral_rate: 0.0
+acute_followup_rate: 0.25
+health_camp_every_days: 60
+cover_days_per_month: 0
+staff_patient_share: 0.4
+hard_negatives:
+  after_hours_emergencies_per_month: 1.0
+  nurse_lab_followup_rate: 0.3
+  pharmacy_checks_per_day: 1.5
+  month_end_billing_share: 0.4
+  staff_self_view_per_month: 1.0

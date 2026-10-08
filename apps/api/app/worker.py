@@ -9,7 +9,7 @@ job's advisory lock keeps the two from overlapping.
 
 import asyncio
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, select, text
 
@@ -25,11 +25,12 @@ logger = logging.getLogger(__name__)
 CHECK_INTERVAL_SECONDS = 60
 
 
-async def anchor_is_overdue(after: timedelta) -> bool:
-    """True when neither a checkpoint nor an anchor attempt happened in the last `after`."""
+async def anchor_is_overdue(after: timedelta, now: datetime | None = None) -> bool:
+    """True when neither a checkpoint nor an anchor attempt happened in the `after` before `now`
+    (default: the database clock)."""
     ctx = TenantContext(role="system", db_role=job.JOB_ROLE)
     async with tenant_session(ctx) as db:
-        now = await db.scalar(text("SELECT clock_timestamp()"))
+        now = now or await db.scalar(text("SELECT clock_timestamp()"))
         last_receipt = await db.scalar(select(func.max(AnchorReceipt.submitted_at)))
         last_checkpoint = await db.scalar(select(func.max(MerkleCheckpoint.signed_at)))
     last = max((t for t in (last_receipt, last_checkpoint) if t is not None), default=None)

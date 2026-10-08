@@ -1,0 +1,30 @@
+# Three doctors sharing reception, nursing and a small lab.
+name: polyclinic
+staff: {doctor: 3, nurse: 2, reception: 2, lab_tech: 1, clinic_admin: 1}
+sessions:
+  weekday: [["09:00", "13:30"], ["17:00", "20:30"]]
+  saturday: [["09:00", "13:30"], ["17:00", "20:00"]]
+  sunday: [["09:30", "12:30"]]
+slot_minutes: 10
+visits_per_doctor_session: 15
+walkin_share: 0.24
+no_show_rate: 0.08
+cancel_rate: 0.05
+initial_patients: 4500
+new_patient_share: 0.16
+chronic_share: 0.24
+anc_share: 0.04
+portal_share: 0.15
+lab_order_rate: 0.22
+referral_rate: 0.03
+acute_followup_rate: 0.25
+health_camp_every_days: 45
+cover_days_per_month: 2
+cover_reassign_share: 0.6
+staff_patient_share: 0.4
+hard_negatives:
+  after_hours_emergencies_per_month: 2.0
+  nurse_lab_followup_rate: 0.3
+  pharmacy_checks_per_day: 3.0
+  month_end_billing_share: 0.45
+  staff_self_view_per_month: 1.0

@@ -1,0 +1,30 @@
+# Ten doctors, several nurses and receptionists, an in-house lab.
+name: nursing_home
+staff: {doctor: 10, nurse: 6, reception: 4, lab_tech: 3, clinic_admin: 2}
+sessions:
+  weekday: [["08:30", "13:30"], ["16:30", "20:30"]]
+  saturday: [["08:30", "13:30"], ["16:30", "20:00"]]
+  sunday: [["09:00", "13:00"]]
+slot_minutes: 12
+visits_per_doctor_session: 12
+walkin_share: 0.2
+no_show_rate: 0.09
+cancel_rate: 0.05
+initial_patients: 12000
+new_patient_share: 0.15
+chronic_share: 0.26
+anc_share: 0.05
+portal_share: 0.2
+lab_order_rate: 0.3
+referral_rate: 0.05
+acute_followup_rate: 0.3
+health_camp_every_days: 30
+cover_days_per_month: 4
+cover_reassign_share: 0.6
+staff_patient_share: 0.4
+hard_negatives:
+  after_hours_emergencies_per_month: 4.0
+  nurse_lab_followup_rate: 0.3
+  pharmacy_checks_per_day: 6.0
+  month_end_billing_share: 0.5
+  staff_self_view_per_month: 1.0

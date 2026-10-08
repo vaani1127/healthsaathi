@@ -1,0 +1,10 @@
+# A quick run for tests and for trying changes: three clinics, three weeks.
+name: saathibench-small
+seed: 7
+start_date: "2026-01-05"
+days: 21
+timezone: Asia/Kolkata
+clinics:
+  - {profile: solo_gp, count: 1}
+  - {profile: polyclinic, count: 1}
+  - {profile: nursing_home, count: 1}

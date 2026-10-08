@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### P12 - SaathiBench simulator (benign)
+
+- `sim/`: SimPy model of solo GP, polyclinic and nursing home clinics (`sim/profiles`), with
+  sessions, booked and walk-in visits, reception, nurse, doctor and billing queues, lab work,
+  referrals, follow-ups, health camps, cover days and patient portal use. Writes the product's
+  table shapes to Parquet and the run's settings and row counts to `manifest.json`.
+- Benign hard negatives: covering doctor, after-hours break-glass, nurse lab follow-up, pharmacy
+  check, month-end billing and staff viewing their own record, listed in
+  `labels/benign_scenarios`, kept apart from the tables.
+- Allow and deny decisions and `policy_version` come from the product's policy file.
+- `make sim CONFIG=...` and `make sim-coverage RUN=...` (explanation coverage per role and per
+  scenario from the shared e2d-core engine). `sim/DATA_CARD.md` draft.
+- e2d-core: the in-memory evidence repository now builds per-patient and per-user indexes once
+  and answers each query with binary searches, giving the same results as before (the shared
+  backend tests and a comparison on simulator output both check this).
+- The simulator is type-checked with mypy and its tests run in `make test`.
+
 ### P11 - Deployment
 
 - Prod-demo: `infra/docker-compose.prod.yml` (API, worker, Caddy with automatic HTTPS, one-shot

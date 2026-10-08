@@ -1,0 +1,10 @@
+# SaathiBench v1: 30 clinics x 180 days (SPEC 7).
+name: saathibench-v1
+seed: 20261008
+start_date: "2026-01-05"
+days: 180
+timezone: Asia/Kolkata
+clinics:
+  - {profile: solo_gp, count: 15}
+  - {profile: polyclinic, count: 10}
+  - {profile: nursing_home, count: 5}
