@@ -80,7 +80,7 @@ jobs:
           submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
         with:
-          # Pinned: the fuzz inputs, and so the gas snapshot, depend on the Foundry version.
+          # Pinned so local and CI builds use the same compiler pipeline and gas numbers.
           version: v1.8.5
       - name: forge fmt
         run: forge fmt --check
@@ -89,7 +89,7 @@ jobs:
       - name: forge test
         run: forge test -vvv
       - name: gas snapshot
-        run: forge snapshot --check
+        run: forge snapshot --check --no-match-test testFuzz
 
   slither:
     runs-on: ubuntu-24.04

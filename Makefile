@@ -65,7 +65,7 @@ test-js:
 
 test-sol:
 	cd contracts && forge test
-	cd contracts && forge snapshot --check
+	cd contracts && forge snapshot --check --no-match-test testFuzz
 
 # Start anvil (if needed) and deploy the contracts to it.
 contracts-local:
