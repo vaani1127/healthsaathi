@@ -1,0 +1,18 @@
+# API_DOMAIN comes from the VM .env, for example api.healthsaathi.example.org.
+# Caddy gets and renews the HTTPS certificate on its own.
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	reverse_proxy api:8000 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	header {
+		-Server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

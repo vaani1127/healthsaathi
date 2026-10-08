@@ -1,0 +1,76 @@
+name: nightly
+
+on:
+  schedule:
+    - cron: "30 20 * * *" # 02:00 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    env:
+      VM_HOST: ${{ secrets.VM_HOST }}
+      BACKUP_REPO: ${{ vars.BACKUP_REPO }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: set up SSH
+        if: env.VM_HOST != ''
+        env:
+          SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VM_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" >~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" >~/.ssh/known_hosts
+      - name: dump and encrypt
+        if: env.VM_HOST != ''
+        env:
+          VM_USER: ${{ secrets.VM_USER }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          test -n "$PASSPHRASE"
+          name="healthsaathi-$(date -u +%Y%m%d).dump.gpg"
+          # The dump is encrypted as it streams; the plain dump never touches the runner disk.
+          ssh "$VM_USER@$VM_HOST" "sh /opt/healthsaathi/backup.sh" |
+            gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase-fd 3 \
+              --output "$name" 3<<EOF
+          $PASSPHRASE
+          EOF
+          test -s "$name"
+          echo "BACKUP_FILE=$name" >>"$GITHUB_ENV"
+      - name: push to the private backup repository
+        if: env.VM_HOST != '' && env.BACKUP_REPO != ''
+        env:
+          TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          git clone --depth 1 "https://x-access-token:$TOKEN@github.com/$BACKUP_REPO.git" backups
+          mkdir -p backups/daily
+          mv "$BACKUP_FILE" backups/daily/
+          cd backups
+          # Keep the last 14 nightly dumps.
+          ls -1 daily | sort | head -n -14 | xargs -r -I{} git rm -q "daily/{}"
+          git add daily
+          git -c user.name="healthsaathi-backup" -c user.email="backup@users.noreply.github.com" \
+            commit -q -m "backup: $(date -u +%Y-%m-%d)"
+          git push -q
+
+  schema-drift:
+    runs-on: ubuntu-24.04
+    env:
+      MIGRATOR_DATABASE_URL: ${{ secrets.STAGING_MIGRATOR_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        if: env.MIGRATOR_DATABASE_URL != ''
+      - name: models match the staging database
+        if: env.MIGRATOR_DATABASE_URL != ''
+        working-directory: apps/api
+        env:
+          APP_ENV: staging
+        run: |
+          uv sync --frozen --no-dev --package healthsaathi-api --python 3.12
+          uv run --no-sync alembic check

@@ -1,0 +1,42 @@
+# Staging API on Render's free plan (SPEC 3). Deploys are triggered by .github/workflows/deploy.yml
+# after migrations run, so autoDeploy is off. Secret values are set in the Render dashboard.
+services:
+  - type: web
+    name: healthsaathi-api-staging
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./infra/api.Dockerfile
+    dockerContext: .
+    dockerCommand: >-
+      sh -c "uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers
+      --forwarded-allow-ips '*'"
+    autoDeploy: false
+    healthCheckPath: /api/v1/ready
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: DATABASE_URL
+        sync: false
+      - key: MIGRATOR_DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: DATA_KEYS
+        sync: false
+      - key: OTP_HMAC_KEY
+        sync: false
+      - key: LEDGER_SIGNING_SEED
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: PUBLIC_APP_URL
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: ANCHOR_TRIGGER_TOKEN
+        sync: false
+      - key: ANCHOR_FALLBACK_MINUTES
+        value: "0"

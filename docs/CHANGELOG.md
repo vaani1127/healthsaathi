@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### P11 - Deployment
+
+- Prod-demo: `infra/docker-compose.prod.yml` (API, worker, Caddy with automatic HTTPS, one-shot
+  migrate) and `infra/deploy/deploy.sh`, which migrates, switches to the new image, checks
+  `/ready` and goes back to the previous image if the new one is not healthy.
+- `.github/workflows/deploy.yml`: staging after CI passes on `main` (Neon migrations, Render deploy
+  hook, Cloudflare Pages preview) and prod-demo on `v*` tags that passed CI (image over SSH to the
+  VM, Pages production). Steps are skipped until their secrets are set.
+- `.github/workflows/nightly.yml`: encrypted `pg_dump` to the private backup repository (last 14
+  kept) and an `alembic check` schema drift check against staging. Nightly rescoring is added with
+  the detector in P14.
+- `render.yaml` for the staging API, `apps/web/public/_headers` for Cloudflare Pages.
+- The production image runs as a non-root user, calls the virtualenv directly and has a health
+  check. CI builds it, checks the compose file and runs shellcheck on the deploy scripts.
+- Alembic reads `MIGRATOR_DATABASE_URL` without needing the app secrets, and `alembic check`
+  ignores monthly partitions.
+- `docs/RUNBOOK.md`: database logins (the app login can only switch into `app_rw` and
+  `anchor_job`), deploy, rollback, secret rotation, anchoring, backup restore and free-tier checks.
+- New env vars: `API_DOMAIN`, `BACKUP_DATABASE_URL` (VM only).
+
 ### P10 - Anchoring, receipts and verification
 
 - Anchor job: signs a checkpoint for each clinic with new audit events, posts it to AuditAnchor,

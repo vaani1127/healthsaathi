@@ -1,4 +1,7 @@
 import asyncio
+import os
+import re
+from typing import Any
 
 from alembic import context
 from sqlalchemy.engine import Connection
@@ -12,8 +15,25 @@ config = context.config
 target_metadata = Base.metadata
 
 
+# Monthly partitions are created by create_month_partitions(), not by the models.
+PARTITION = re.compile(r"_(\d{6}|default)$")
+
+
+def include_object(
+    obj: Any, name: str | None, type_: str, reflected: bool, compare_to: Any
+) -> bool:
+    table = obj if type_ == "table" else getattr(obj, "table", None)
+    table_name = getattr(table, "name", None) or ""
+    return not (reflected and compare_to is None and PARTITION.search(table_name))
+
+
 def database_url() -> str:
-    url = config.attributes.get("database_url") or get_settings().migrator_database_url
+    # Read the variable directly first, so CI and deploy jobs can migrate without the app secrets.
+    url = (
+        config.attributes.get("database_url")
+        or os.environ.get("MIGRATOR_DATABASE_URL")
+        or get_settings().migrator_database_url
+    )
     return str(url)
 
 
@@ -24,7 +44,12 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        compare_type=True,
+        include_object=include_object,
+    )
     with context.begin_transaction():
         context.run_migrations()
 

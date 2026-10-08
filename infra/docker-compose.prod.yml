@@ -1,0 +1,65 @@
+# Prod-demo on one Azure VM (SPEC 3). The database is Azure PostgreSQL Flexible Server, so there is
+# no postgres service here. Deployed by infra/deploy/deploy.sh; settings come from /opt/healthsaathi/.env.
+name: healthsaathi
+
+x-api: &api
+  image: healthsaathi-api:${HS_TAG:?set HS_TAG}
+  env_file: /opt/healthsaathi/.env
+  environment:
+    APP_ENV: prod
+    # Only Caddy can reach the api container, so its forwarded client IP is trusted.
+    FORWARDED_ALLOW_IPS: "*"
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+services:
+  api:
+    <<: *api
+    expose:
+      - "8000"
+
+  worker:
+    <<: *api
+    command: ["python", "-m", "app.worker"]
+    healthcheck:
+      disable: true
+
+  # One-shot: deploy.sh runs it before starting the new api and worker.
+  migrate:
+    <<: *api
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    healthcheck:
+      disable: true
+    profiles: ["migrate"]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    # Only the domain; Caddy does not get the app's secrets. Compose reads it from the .env file
+    # next to this compose file.
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in /opt/healthsaathi/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  caddy_data:
+  caddy_config:

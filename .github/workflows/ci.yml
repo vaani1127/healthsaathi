@@ -152,6 +152,23 @@ jobs:
       - name: gas snapshot
         run: forge snapshot --check --no-match-test testFuzz
 
+  image:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: shellcheck
+        run: shellcheck infra/deploy/*.sh contracts/script/deploy-local.sh
+      - name: build the production API image
+        run: docker build -f infra/api.Dockerfile --target prod -t healthsaathi-api:ci .
+      - name: the image starts as a non-root user and loads the app
+        run: |
+          test "$(docker run --rm healthsaathi-api:ci whoami)" = app
+          docker run --rm healthsaathi-api:ci python -c "import app.worker, app.anchor.job"
+      - name: prod compose file is valid
+        run: |
+          sed 's#/opt/healthsaathi/.env#../.env.example#' infra/docker-compose.prod.yml >infra/check.yml
+          HS_TAG=ci API_DOMAIN=api.example.org docker compose -f infra/check.yml --profile migrate config --quiet
+
   slither:
     runs-on: ubuntu-24.04
     steps:
