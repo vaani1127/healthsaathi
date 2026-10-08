@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### P14 - Features, scorer and detector in the product
+
+- e2d-core features (SPEC 5.4): explanation strength, template one-hot and break-glass; forgery
+  flags; graph features (direct care link, care-graph distance, team overlap, staff or own record,
+  shared surname or address, days since last visit). One builder over table-shaped frames, used by
+  the simulator output and the product alike.
+- e2d-core detection (SPEC 5.5): gate, rules baseline, IsolationForest, ECOD and COPOD scorers,
+  per-clinic fitting with a global fallback, threshold calibration, daily top-B budget, model files
+  versioned by sha256.
+- Product: the worker scores each clinic's accesses every minute, raises at most ALERT_BUDGET
+  alerts per clinic and day, pushes `alerts.new` over WebSocket, and refits models daily.
+  `python -m app.detect.job [--fit]` runs either by hand.
+- API: `GET /alerts`, `GET /alerts/{id}` (recorded as an access, with the user's last 50 accesses
+  as pseudonymous timeline) and `POST /alerts/{id}/review` (audited; no self-review).
+- Web: Alerts tab for clinic admins with explanation, standout features, forgery signs, timeline
+  and review buttons, in English and Hindi.
+- Playwright flows 7 (break-glass and its review) and 8 (alert review).
+- Prod: the worker keeps fitted models on a volume.
+- New env vars: `MODEL_DIR`, `ALERT_BUDGET`, `DETECT_SCORER`, `DETECT_INTERVAL_SECONDS`.
+- ADR 0008 records the design.
+
 ### P13 - Attacks, mimicry, separability audit
 
 - Ten insider attack types (SPEC 7) as campaigns inside the simulation, each with a mimicry level

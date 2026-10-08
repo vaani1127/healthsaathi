@@ -182,6 +182,298 @@
         "title": "AdminChart",
         "type": "object"
       },
+      "AlertDetail": {
+        "properties": {
+          "access_event_id": {
+            "format": "uuid",
+            "title": "Access Event Id",
+            "type": "string"
+          },
+          "action": {
+            "$ref": "#/components/schemas/AccessAction"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "evidence": {
+            "additionalProperties": true,
+            "title": "Evidence",
+            "type": "object"
+          },
+          "features": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Features",
+            "type": "object"
+          },
+          "forgery_flags": {
+            "additionalProperties": true,
+            "title": "Forgery Flags",
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "patient_mrn": {
+            "title": "Patient Mrn",
+            "type": "string"
+          },
+          "patient_name": {
+            "title": "Patient Name",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "rank_in_day": {
+            "title": "Rank In Day",
+            "type": "integer"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/ResourceType"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewOut"
+            },
+            "title": "Reviews",
+            "type": "array"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "scorer": {
+            "title": "Scorer",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AlertStatus"
+          },
+          "strength": {
+            "title": "Strength",
+            "type": "number"
+          },
+          "template_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Code"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineEntry"
+            },
+            "title": "Timeline",
+            "type": "array"
+          },
+          "top_features": {
+            "items": {
+              "$ref": "#/components/schemas/TopFeature"
+            },
+            "title": "Top Features",
+            "type": "array"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          },
+          "user_name": {
+            "title": "User Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "access_event_id",
+          "day",
+          "score",
+          "rank_in_day",
+          "status",
+          "model_version",
+          "policy_version",
+          "scorer",
+          "created_at",
+          "at",
+          "user_id",
+          "user_name",
+          "role",
+          "resource",
+          "action",
+          "template_code",
+          "strength",
+          "top_features",
+          "patient_id",
+          "patient_name",
+          "patient_mrn",
+          "forgery_flags",
+          "evidence",
+          "features",
+          "timeline",
+          "reviews"
+        ],
+        "title": "AlertDetail",
+        "type": "object"
+      },
+      "AlertOut": {
+        "properties": {
+          "access_event_id": {
+            "format": "uuid",
+            "title": "Access Event Id",
+            "type": "string"
+          },
+          "action": {
+            "$ref": "#/components/schemas/AccessAction"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "rank_in_day": {
+            "title": "Rank In Day",
+            "type": "integer"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/ResourceType"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "scorer": {
+            "title": "Scorer",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AlertStatus"
+          },
+          "strength": {
+            "title": "Strength",
+            "type": "number"
+          },
+          "template_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Code"
+          },
+          "top_features": {
+            "items": {
+              "$ref": "#/components/schemas/TopFeature"
+            },
+            "title": "Top Features",
+            "type": "array"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          },
+          "user_name": {
+            "title": "User Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "access_event_id",
+          "day",
+          "score",
+          "rank_in_day",
+          "status",
+          "model_version",
+          "policy_version",
+          "scorer",
+          "created_at",
+          "at",
+          "user_id",
+          "user_name",
+          "role",
+          "resource",
+          "action",
+          "template_code",
+          "strength",
+          "top_features"
+        ],
+        "title": "AlertOut",
+        "type": "object"
+      },
+      "AlertStatus": {
+        "enum": [
+          "open",
+          "benign",
+          "misuse",
+          "unsure"
+        ],
+        "title": "AlertStatus",
+        "type": "string"
+      },
       "AllergyIn": {
         "properties": {
           "reaction": {
@@ -3748,6 +4040,66 @@
         "title": "ResourceType",
         "type": "string"
       },
+      "ReviewIn": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/ReviewOutcome"
+          }
+        },
+        "required": [
+          "outcome"
+        ],
+        "title": "ReviewIn",
+        "type": "object"
+      },
+      "ReviewOut": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/ReviewOutcome"
+          },
+          "reviewer_user_id": {
+            "format": "uuid",
+            "title": "Reviewer User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reviewer_user_id",
+          "outcome",
+          "note",
+          "at"
+        ],
+        "title": "ReviewOut",
+        "type": "object"
+      },
       "ReviewOutcome": {
         "enum": [
           "benign",
@@ -4184,6 +4536,71 @@
         "title": "StaffMemberOut",
         "type": "object"
       },
+      "TimelineEntry": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/AccessAction"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "decision": {
+            "title": "Decision",
+            "type": "string"
+          },
+          "is_this_alert": {
+            "title": "Is This Alert",
+            "type": "boolean"
+          },
+          "patient_ref": {
+            "title": "Patient Ref",
+            "type": "string"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/ResourceType"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "strength": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strength"
+          },
+          "template_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Code"
+          }
+        },
+        "required": [
+          "at",
+          "role",
+          "resource",
+          "action",
+          "decision",
+          "template_code",
+          "strength",
+          "patient_ref",
+          "is_this_alert"
+        ],
+        "title": "TimelineEntry",
+        "type": "object"
+      },
       "TokenCreate": {
         "properties": {
           "appointment_id": {
@@ -4330,6 +4747,29 @@
           }
         },
         "title": "TokenUpdate",
+        "type": "object"
+      },
+      "TopFeature": {
+        "properties": {
+          "feature": {
+            "title": "Feature",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          },
+          "z": {
+            "title": "Z",
+            "type": "number"
+          }
+        },
+        "required": [
+          "feature",
+          "value",
+          "z"
+        ],
+        "title": "TopFeature",
         "type": "object"
       },
       "TotpActivateRequest": {
@@ -4987,6 +5427,187 @@
         "summary": "Update Query",
         "tags": [
           "portal"
+        ]
+      }
+    },
+    "/api/v1/alerts": {
+      "get": {
+        "operationId": "list_alerts_api_v1_alerts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "day",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Day"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AlertStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlertOut"
+                  },
+                  "title": "Response List Alerts Api V1 Alerts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Alerts",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/v1/alerts/{alert_id}": {
+      "get": {
+        "operationId": "alert_detail_api_v1_alerts__alert_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Alert Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Alert Detail",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/v1/alerts/{alert_id}/review": {
+      "post": {
+        "operationId": "review_alert_api_v1_alerts__alert_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Alert Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Review Alert",
+        "tags": [
+          "alerts"
         ]
       }
     },

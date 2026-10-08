@@ -22,6 +22,7 @@ from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
 from app.core.ratelimit import limiter
 from app.core.security_headers import SecurityHeadersMiddleware
+from app.detect.router import router as detect_router
 from app.identity.router import router as auth_router
 from app.identity.router import staff_router
 from app.portal.router import router as portal_router
@@ -85,6 +86,7 @@ def create_app() -> FastAPI:
     app.include_router(portal_router, prefix=API_PREFIX)
     app.include_router(realtime_router, prefix=API_PREFIX)
     app.include_router(anchor_router, prefix=API_PREFIX)
+    app.include_router(detect_router, prefix=API_PREFIX)
     return app
 
 

@@ -61,7 +61,7 @@ mypy_path = ["packages/e2d-core/src", "apps/api", "sim/src"]
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["asyncpg.*", "opentimestamps.*", "sklearn.*"]
+module = ["asyncpg.*", "opentimestamps.*", "sklearn.*", "pyod.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

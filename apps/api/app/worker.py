@@ -1,15 +1,17 @@
 """Background worker process (SPEC 3).
 
-For now it runs the anchor fallback timer: the GitHub Actions schedule is the main trigger for the
-anchor job, and if it has not run for ANCHOR_FALLBACK_MINUTES the worker runs the job itself. The
-job's advisory lock keeps the two from overlapping.
+- Detection: every DETECT_INTERVAL_SECONDS it scores the day's accesses of each clinic and
+  raises alerts; once a day it fits the models on the last 30 days.
+- Anchor fallback: the GitHub Actions schedule is the main trigger for the anchor job; if it has
+  not run for ANCHOR_FALLBACK_MINUTES the worker runs the job itself. The job's advisory lock
+  keeps the two from overlapping.
 
     uv run python -m app.worker
 """
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select, text
 
@@ -18,11 +20,14 @@ from app.core.config import get_settings
 from app.core.db import TenantContext, get_engine, tenant_session
 from app.core.logging import configure_logging
 from app.db.models import AnchorReceipt, MerkleCheckpoint
+from app.detect import service as detect
 from app.startup import maintenance_loop, run_startup_tasks
 
 logger = logging.getLogger(__name__)
 
 CHECK_INTERVAL_SECONDS = 60
+FIT_EVERY = timedelta(hours=24)
+FIT_MARKER = "last_fit.txt"
 
 
 async def anchor_is_overdue(after: timedelta, now: datetime | None = None) -> bool:
@@ -59,11 +64,41 @@ async def anchor_fallback_loop() -> None:
         await asyncio.sleep(CHECK_INTERVAL_SECONDS)
 
 
+def fit_is_due(store: detect.ModelStore, now: datetime) -> bool:
+    marker = store.root / FIT_MARKER
+    if not marker.exists():
+        return True
+    last = datetime.fromisoformat(marker.read_text(encoding="utf-8").strip())
+    return now - last >= FIT_EVERY
+
+
+async def detect_tick(now: datetime | None = None) -> dict[str, int]:
+    store = detect.model_store()
+    now = now or datetime.now(UTC)
+    if fit_is_due(store, now):
+        await detect.fit_models(now, store=store)
+        store.root.mkdir(parents=True, exist_ok=True)
+        (store.root / FIT_MARKER).write_text(now.isoformat(), encoding="utf-8")
+    return await detect.score_all()
+
+
+async def detect_loop() -> None:
+    interval = get_settings().detect_interval_seconds
+    if interval == 0:
+        return
+    while True:
+        try:
+            await detect_tick()
+        except Exception:
+            logger.exception("detection failed")
+        await asyncio.sleep(interval)
+
+
 async def main() -> None:
     configure_logging()
     await run_startup_tasks()
     try:
-        await asyncio.gather(maintenance_loop(), anchor_fallback_loop())
+        await asyncio.gather(maintenance_loop(), anchor_fallback_loop(), detect_loop())
     finally:
         await get_engine().dispose()
 

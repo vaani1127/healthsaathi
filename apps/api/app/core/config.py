@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     cookie_secure: bool = Field(default=True, alias="COOKIE_SECURE")
     rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
 
+    # Detection (SPEC 5.5). Fitted models are files here; their sha256 is the model_version.
+    model_dir: str | None = Field(default=None, alias="MODEL_DIR")
+    alert_budget: int = Field(default=5, ge=1, alias="ALERT_BUDGET")
+    detect_scorer: Literal["iforest", "ecod", "copod"] = Field(
+        default="iforest", alias="DETECT_SCORER"
+    )
+    detect_interval_seconds: int = Field(default=60, ge=0, alias="DETECT_INTERVAL_SECONDS")
+
     # Files (lab reports). Local folder unless an Azure container SAS URL is set.
     storage_dir: str | None = Field(default=None, alias="STORAGE_DIR")
     azure_blob_container_sas_url: SecretStr | None = Field(
@@ -89,6 +97,7 @@ class Settings(BaseSettings):
         "storage_dir",
         "azure_blob_container_sas_url",
         "email_outbox_dir",
+        "model_dir",
         "anchor_rpc_url",
         "audit_anchor_address",
         "clinic_registry_address",

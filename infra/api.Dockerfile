@@ -20,7 +20,7 @@ WORKDIR /repo/apps/api
 FROM base AS prod
 RUN uv sync --frozen --no-dev --package healthsaathi-api
 COPY apps/api apps/api
-RUN useradd --system --uid 10001 app
+RUN useradd --system --uid 10001 app   && mkdir -p /var/lib/healthsaathi/models   && chown app /var/lib/healthsaathi/models
 ENV PATH="/repo/.venv/bin:$PATH"
 USER app
 WORKDIR /repo/apps/api

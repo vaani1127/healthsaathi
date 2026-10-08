@@ -140,6 +140,16 @@ takes up to a minute.
   longer matches what was anchored. Stop and investigate; do not try to re-anchor.
 - Keep the poster wallet funded with test POL from the faucets.
 
+## Detection
+
+- The worker scores every clinic's accesses each `DETECT_INTERVAL_SECONDS` and refits models
+  once a day (models in the `models` volume, `MODEL_DIR`). Before the first fit, and for clinics
+  with few accesses, the rules baseline or the global model is used.
+- Run by hand on the VM:
+  `docker compose -f /opt/healthsaathi/docker-compose.prod.yml exec worker python -m app.detect.job`
+  (add `--fit` to refit now).
+- Every alert stores `model_version` (sha256 of the model file) and `policy_version`.
+
 ## Backups and restore
 
 `nightly.yml` runs `infra/deploy/backup.sh` on the VM over SSH, encrypts the dump with

@@ -72,6 +72,57 @@ export interface paths {
         patch: operations["update_query_api_v1_access_queries__query_id__patch"];
         trace?: never;
     };
+    "/api/v1/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Alerts */
+        get: operations["list_alerts_api_v1_alerts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/alerts/{alert_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Alert Detail */
+        get: operations["alert_detail_api_v1_alerts__alert_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/alerts/{alert_id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review Alert */
+        post: operations["review_alert_api_v1_alerts__alert_id__review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/allergies/{allergy_id}": {
         parameters: {
             query?: never;
@@ -1635,6 +1686,146 @@ export interface components {
              */
             view: "admin";
         };
+        /** AlertDetail */
+        AlertDetail: {
+            /**
+             * Access Event Id
+             * Format: uuid
+             */
+            access_event_id: string;
+            action: components["schemas"]["AccessAction"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Evidence */
+            evidence: {
+                [key: string]: unknown;
+            };
+            /** Features */
+            features: {
+                [key: string]: number;
+            };
+            /** Forgery Flags */
+            forgery_flags: {
+                [key: string]: unknown;
+            };
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Model Version */
+            model_version: string;
+            /**
+             * Patient Id
+             * Format: uuid
+             */
+            patient_id: string;
+            /** Patient Mrn */
+            patient_mrn: string;
+            /** Patient Name */
+            patient_name: string;
+            /** Policy Version */
+            policy_version: string;
+            /** Rank In Day */
+            rank_in_day: number;
+            resource: components["schemas"]["ResourceType"];
+            /** Reviews */
+            reviews: components["schemas"]["ReviewOut"][];
+            role: components["schemas"]["Role"];
+            /** Score */
+            score: number;
+            /** Scorer */
+            scorer: string;
+            status: components["schemas"]["AlertStatus"];
+            /** Strength */
+            strength: number;
+            /** Template Code */
+            template_code: string | null;
+            /** Timeline */
+            timeline: components["schemas"]["TimelineEntry"][];
+            /** Top Features */
+            top_features: components["schemas"]["TopFeature"][];
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** User Name */
+            user_name: string;
+        };
+        /** AlertOut */
+        AlertOut: {
+            /**
+             * Access Event Id
+             * Format: uuid
+             */
+            access_event_id: string;
+            action: components["schemas"]["AccessAction"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Model Version */
+            model_version: string;
+            /** Policy Version */
+            policy_version: string;
+            /** Rank In Day */
+            rank_in_day: number;
+            resource: components["schemas"]["ResourceType"];
+            role: components["schemas"]["Role"];
+            /** Score */
+            score: number;
+            /** Scorer */
+            scorer: string;
+            status: components["schemas"]["AlertStatus"];
+            /** Strength */
+            strength: number;
+            /** Template Code */
+            template_code: string | null;
+            /** Top Features */
+            top_features: components["schemas"]["TopFeature"][];
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** User Name */
+            user_name: string;
+        };
+        /**
+         * AlertStatus
+         * @enum {string}
+         */
+        AlertStatus: "open" | "benign" | "misuse" | "unsure";
         /** AllergyIn */
         AllergyIn: {
             /** Reaction */
@@ -3018,6 +3209,28 @@ export interface components {
          * @enum {string}
          */
         ResourceType: "demographics" | "vitals" | "allergies" | "notes" | "prescriptions" | "lab" | "billing" | "documents" | "consent";
+        /** ReviewIn */
+        ReviewIn: {
+            /** Note */
+            note?: string | null;
+            outcome: components["schemas"]["ReviewOutcome"];
+        };
+        /** ReviewOut */
+        ReviewOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Note */
+            note: string | null;
+            outcome: components["schemas"]["ReviewOutcome"];
+            /**
+             * Reviewer User Id
+             * Format: uuid
+             */
+            reviewer_user_id: string;
+        };
         /**
          * ReviewOutcome
          * @enum {string}
@@ -3238,6 +3451,27 @@ export interface components {
              */
             user_id: string;
         };
+        /** TimelineEntry */
+        TimelineEntry: {
+            action: components["schemas"]["AccessAction"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Decision */
+            decision: string;
+            /** Is This Alert */
+            is_this_alert: boolean;
+            /** Patient Ref */
+            patient_ref: string;
+            resource: components["schemas"]["ResourceType"];
+            role: components["schemas"]["Role"];
+            /** Strength */
+            strength: number | null;
+            /** Template Code */
+            template_code: string | null;
+        };
         /** TokenCreate */
         TokenCreate: {
             /**
@@ -3303,6 +3537,15 @@ export interface components {
              * @default false
              */
             unassign_nurse?: boolean;
+        };
+        /** TopFeature */
+        TopFeature: {
+            /** Feature */
+            feature: string;
+            /** Value */
+            value: number;
+            /** Z */
+            z: number;
         };
         /** TotpActivateRequest */
         TotpActivateRequest: {
@@ -3552,6 +3795,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QueryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_alerts_api_v1_alerts_get: {
+        parameters: {
+            query?: {
+                day?: string | null;
+                status?: components["schemas"]["AlertStatus"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    alert_detail_api_v1_alerts__alert_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                alert_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_alert_api_v1_alerts__alert_id__review_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                alert_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertDetail"];
                 };
             };
             /** @description Validation Error */

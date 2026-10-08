@@ -25,6 +25,12 @@ services:
   worker:
     <<: *api
     command: ["python", "-m", "app.worker"]
+    environment:
+      APP_ENV: prod
+      # Fitted detection models live on a volume so they survive deploys.
+      MODEL_DIR: /var/lib/healthsaathi/models
+    volumes:
+      - models:/var/lib/healthsaathi/models
     healthcheck:
       disable: true
 
@@ -63,3 +69,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  models:

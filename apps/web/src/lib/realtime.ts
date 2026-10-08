@@ -9,6 +9,7 @@ const QUERY_KEYS: Record<string, string[][]> = {
   "appointments.changed": [["appointments"], ["queue"]],
   "lab.changed": [["worklist"], ["chart"]],
   "break_glass.created": [["break-glass"]],
+  "alerts.new": [["alerts"]],
 };
 
 /** Keeps lists fresh: the server says what changed, and the matching queries are refetched. */

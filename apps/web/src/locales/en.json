@@ -441,7 +441,8 @@
       "breakGlass": "Emergency access",
       "reports": "Patient reports",
       "revenue": "Revenue",
-      "audit": "Audit log"
+      "audit": "Audit log",
+      "alerts": "Alerts"
     },
     "staff": "Staff",
     "invite": "Invite staff",
@@ -501,6 +502,41 @@
         "confirmed": "Confirmed",
         "failed": "Failed"
       }
+    },
+    "alerts": {
+      "title": "Alerts to review",
+      "explain": "Accesses the clinic workflow does not explain well, ranked by how unusual they are. At most a few a day. An alert is a question, not a finding.",
+      "empty": "No alerts for this day.",
+      "score": "Score",
+      "rank": "#{{rank}}",
+      "why": "Explanation",
+      "unexplained": "No workflow reason found",
+      "strength": "strength {{value}}",
+      "topFeatures": "What stands out",
+      "flags": "Signs of made-up evidence",
+      "noFlags": "None",
+      "timeline": "This user's last accesses",
+      "thisAccess": "this alert",
+      "patient": "Patient",
+      "open": "Open",
+      "close": "Close",
+      "note": "Note (optional)",
+      "markAs": "Mark as",
+      "reviewed": "Reviewed: {{outcome}}",
+      "scorer": "Scored by {{scorer}}",
+      "status": {
+        "open": "Open",
+        "benign": "Justified",
+        "misuse": "Misuse",
+        "unsure": "Not sure"
+      },
+      "action": {
+        "view": "opened",
+        "create": "added",
+        "edit": "changed",
+        "export": "exported",
+        "print": "printed"
+      }
     }
   },
   "verify": {
@@ -528,5 +564,38 @@
     "notReady": "This access is not in a signed log yet. Try again in a few minutes.",
     "viewTx": "View on the chain explorer",
     "download": "Download receipt"
+  },
+  "features": {
+    "accesses_1h": "Records opened in the last hour",
+    "accesses_24h": "Records opened in the last day",
+    "accesses_7d": "Records opened in the last week",
+    "patients_1h": "Different patients in the last hour",
+    "patients_24h": "Different patients in the last day",
+    "patients_7d": "Different patients in the last week",
+    "exports_1h": "Exports or prints in the last hour",
+    "exports_24h": "Exports or prints in the last day",
+    "exports_7d": "Exports or prints in the last week",
+    "off_shift": "Outside the user's shift",
+    "new_device": "New device",
+    "session_age_min": "Minutes since sign in",
+    "sigma": "Explanation strength",
+    "tpl_none": "No explanation",
+    "break_glass": "Emergency access",
+    "flag_self_created_recent": "User created the evidence just before",
+    "flag_no_progress": "No care followed",
+    "flag_off_path_creation": "Evidence created outside the usual path",
+    "flag_created_off_hours": "Evidence created after hours",
+    "flag_cancelled_after_access": "Evidence cancelled after the access",
+    "flag_self_creation_high": "User creates a lot of evidence",
+    "flags_any": "Any sign of made-up evidence",
+    "flags_count": "Signs of made-up evidence",
+    "care_direct": "User cares for this patient",
+    "path_len": "Distance in the care network",
+    "team_jaccard": "Overlap with the patient's care team",
+    "is_staff_patient": "Patient is a staff member",
+    "is_self": "User's own record",
+    "shares_surname": "Same surname as the user",
+    "shares_address": "Same address as the user",
+    "days_since_last_visit": "Days since the patient's last visit"
   }
 }

@@ -5,16 +5,17 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, Badge, Field, Input, Select, Textarea } from "@/components/ui/form";
+import { Alerts } from "@/features/admin/Alerts";
 import { api, call, type Role, type Schemas } from "@/lib/api/client";
 import { errorMessage, formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const TABS = ["staff", "schedules", "services", "consent", "breakGlass", "reports", "revenue", "audit"] as const;
+const TABS = ["alerts", "staff", "schedules", "services", "consent", "breakGlass", "reports", "revenue", "audit"] as const;
 type Tab = (typeof TABS)[number];
 
 export function AdminHome() {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<Tab>("staff");
+  const [tab, setTab] = useState<Tab>("alerts");
   return (
     <div className="flex flex-col gap-4">
       <nav className="flex gap-1 overflow-x-auto border-b" role="tablist">
@@ -33,6 +34,7 @@ export function AdminHome() {
           </button>
         ))}
       </nav>
+      {tab === "alerts" && <Alerts />}
       {tab === "staff" && <Staff />}
       {tab === "schedules" && <Schedules />}
       {tab === "services" && <Services />}
