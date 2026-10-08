@@ -67,6 +67,17 @@ class ClinicSpec:
 
 
 @dataclass(frozen=True)
+class AttackConfig:
+    """Insider attack campaigns (SPEC 7). Types are numbered 1 to 10 as in the SPEC."""
+
+    campaigns_per_clinic_month: float = 0.0
+    first_day: int = 14
+    types: tuple[int, ...] = tuple(range(1, 11))
+    # None draws mimicry uniformly from [0, 1]; a tuple draws from those values.
+    mimicry: tuple[float, ...] | None = None
+
+
+@dataclass(frozen=True)
 class RunConfig:
     name: str
     seed: int
@@ -74,6 +85,7 @@ class RunConfig:
     days: int
     timezone: str
     clinics: tuple[ClinicSpec, ...]
+    attacks: AttackConfig = field(default_factory=AttackConfig)
 
 
 def _sessions(items: list[list[str]]) -> tuple[Session, ...]:
@@ -134,4 +146,21 @@ def load_config(path: Path, profiles_dir: Path | None = None) -> RunConfig:
         days=int(data["days"]),
         timezone=str(data.get("timezone", "Asia/Kolkata")),
         clinics=tuple(clinics),
+        attacks=parse_attacks(data.get("attacks") or {}),
+    )
+
+
+def parse_attacks(data: dict[str, Any]) -> AttackConfig:
+    types = tuple(int(t) for t in data.get("types", range(1, 11)))
+    if not types or not set(types) <= set(range(1, 11)):
+        raise ValueError("attack types must be between 1 and 10")
+    mimicry = data.get("mimicry", "uniform")
+    levels = None if mimicry == "uniform" else tuple(float(m) for m in mimicry)
+    if levels is not None and not all(0.0 <= m <= 1.0 for m in levels):
+        raise ValueError("mimicry levels must be in [0, 1]")
+    return AttackConfig(
+        campaigns_per_clinic_month=float(data.get("campaigns_per_clinic_month", 0.0)),
+        first_day=int(data.get("first_day", 14)),
+        types=types,
+        mimicry=levels,
     )

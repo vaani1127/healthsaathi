@@ -20,6 +20,7 @@ from zoneinfo import ZoneInfo
 import simpy
 import yaml
 
+from saathibench.attacks import AttackTag, plan_campaigns
 from saathibench.config import ClinicSpec, RunConfig, Session
 from saathibench.ids import Ids
 from saathibench.policy import Policy
@@ -49,6 +50,11 @@ DRUGS = (
     "Amoxicillin 500 mg",
 )
 TESTS = ("CBC", "Blood sugar fasting", "HbA1c", "Lipid profile", "Urine routine", "Hb")
+# Share of staff with one to three relatives registered as patients of their own clinic.
+RELATIVE_SHARE = 0.5
+WARDS = 40
+# Per staff member, how many minute-of-day samples are kept to describe their usual hours.
+HOUR_SAMPLES = 400
 AGE_BANDS = ((0, 14, 0.24), (15, 29, 0.27), (30, 44, 0.21), (45, 59, 0.16), (60, 85, 0.12))
 ACTIVE_ROLES = ("doctor", "nurse", "reception", "lab_tech")
 
@@ -60,6 +66,9 @@ class Staff:
     name: str
     desk_device: str
     phone_device: str | None = None
+    surname: str = ""
+    home: str = ""
+    ward: int = 0
 
 
 @dataclass
@@ -78,6 +87,8 @@ class Patient:
     last_rx_at: datetime | None = None
     care_team: set[str] = field(default_factory=set)
     busy_days: set[date] = field(default_factory=set)
+    surname: str = ""
+    ward: int = 0
 
 
 @dataclass
@@ -120,7 +131,7 @@ class ClinicSim:
         self.staff: dict[str, list[Staff]] = defaultdict(list)
         self.patients: list[Patient] = []
         self.by_user: dict[str, Patient] = {}
-        self.sessions: dict[tuple[str, date], tuple[str, str]] = {}
+        self.sessions: dict[tuple[str, date, str], str] = {}
         self.home_ip: dict[str, str] = {}
         self.future: dict[tuple[date, str], list[tuple[Row, Patient]]] = defaultdict(list)
         self.tokens: dict[date, int] = defaultdict(int)
@@ -129,6 +140,12 @@ class ClinicSim:
         self.notice_id = self.ids.new(self.epoch - timedelta(days=700))
         self.services: list[tuple[str, int]] = []
         self.patient_devices: dict[str, str] = {}
+        self.relatives: dict[str, list[Patient]] = defaultdict(list)
+        # History the attack planner uses: who treated whom, signed notes, usual hours and volume.
+        self.treated: dict[str, list[tuple[Patient, datetime]]] = defaultdict(list)
+        self.notes: dict[str, list[tuple[str, str, str, datetime]]] = defaultdict(list)
+        self.hours: dict[str, list[float]] = defaultdict(list)
+        self.daily: dict[tuple[str, date], int] = defaultdict(int)
         self.staff_patients: list[Patient] = []
         self.env = simpy.Environment()
 
@@ -158,10 +175,10 @@ class ClinicSim:
     # Access events --------------------------------------------------------------------------
 
     def _session(self, user_id: str, device_id: str, at: datetime) -> str:
-        day = at.astimezone(self.tz).date()
-        found = self.sessions.get((user_id, day))
-        if found is not None and found[1] == device_id:
-            return found[0]
+        key = (user_id, at.astimezone(self.tz).date(), device_id)
+        found = self.sessions.get(key)
+        if found is not None:
+            return found
         started = at - timedelta(minutes=self.rng.uniform(1, 20))
         session_id = self.ids.new(started)
         self.rec.add(
@@ -176,7 +193,7 @@ class ClinicSim:
                 "created_at": started,
             },
         )
-        self.sessions[(user_id, day)] = (session_id, device_id)
+        self.sessions[key] = session_id
         return session_id
 
     def access(
@@ -192,9 +209,19 @@ class ClinicSim:
         ip_hash: str | None = None,
         break_glass_id: str | None = None,
         scenario: str | None = None,
+        attack: AttackTag | None = None,
     ) -> str:
         allowed = self.policy.allows(role, resource, action, break_glass_id is not None)
         event_id = self.ids.new(at)
+        if role != "patient" and attack is None:
+            local = at.astimezone(self.tz)
+            samples = self.hours[user_id]
+            minute = local.hour * 60 + local.minute
+            if len(samples) < HOUR_SAMPLES:
+                samples.append(minute)
+            else:
+                samples[self.rng.randrange(HOUR_SAMPLES)] = minute
+            self.daily[(user_id, local.date())] += 1
         self.rec.add(
             "access_events",
             {
@@ -217,6 +244,16 @@ class ClinicSim:
         )
         if scenario is not None:
             self.rec.add("benign_scenarios", {"access_event_id": event_id, "scenario": scenario})
+        self.rec.add(
+            "access_labels",
+            {
+                "access_event_id": event_id,
+                "is_attack": attack is not None,
+                "attack_type": attack.attack_type if attack else None,
+                "campaign_id": attack.campaign_id if attack else None,
+                "mimicry": attack.mimicry if attack else None,
+            },
+        )
         return event_id
 
     def staff_access(
@@ -230,13 +267,16 @@ class ClinicSim:
         phone: bool = False,
         ip_hash: str | None = None,
         break_glass_id: str | None = None,
+        attack: AttackTag | None = None,
+        device: str | None = None,
+        gap: tuple[float, float] = (4, 40),
     ) -> datetime:
         """A run of accesses a few seconds apart. Returns the time after the last one."""
-        device = who.phone_device if phone and who.phone_device else who.desk_device
+        device = device or (who.phone_device if phone and who.phone_device else who.desk_device)
         if who.user_id == patient.user_id and scenario is None:
             scenario = "staff_self_view"
         for resource, action in items:
-            at += timedelta(seconds=self.rng.uniform(4, 40))
+            at += timedelta(seconds=self.rng.uniform(*gap))
             self.access(
                 who.user_id,
                 who.role,
@@ -248,6 +288,7 @@ class ClinicSim:
                 ip_hash=ip_hash,
                 break_glass_id=break_glass_id,
                 scenario=scenario,
+                attack=attack,
             )
         return at
 
@@ -312,7 +353,11 @@ class ClinicSim:
         for role, count in self.p.staff.items():
             for i in range(count):
                 sex = self.rng.choice("FM")
-                name = self._name(sex)
+                surname = self.rng.choice(NAMES["surnames"])
+                given = self.rng.choice(NAMES["female" if sex == "F" else "male"])
+                name = f"{given} {surname}"
+                ward = self.rng.randint(1, WARDS)
+                home = f"{self.rng.randint(1, 400)}, Ward {ward}"
                 joined = founded + timedelta(days=self.rng.randint(0, 300))
                 email = f"{role}{i + 1}.{self.key}@saathibench.test"
                 user_id = self._user(("Dr. " if role == "doctor" else "") + name, email, joined)
@@ -328,7 +373,16 @@ class ClinicSim:
                     },
                 )
                 phone = self._device(user_id, "phone", joined) if role == "doctor" else None
-                member = Staff(user_id, role, name, self._device(user_id, "desk", joined), phone)
+                member = Staff(
+                    user_id,
+                    role,
+                    name,
+                    self._device(user_id, "desk", joined),
+                    phone,
+                    surname=surname,
+                    home=home,
+                    ward=ward,
+                )
                 self.staff[role].append(member)
                 if role == "doctor":
                     self.rec.add(
@@ -386,15 +440,29 @@ class ClinicSim:
         return self.rng.choice(self.staff["clinic_admin"] or self.staff["reception"])
 
     def _staff_as_patients(self) -> None:
+        """Some staff are patients of their own clinic, and some have relatives who are (same
+        surname and address). Both are ordinary patients in the workflow."""
+        clerk = self.staff["reception"][0]
         for role in ACTIVE_ROLES:
             for member in self.staff[role]:
                 if self.rng.random() < self.p.staff_patient_share:
                     registered = self.epoch - timedelta(days=self.rng.uniform(30, 300))
                     patient = self.new_patient(
-                        registered, self.staff["reception"][0], user_id=member.user_id
+                        registered,
+                        clerk,
+                        user_id=member.user_id,
+                        surname=member.surname,
+                        address=member.home,
                     )
                     patient.staff_user = True
                     self.staff_patients.append(patient)
+                if self.rng.random() < RELATIVE_SHARE:
+                    for _ in range(self.rng.randint(1, 3)):
+                        registered = self.epoch - timedelta(days=self.rng.uniform(5, 700))
+                        relative = self.new_patient(
+                            registered, clerk, surname=member.surname, address=member.home
+                        )
+                        self.relatives[member.user_id].append(relative)
 
     def new_patient(
         self,
@@ -403,8 +471,13 @@ class ClinicSim:
         *,
         walk_in_day: date | None = None,
         user_id: str | None = None,
+        surname: str | None = None,
+        address: str | None = None,
     ) -> Patient:
         sex = self.rng.choice("FM")
+        surname = surname or self.rng.choice(NAMES["surnames"])
+        if address is None:
+            address = f"{self.rng.randint(1, 400)}, Ward {self.rng.randint(1, WARDS)}"
         low, high, _ = self.rng.choices(AGE_BANDS, weights=[b[2] for b in AGE_BANDS])[0]
         age = self.rng.randint(low, high)
         roll = self.rng.random()
@@ -416,7 +489,15 @@ class ClinicSim:
             kind = "acute"
         if user_id is None and self.rng.random() < self.p.portal_share:
             user_id = self._user(self._name(sex), f"patient.{self.ids.hex(6)}@saathibench.test", at)
-        patient = Patient(self.ids.new(at), sex, age, kind, user_id=user_id)
+        patient = Patient(
+            self.ids.new(at),
+            sex,
+            age,
+            kind,
+            user_id=user_id,
+            surname=surname,
+            ward=int(address.rsplit(" ", 1)[1]),
+        )
         if user_id is not None:
             self.by_user[user_id] = patient
             self.home_ip[patient.id] = self.ids.hex()
@@ -428,11 +509,11 @@ class ClinicSim:
                 "clinic_id": self.clinic_id,
                 "user_id": user_id,
                 "mrn": f"{self.key.upper()}-{len(self.patients) + 1:06d}",
-                "name": self._name(sex),
+                "name": f"{self.rng.choice(NAMES['female' if sex == 'F' else 'male'])} {surname}",
                 "dob": dob,
                 "sex": "female" if sex == "F" else "male",
                 "phone": self._phone(),
-                "address": f"{self.rng.randint(1, 400)}, Ward {self.rng.randint(1, 40)}",
+                "address": address,
                 "abha_number": None,
                 "emergency_contact": self._name(self.rng.choice("FM")),
                 "created_by": by.user_id,
@@ -525,6 +606,7 @@ class ClinicSim:
         self.lab = simpy.Resource(self.env, capacity=max(1, len(self.staff["lab_tech"])))
         self.rooms = {d.user_id: simpy.Resource(self.env, capacity=1) for d in self.staff["doctor"]}
         self.env.process(self.calendar())
+        plan_campaigns(self)
         self.env.run(until=self.cfg.days * 1440)
         return self.rec.close()
 
@@ -800,6 +882,7 @@ class ClinicSim:
                     items.append(("allergies", "create"))
                 t = self.staff_access(nurse, patient, items, t + timedelta(seconds=40))
                 self._vitals(patient, nurse, t)
+                self.treated[nurse.user_id].append((patient, t))
                 yield self.env.timeout(self.rng.uniform(3, 7))
 
         with self.rooms[v.doctor.user_id].request() as turn:
@@ -872,10 +955,13 @@ class ClinicSim:
                 "updated_at": end,
             },
         )
+        note_id = self.ids.new(done)
+        self.notes[patient.id].append((note_id, encounter_id, doctor.user_id, end))
+        self.treated[doctor.user_id].append((patient, end))
         self.rec.add(
             "clinical_notes",
             {
-                "id": self.ids.new(done),
+                "id": note_id,
                 **common,
                 "encounter_id": encounter_id,
                 "author_user_id": doctor.user_id,
@@ -1232,24 +1318,34 @@ class ClinicSim:
         )
 
     def month_end(self, day: date, session: Session) -> Generator[simpy.Event, Any, None]:
+        """Month-end reconciliation: each receptionist opens a share of the month's invoices,
+        unpaid ones first, up to what one person gets through in an evening."""
         yield self.env.timeout(max(0.0, self.minutes(day, session.end) + 20 - self.env.now))
-        clerk = self.rng.choice(self.staff["reception"])
         invoices = self.invoices_by_month.get((day.year, day.month), [])
         share = self.p.hard_negatives.month_end_billing_share
-        chosen = [item for item in invoices if self.rng.random() < share]
-        t = self.utc(self.env.now)
-        for invoice, patient in chosen:
-            t = self.staff_access(
-                clerk, patient, [("billing", "view")], t, scenario="month_end_billing"
-            )
-            if invoice["status"] == "issued":
-                invoice["status"] = "paid"
-                invoice["updated_at"] = t
-                self._payment(invoice, clerk, t)
+        unpaid = [item for item in invoices if item[0]["status"] == "issued"]
+        paid = [item for item in invoices if item[0]["status"] != "issued"]
+        sample = [item for item in paid if self.rng.random() < share * 0.1]
+        queue = unpaid + sample
+        reviewed: list[tuple[Row, Patient]] = []
+        for clerk in self.staff["reception"]:
+            cap = self.rng.randint(40, 120)
+            mine, queue = queue[:cap], queue[cap:]
+            t = self.utc(self.env.now + self.rng.uniform(0, 15))
+            for invoice, patient in mine:
+                t = self.staff_access(
+                    clerk, patient, [("billing", "view")], t, scenario="month_end_billing"
+                )
+                if invoice["status"] == "issued":
+                    invoice["status"] = "paid"
+                    invoice["updated_at"] = t
+                    self._payment(invoice, clerk, t)
+            reviewed += mine
         admin = self.staff["clinic_admin"]
-        if admin and chosen:
+        if admin and reviewed:
             boss = self.rng.choice(admin)
-            for _, patient in chosen[: max(1, len(chosen) // 10)]:
+            t = self.utc(self.env.now + 30)
+            for _, patient in reviewed[: max(1, len(reviewed) // 10)]:
                 t = self.staff_access(
                     boss, patient, [("billing", "export")], t, scenario="month_end_billing"
                 )

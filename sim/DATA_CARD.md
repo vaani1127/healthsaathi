@@ -1,7 +1,7 @@
 # SaathiBench data card (draft)
 
-Status: draft for v1.0. The attack part (P13) is not in the data yet. The release licence and the
-Zenodo and Hugging Face records are still to be decided by the authors.
+Status: draft for v1.0. The release licence and the Zenodo and Hugging Face records are still to be
+decided by the authors.
 
 ## Summary
 
@@ -60,11 +60,66 @@ in `labels/benign_scenarios` (`access_event_id`, `scenario`).
 Health camps (many new registrations in one morning) are part of the normal workflow and are not
 labelled.
 
+Some staff have one to three relatives registered as patients of their own clinic (same surname
+and address). Relatives visit like any other patient, so a staff member seeing a relative is not in
+itself an attack.
+
+### Insider attacks
+
+Campaigns are drawn per clinic (`attacks` in the run config: campaigns per clinic per month, first
+day, allowed types, mimicry). Each campaign has an actor and a mimicry level m in [0, 1] (uniform in
+v1). At m = 0 the attack keeps its natural shape: off-hours, short bursts, many patients. As m
+grows, its time of day moves toward the actor's own median working time and its volume shrinks and
+spreads over more days. Code: `sim/src/saathibench/attacks.py`.
+
+| Type | Name | What the actor does |
+|---|---|---|
+| 1 | `vip_relative_snooping` | Opens records of their own relatives (or a well-known patient). |
+| 2 | `colleague_neighbour_snooping` | Opens a colleague's record, or a neighbour's (same ward). |
+| 3 | `role_overreach` | Opens patients outside their work, and at low m reaches for record parts the role cannot open (refused by the policy). |
+| 4 | `post_care_access` | Reopens former patients more than 30 days after their last care. |
+| 5 | `fast_bulk_export` | Exports notes, prescriptions or bills of many patients. |
+| 6 | `low_and_slow_exfiltration` | A few extra patients a day for weeks, in normal hours. |
+| 7 | `credential_sharing` | Someone else uses the account from a device and network never seen before. |
+| 8 | `break_glass_abuse` | Declares emergencies that are not, then opens the emergency view. |
+| 9 | `edit_after_sign` | Edits signed notes (a new version) and sometimes prescriptions, days later. |
+| 10 | `explanation_forgery` | Creates an appointment, lab order or care-team entry first, then opens the record. Careful attackers (high m) create it hours earlier. |
+
+A campaign that needs history (types 4 and 9) waits until it exists.
+
+Labels:
+
+- `labels/access_labels`: one row per access event (`access_event_id`, `is_attack`,
+  `attack_type`, `campaign_id`, `mimicry`).
+- `labels/campaigns`: one row per campaign (type, actor, role, mimicry, variant, start, number of
+  patients).
+
+## Splits
+
+`make sim-splits RUN=...` writes `splits.json`; `saathibench.splits.assign` applies it.
+
+- temporal: the first two thirds of the days train (days 1 to 120 of 180), the rest test.
+- clinic: two thirds of the clinics train (20 of 30), shared over the profiles by largest
+  remainder.
+- attack: as temporal, but types 6 and 10 are left out of training.
+- user: two thirds of the users train, over all days.
+
+## Separability audit
+
+`make sim-audit RUN=...` checks that no single observable feature and no depth-2 decision tree
+(5-fold cross-validated) separates attack from benign staff accesses with ROC-AUC above 0.9. The
+features are the e2d-core behaviour features (SPEC 5.4) plus local hour, weekday and refusal. The
+explanation engine is not used, so the generator is never tuned against E2D. The run's
+`audit.json` holds the values; the gate must pass before any experiment uses the run.
+
 ## Contents
 
 ```
 <run>/tables/<table>/<clinic>-<part>.parquet   product table shapes (sim/src/saathibench/schema.py)
-<run>/labels/benign_scenarios/...              labels, kept apart from the tables
+<run>/labels/access_labels/...                 attack labels for every access
+<run>/labels/campaigns/...                     one row per attack campaign
+<run>/labels/benign_scenarios/...              benign hard negative tags
+<run>/splits.json, <run>/audit.json            written by make sim-splits and make sim-audit
 <run>/manifest.json                            config, seed, policy version, row counts, timings
 ```
 
@@ -74,7 +129,9 @@ vitals, allergies, conditions, clinical_notes, prescriptions, lab_orders, lab_re
 payments, consents, break_glass_events, access_events. Ids are UUIDv7 strings and times are UTC.
 Row counts for a run are in its `manifest.json`.
 
-Feature and detector code must never read `labels/`. The attack labels added in P13 go there too.
+Feature and detector code must never read `labels/`. Only `saathibench.labels` reads it, and an
+import-linter contract (`make lint`) stops e2d-core, the product and the simulator's generation code
+from importing that module.
 
 ## Checks
 

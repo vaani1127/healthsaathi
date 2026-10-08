@@ -8,3 +8,8 @@ clinics:
   - {profile: solo_gp, count: 1}
   - {profile: polyclinic, count: 1}
   - {profile: nursing_home, count: 1}
+# Insider attack campaigns (types 1 to 10, SPEC 7). Mimicry is drawn uniformly from [0, 1].
+attacks:
+  campaigns_per_clinic_month: 6.0
+  first_day: 3
+  mimicry: uniform

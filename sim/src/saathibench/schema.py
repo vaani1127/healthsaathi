@@ -133,5 +133,13 @@ TABLES: dict[str, dict[str, pl.DataType]] = {
 # Kept apart from the tables: what the simulator knows about why an access happened. Feature and
 # detector code must never read this folder.
 LABEL_TABLES: dict[str, dict[str, pl.DataType]] = {
+    "access_labels": {
+        "access_event_id": S, "is_attack": B, "attack_type": I, "campaign_id": S, "mimicry": F,
+    },
+    "campaigns": {
+        "campaign_id": S, "clinic_id": S, "attack_type": I, "attack_name": S,
+        "actor_user_id": S, "actor_role": S, "mimicry": F, "variant": S, "start_at": UTC_TS,
+        "targets": I,
+    },
     "benign_scenarios": {"access_event_id": S, "scenario": S},
-}
+}  # fmt: skip

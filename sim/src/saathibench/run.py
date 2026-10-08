@@ -27,9 +27,11 @@ from saathibench.policy import load_policy
 def run_clinic(args: tuple[ClinicSpec, RunConfig, Path]) -> dict[str, Any]:
     spec, cfg, out = args
     started = time.perf_counter()
-    counts = ClinicSim(spec, cfg, out, load_policy()).run()
+    sim = ClinicSim(spec, cfg, out, load_policy())
+    counts = sim.run()
     return {
         "clinic": spec.index,
+        "clinic_id": sim.clinic_id,
         "profile": spec.profile.name,
         "rows": counts,
         "seconds": round(time.perf_counter() - started, 1),

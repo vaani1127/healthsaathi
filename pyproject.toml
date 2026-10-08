@@ -32,6 +32,7 @@ dev = [
     "pre-commit>=3.8",
     "types-pyyaml>=6.0.12.20260906",
     "httpx-ws>=0.9.0",
+    "import-linter>=2.15",
 ]
 
 [tool.ruff]
@@ -60,7 +61,7 @@ mypy_path = ["packages/e2d-core/src", "apps/api", "sim/src"]
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["asyncpg.*", "opentimestamps.*"]
+module = ["asyncpg.*", "opentimestamps.*", "sklearn.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -75,3 +76,33 @@ testpaths = [
 ]
 addopts = "--import-mode=importlib"
 pythonpath = ["apps/api"]
+
+# Architecture rules, checked by `lint-imports` in `make lint`.
+[tool.importlinter]
+root_packages = ["e2d_core", "saathibench", "e2d_experiments", "app"]
+
+[[tool.importlinter.contracts]]
+name = "e2d-core is the shared core and depends on nothing else here"
+type = "forbidden"
+source_modules = ["e2d_core"]
+forbidden_modules = ["app", "saathibench", "e2d_experiments"]
+
+[[tool.importlinter.contracts]]
+name = "The product never imports the simulator or the experiments"
+type = "forbidden"
+source_modules = ["app"]
+forbidden_modules = ["saathibench", "e2d_experiments"]
+
+[[tool.importlinter.contracts]]
+name = "Only evaluation code reads simulator labels"
+type = "forbidden"
+source_modules = [
+    "e2d_core",
+    "app",
+    "saathibench.clinic",
+    "saathibench.attacks",
+    "saathibench.recorder",
+    "saathibench.coverage",
+]
+forbidden_modules = ["saathibench.labels"]
+

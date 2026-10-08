@@ -3,7 +3,7 @@ UV := uv run
 PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests
 
 .PHONY: help env install dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
-	test-sol migrate seed sim sim-coverage exp audit
+	test-sol migrate seed sim sim-coverage sim-audit sim-splits exp audit
 
 help:
 	@echo "env       create .env with fresh local secrets"
@@ -16,6 +16,8 @@ help:
 	@echo "tamper-demo  show a rewritten audit log failing verification (local)"
 	@echo "sim       run the simulator, CONFIG=path/to/config.yaml (default sim/configs/v1.yaml)"
 	@echo "sim-coverage  explanation coverage per role of a run, RUN=sim/output/<name>"
+	@echo "sim-audit     separability audit of a run (must pass before experiments)"
+	@echo "sim-splits    write the four evaluation splits of a run"
 	@echo "exp       run an experiment, NAME=experiment_name"
 
 env:
@@ -44,6 +46,7 @@ lint-py:
 	$(UV) ruff check .
 	$(UV) ruff format --check .
 	$(UV) mypy $(PY_TYPED)
+	$(UV) lint-imports
 
 lint-js:
 	pnpm -r lint
@@ -117,9 +120,18 @@ CONFIG ?= sim/configs/v1.yaml
 sim:
 	$(UV) python -m saathibench.run $(CONFIG)
 
-# Explanation coverage per role of a finished run: make sim-coverage RUN=sim/output/saathibench-v1
+# Explanation coverage per role of a finished run.
+RUN ?= sim/output/saathibench-v1
 sim-coverage:
 	$(UV) python -m saathibench.coverage $(RUN)
+
+# Separability audit (SPEC 7); fails if any feature or a depth-2 tree separates attacks too well.
+sim-audit:
+	$(UV) python -m saathibench.audit $(RUN)
+
+# The four evaluation splits of a run, written to $(RUN)/splits.json.
+sim-splits:
+	$(UV) python -m saathibench.splits $(RUN)
 
 exp:
 	@echo "experiments are added in phase P15" && exit 1

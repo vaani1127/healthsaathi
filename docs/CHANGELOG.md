@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### P13 - Attacks, mimicry, separability audit
+
+- Ten insider attack types (SPEC 7) as campaigns inside the simulation, each with a mimicry level
+  that moves its timing toward the actor's own working hours and spreads its volume. Forged
+  evidence, break-glass events, note versions and new devices go into the normal tables.
+- Labels for every access (`labels/access_labels`) and per campaign (`labels/campaigns`), read
+  only through `saathibench.labels`. import-linter contracts in `make lint` keep e2d-core and the
+  product independent of the simulator and keep labels away from feature code.
+- e2d-core behaviour features (SPEC 5.4): per-user rolling accesses, distinct patients and exports
+  over 1 h, 24 h and 7 d, off-shift, new device and session age.
+- `make sim-audit`: single-feature and depth-2 tree ROC-AUC gate at 0.9, without explanation
+  features. `make sim-splits`: temporal, clinic, attack and user splits.
+- Staff relatives are registered as patients of their clinic (same surname and address), and
+  month-end billing is shared between receptionists with a per-person limit.
+- ADR 0007 records the simulator design.
+
 ### P12 - SaathiBench simulator (benign)
 
 - `sim/`: SimPy model of solo GP, polyclinic and nursing home clinics (`sim/profiles`), with
