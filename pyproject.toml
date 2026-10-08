@@ -15,6 +15,13 @@ e2d-core = { workspace = true }
 healthsaathi-api = { workspace = true }
 saathibench = { workspace = true }
 e2d-experiments = { workspace = true }
+# CPU-only PyTorch for the VAE baseline; the default wheels bundle CUDA.
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [dependency-groups]
 dev = [
@@ -57,11 +64,11 @@ python_version = "3.12"
 strict = true
 warn_unreachable = true
 plugins = ["pydantic.mypy"]
-mypy_path = ["packages/e2d-core/src", "apps/api", "sim/src"]
+mypy_path = ["packages/e2d-core/src", "apps/api", "sim/src", "experiments/src"]
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["asyncpg.*", "opentimestamps.*", "sklearn.*", "pyod.*"]
+module = ["asyncpg.*", "opentimestamps.*", "sklearn.*", "pyod.*", "scipy.*", "lightgbm.*", "mlflow.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -103,6 +110,8 @@ source_modules = [
     "saathibench.attacks",
     "saathibench.recorder",
     "saathibench.coverage",
+    "e2d_experiments.prepare",
+    "e2d_experiments.methods",
 ]
 forbidden_modules = ["saathibench.labels"]
 

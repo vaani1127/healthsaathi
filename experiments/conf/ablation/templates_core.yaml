@@ -1,0 +1,3 @@
+# Only the core workflow templates: appointments, queue, front desk and lab.
+name: templates_core
+templates: [T_APPT, T_QUEUE, T_FRONTDESK, T_LAB, T_SELF]

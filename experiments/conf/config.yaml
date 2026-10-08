@@ -1,0 +1,40 @@
+# Experiment config (SPEC 8). Defaults are the smoke run; the final runs use data=v1 and the
+# seeds fixed in experiments/PREREGISTRATION.md.
+defaults:
+  - data: smoke
+  - ablation: none
+  - _self_
+
+seeds: [0, 1]
+splits: [temporal, clinic, attack, user]
+budgets: [3, 5, 10]
+methods:
+  - b0_rules
+  - b1_iforest
+  - b2_iforest_role
+  - b3_vae
+  - b4_coaccess
+  - b5_explanation_only
+  - e2d
+  - upper_lightgbm
+vae_epochs: 3
+workers: null
+out: experiments/outputs/${data.name}/${ablation.name}
+
+export:
+  # Smoke and trial runs keep their tables next to their results. Only the final,
+  # pre-registered runs point these at paper/tables and paper/figures.
+  tables: ${out}/tables
+  figures: ${out}/figures
+
+mlflow:
+  enabled: true
+  # A local SQLite file; mlruns/ is gitignored.
+  tracking_uri: sqlite:///experiments/mlruns/mlflow.db
+  experiment: e2d-${data.name}
+
+hydra:
+  run:
+    dir: experiments/outputs/hydra/${now:%Y%m%d-%H%M%S}
+  job:
+    chdir: false

@@ -1,0 +1,2 @@
+# One model per role, each trained on the same number of accesses.
+name: role_per_role

@@ -1,0 +1,3 @@
+# Behaviour features over the 24h window only.
+name: window_24h
+window: 24h

@@ -1,0 +1,10 @@
+# Three clinics for three weeks: checks the pipeline end to end in minutes.
+name: smoke
+sim_config: sim/configs/small.yaml
+base_seed: 7
+# Too few attacks for the separability audit to mean much: it is reported but does not gate
+# the smoke run. The v1 runs must pass it.
+require_audit: false
+# Shorter and lighter than the small simulator config so the whole run stays under 10 minutes.
+days: 14
+vae_epochs: 1

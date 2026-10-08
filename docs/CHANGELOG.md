@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### P15 - Experiment pipeline
+
+- `experiments/`: Hydra configs (`experiments/conf`) for the data (smoke, v1), every ablation
+  (no forgery, no graph, role conditioning, learning curves, core templates, mimicry levels,
+  behaviour windows) and the run settings (seeds, splits, budgets, methods).
+- Pipeline: simulate each seed, require the separability audit (v1), write the splits, explain
+  every access with the shared engine (forgery flags evaluated 24 hours later), build features.
+  Preparation code cannot import labels (import-linter).
+- Methods: B0 rules, B1 and B2 IsolationForest, B3 sequence VAE, B4 co-access collaborative
+  filtering, B5 explanation only, E2D (IsolationForest, ECOD or COPOD), LightGBM upper bound.
+- Metrics (recall and precision at B, PR-AUC, campaign detection, hours to first alert, alerts
+  per 1,000, coverage, false-explanation rate, recall per attack type and mimicry band),
+  statistics (bootstrap intervals, one-sided paired Wilcoxon with Holm correction, rank-biserial
+  effect size, H1 to H4), LaTeX tables, figures and local MLflow logging.
+- `make exp NAME=smoke|v1 ARGS="..."` and `python -m e2d_experiments.report` for the hypotheses.
+- `experiments/PREREGISTRATION.md` drafted for the authors to commit before any final run.
+
 ### P14 - Features, scorer and detector in the product
 
 - e2d-core features (SPEC 5.4): explanation strength, template one-hot and break-glass; forgery

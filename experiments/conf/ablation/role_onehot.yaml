@@ -1,0 +1,2 @@
+# One model per clinic with the role as one-hot features.
+name: role_onehot

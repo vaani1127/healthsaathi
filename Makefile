@@ -1,6 +1,6 @@
 COMPOSE := docker compose -f infra/docker-compose.dev.yml
 UV := uv run
-PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests
+PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests experiments/src experiments/tests
 
 .PHONY: help env install dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
 	test-sol migrate seed sim sim-coverage sim-audit sim-splits exp audit
@@ -18,7 +18,7 @@ help:
 	@echo "sim-coverage  explanation coverage per role of a run, RUN=sim/output/<name>"
 	@echo "sim-audit     separability audit of a run (must pass before experiments)"
 	@echo "sim-splits    write the four evaluation splits of a run"
-	@echo "exp       run an experiment, NAME=experiment_name"
+	@echo "exp       run an experiment, NAME=smoke|v1, ARGS=\"hydra overrides\""
 
 env:
 	cd apps/api && $(UV) python -m app.scripts.gen_env
@@ -133,5 +133,8 @@ sim-audit:
 sim-splits:
 	$(UV) python -m saathibench.splits $(RUN)
 
+# Experiments (SPEC 8), configured with Hydra in experiments/conf. NAME picks the data config
+# (smoke or v1); ARGS adds Hydra overrides, for example ARGS="ablation=no_forgery seeds=[0,1]".
+NAME ?= smoke
 exp:
-	@echo "experiments are added in phase P15" && exit 1
+	$(UV) python -m e2d_experiments.run data=$(NAME) $(ARGS)

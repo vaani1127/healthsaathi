@@ -1,0 +1,3 @@
+# Behaviour features over the 1h window only.
+name: window_1h
+window: 1h

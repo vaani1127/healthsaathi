@@ -1,0 +1,5 @@
+# SaathiBench v1: 30 clinics for 180 days. Seed i simulates with base_seed + i.
+name: v1
+sim_config: sim/configs/v1.yaml
+base_seed: 20261008
+require_audit: true

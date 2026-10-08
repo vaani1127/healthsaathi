@@ -1,0 +1,3 @@
+# Behaviour features over the 7d window only.
+name: window_7d
+window: 7d

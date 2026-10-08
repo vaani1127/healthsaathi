@@ -1,0 +1,3 @@
+# Per-role models on 25% of the training accesses (learning curve).
+name: learning_curve_25
+train_share: 0.25
