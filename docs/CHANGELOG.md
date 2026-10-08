@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### P8 - Web app: sign in, reception, nurse, doctor
+
+- Sign in with password and authenticator code, authenticator set-up with QR code, clinic choice,
+  silent session restore from the refresh cookie, sign out that clears cached data and drafts.
+- Reception: patient search, registration with the consent notice shown and agreed, booking,
+  walk-ins and queue tokens. Nurse: today's queue, vitals and allergies. Doctor: queue, chart with
+  the reason prompt and break-glass, consultation start and finish, notes with signing,
+  prescription builder, lab orders, referrals and follow-ups.
+- Bilingual prescription print view (Noto Sans and Noto Sans Devanagari, browser print).
+- Typed API client generated from the OpenAPI document (`make api-types`); a test fails if the
+  committed document is out of date. Live updates over the WebSocket.
+- Offline: the app shell and today's queue are cached; vitals saved without a connection are kept
+  on the device encrypted with a key that only lives in memory for the session.
+- Playwright tests for SPEC flows 1 to 3 at 360 px wide (`make e2e`, and a CI job). Installability
+  is checked with Chrome's own `Page.getInstallabilityErrors` on the production build, because
+  Lighthouse no longer has a PWA category.
+
 ### P7 - Clinical, billing and consent APIs
 
 - Consultations (encounters), vitals with range checks, allergies, conditions, clinical notes

@@ -34,7 +34,21 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api\//],
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        // SPEC 4: today's queue is available offline. Notes, labs and prescriptions are never
+        // cached. The cache is cleared on sign out.
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname === "/api/v1/queue",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "hs-api-queue",
+              networkTimeoutSeconds: 4,
+              expiration: { maxEntries: 5, maxAgeSeconds: 24 * 3600 },
+            },
+          },
+        ],
       },
     }),
   ],
@@ -44,6 +58,7 @@ export default defineConfig({
   server: { port: 5173 },
   test: {
     environment: "jsdom",
+    include: ["test/**/*.test.{ts,tsx}"],
     setupFiles: ["./test/setup.ts"],
     css: false,
   },

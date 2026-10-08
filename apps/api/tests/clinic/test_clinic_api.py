@@ -591,3 +591,31 @@ def test_policy_defaults_to_deny() -> None:
     assert policy.decide(Role.LAB_TECH, ResourceType.BILLING, AccessAction.VIEW).allowed is False
     assert policy.decide(Role.DOCTOR, ResourceType.NOTES, AccessAction.VIEW).allowed
     assert len(policy.sha256) == 64
+
+
+async def test_current_clinic(
+    client: AsyncClient, staff: dict[Role, Actor], clinic: uuid.UUID
+) -> None:
+    resp = await client.get("/api/v1/clinic", headers=staff[Role.NURSE].headers)
+    assert resp.json()["id"] == str(clinic)
+    assert resp.json()["timezone"] == "Asia/Kolkata"
+
+
+async def test_e2e_fixture_script(tmp_path: Any) -> None:
+    from app.scripts.e2e_fixture import build
+
+    fixture = await build(tmp_path / "f.json")
+    users = fixture["users"]
+    assert isinstance(users, list)
+    assert {u["role"] for u in users} == {
+        "clinic_admin",
+        "reception",
+        "nurse",
+        "doctor",
+        "lab_tech",
+    }
+    from app.identity import service
+
+    reception = next(u for u in users if u["role"] == "reception")
+    challenge = await service.login_with_password(reception["email"], str(fixture["password"]))
+    assert challenge.status == "mfa_required"

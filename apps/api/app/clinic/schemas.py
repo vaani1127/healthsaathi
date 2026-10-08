@@ -60,6 +60,14 @@ class PatientSummary(ORM):
     sex: Sex
 
 
+class ClinicOut(ORM):
+    id: uuid.UUID
+    name: str
+    city: str
+    state: str
+    timezone: str
+
+
 class StaffMember(BaseModel):
     user_id: uuid.UUID
     name: str

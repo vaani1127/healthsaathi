@@ -2,7 +2,7 @@ COMPOSE := docker compose -f infra/docker-compose.dev.yml
 UV := uv run
 PY_TYPED := packages/e2d-core/src apps/api
 
-.PHONY: help env install dev vectors contracts-local contracts-local-stop contracts-amoy 	contracts-deploy dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
+.PHONY: help env install dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
 	test-sol migrate seed sim exp audit
 
 help:
@@ -63,6 +63,10 @@ test-py: db-up
 test-js:
 	pnpm -r test
 
+# Browser tests: starts the API and Vite itself, against the local database.
+e2e: migrate
+	cd apps/web && pnpm e2e && pnpm e2e:pwa
+
 test-sol:
 	cd contracts && forge test
 	cd contracts && forge snapshot --check --no-match-test testFuzz
@@ -81,6 +85,11 @@ contracts-amoy:
 # Any other EVM chain (for example the Besu test network): make contracts-deploy NETWORK=besu
 contracts-deploy:
 	set -a && . ./.env && set +a && cd contracts && DEPLOY_NETWORK=$(NETWORK) forge script 		script/Deploy.s.sol --rpc-url "$$CUSTOM_RPC_URL" --broadcast --private-key "$$DEPLOYER_PRIVATE_KEY"
+
+# Regenerate the web app's typed API client from the API's OpenAPI document.
+api-types:
+	cd apps/api && $(UV) python -m app.scripts.export_openapi ../web/src/lib/api/openapi.json
+	cd apps/web && pnpm exec openapi-typescript src/lib/api/openapi.json --default-non-nullable false -o src/lib/api/schema.d.ts
 
 # Regenerate the ledger test vectors shared by e2d-core and receipt-verify.
 vectors:

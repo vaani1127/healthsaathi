@@ -9,6 +9,7 @@ from app.clinic import schemas, service
 from app.core.pagination import DEFAULT_LIMIT, MAX_LIMIT, Page
 from app.core.ratelimit import SEARCH, limiter
 from app.db.enums import STAFF_ROLES, Role
+from app.db.models import Clinic
 from app.identity.deps import ClinicPrincipal, require_roles
 
 router = APIRouter(tags=["clinic"])
@@ -103,6 +104,13 @@ async def list_care_team(
 
 
 # Staff, schedules, shifts -------------------------------------------------------------------------
+
+
+@router.get("/clinic", response_model=schemas.ClinicOut)
+async def current_clinic(principal: StaffOrPatient, db: Db) -> schemas.ClinicOut:
+    clinic = await db.get(Clinic, principal.clinic_id)
+    assert clinic is not None
+    return schemas.ClinicOut.model_validate(clinic)
 
 
 @router.get("/staff", response_model=list[schemas.StaffMember])

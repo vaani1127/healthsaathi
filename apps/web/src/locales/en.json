@@ -17,5 +17,276 @@
   },
   "language": {
     "switch": "हिन्दी"
+  },
+  "common": {
+    "loading": "Loading...",
+    "cancel": "Cancel",
+    "choose": "Choose...",
+    "comingSoon": "This screen is being built."
+  },
+  "roles": {
+    "platform_admin": "Platform admin",
+    "clinic_admin": "Clinic admin",
+    "reception": "Reception",
+    "nurse": "Nurse",
+    "doctor": "Doctor",
+    "lab_tech": "Lab technician",
+    "patient": "Patient"
+  },
+  "auth": {
+    "staffTitle": "Staff sign in",
+    "staffSubtitle": "Use your clinic email and password.",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "patientLink": "Patient? Sign in with a code sent by email",
+    "totpTitle": "Authenticator code",
+    "totpSubtitle": "Open your authenticator app and type the 6 digit code for HealthSaathi.",
+    "code": "6 digit code",
+    "verify": "Verify",
+    "enrolTitle": "Set up your authenticator",
+    "enrolSubtitle": "Staff must use an authenticator app. Scan the code with Google Authenticator, Microsoft Authenticator or a similar app.",
+    "qrAlt": "QR code for your authenticator app",
+    "enrolManual": "If you cannot scan, type this key into the app:",
+    "activate": "Turn on and continue",
+    "selectClinic": "Choose a clinic",
+    "noClinics": "You are not a member of any clinic yet. Ask your clinic admin."
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "network": "No connection to the server.",
+    "invalid-credentials": "Email or password is wrong.",
+    "account-locked": "Too many wrong passwords. Try again in 15 minutes.",
+    "invalid-code": "The code is wrong or has expired.",
+    "invalid-token": "Please sign in again.",
+    "rate-limited": "Too many tries. Wait a minute and try again.",
+    "access-denied": "Your role cannot open this part of the record.",
+    "reason-required": "Tell us why you need this record.",
+    "mfa-required": "Sign in with your authenticator code first.",
+    "session-ended": "Your session has ended. Please sign in again.",
+    "slot-taken": "The doctor already has an appointment at that time.",
+    "not-a-member": "That person is not a member of this clinic with that role.",
+    "invalid-transition": "That change is not allowed now.",
+    "token-exists": "This appointment already has a token.",
+    "note-signed": "A signed note cannot change. Add a new version.",
+    "already-consented": "This patient has already agreed to the current notice.",
+    "no-published-notice": "The clinic has not published a consent notice yet.",
+    "break-glass-expired": "Emergency access has expired. Start it again.",
+    "patient-not-found": "Patient not found."
+  },
+  "sex": {
+    "female": "Female",
+    "male": "Male",
+    "other": "Other",
+    "unknown": "Not stated"
+  },
+  "patient": {
+    "name": "Full name",
+    "sex": "Sex",
+    "dob": "Date of birth",
+    "phone": "Phone",
+    "address": "Address"
+  },
+  "consent": {
+    "noticeTitle": "Privacy notice (version {{version}})",
+    "noNotice": "No privacy notice has been published yet.",
+    "agreed": "I read this notice to the patient and the patient agreed.",
+    "status": "Consent",
+    "given": "Given (notice v{{version}})",
+    "missing": "Not given"
+  },
+  "reception": {
+    "findPatient": "Find or register a patient",
+    "searchLabel": "Search patients",
+    "searchPlaceholder": "Name, phone or record number",
+    "noMatches": "No matching patients.",
+    "registerNew": "Register new patient",
+    "register": "Register",
+    "today": "Today's appointments",
+    "noAppointments": "No appointments today.",
+    "issueToken": "Issue token",
+    "tokenNo": "Token {{no}}",
+    "appointments": "Appointments",
+    "book": "Book appointment",
+    "booked": "Appointment booked.",
+    "doctor": "Doctor",
+    "when": "Date and time",
+    "walkIn": "Walk-in",
+    "addWalkIn": "Add walk-in and issue token"
+  },
+  "appointmentStatus": {
+    "booked": "Booked",
+    "checked_in": "Checked in",
+    "in_consult": "With doctor",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "no_show": "Did not come"
+  },
+  "queue": {
+    "title": "Queue",
+    "today": "Today's queue",
+    "mine": "My queue today",
+    "empty": "Nobody is waiting.",
+    "tokenLabel": "Token number",
+    "takeIn": "Take in",
+    "sendToDoctor": "Send to doctor"
+  },
+  "queueStatus": {
+    "waiting": "Waiting",
+    "with_nurse": "With nurse",
+    "with_doctor": "With doctor",
+    "done": "Done",
+    "skipped": "Skipped"
+  },
+  "vitals": {
+    "record": "Record vitals",
+    "history": "Recent vitals",
+    "latest": "Last vitals",
+    "none": "No vitals recorded.",
+    "bp_sys": "BP systolic",
+    "bp_dia": "BP diastolic",
+    "pulse": "Pulse",
+    "temp_c": "Temp °C",
+    "spo2": "SpO2 %",
+    "rr": "Breaths/min",
+    "weight_kg": "Weight kg",
+    "height_cm": "Height cm",
+    "bp": "BP",
+    "save": "Save vitals",
+    "saved": "Vitals saved.",
+    "savedOffline": "No connection. Saved on this device and will be sent when you tap send.",
+    "drafts": "{{count}} unsent vitals on this device.",
+    "sendDrafts": "Send now"
+  },
+  "severity": {
+    "mild": "Mild",
+    "moderate": "Moderate",
+    "severe": "Severe"
+  },
+  "allergy": {
+    "title": "Allergies",
+    "none": "No known allergies.",
+    "substance": "Substance",
+    "severity": "Severity",
+    "add": "Add allergy"
+  },
+  "conditions": {
+    "title": "Active conditions"
+  },
+  "templates": {
+    "T_APPT": "Appointment",
+    "T_QUEUE": "Queue token",
+    "T_FRONTDESK": "Front desk",
+    "T_LAB": "Lab order",
+    "T_REFERRAL": "Referral",
+    "T_CARETEAM": "Care team",
+    "T_FOLLOWUP": "Follow-up",
+    "T_BILLING": "Billing",
+    "T_REASON": "Reason given",
+    "T_BREAKGLASS": "Emergency access",
+    "T_SELF": "Own record"
+  },
+  "reason": {
+    "title": "Reason needed",
+    "explain": "You have no appointment, referral or care team link with this patient now. Your reason is saved with this access and the clinic admin may review it.",
+    "code": "Reason",
+    "text": "Details",
+    "open": "Open record",
+    "codes": {
+      "covering_doctor": "Covering for another doctor",
+      "lab_review": "Reviewing lab results",
+      "second_opinion": "Second opinion",
+      "administrative": "Administrative",
+      "other": "Other"
+    }
+  },
+  "breakGlass": {
+    "title": "Emergency access",
+    "explain": "Use only in an emergency. You will see allergies, conditions, medicines and last vitals for 4 hours. Every use is reviewed.",
+    "start": "Break glass",
+    "confirm": "Open emergency view",
+    "viewTitle": "Emergency view: {{name}}",
+    "until": "Access ends at {{time}}",
+    "medicines": "Current medicines",
+    "codes": {
+      "emergency": "Medical emergency",
+      "unconscious": "Patient unconscious",
+      "severe_allergy": "Severe allergic reaction",
+      "system_outage": "Normal access not working",
+      "other": "Other"
+    }
+  },
+  "consult": {
+    "start": "Start consultation",
+    "finish": "Finish consultation",
+    "finished": "Consultation finished."
+  },
+  "notes": {
+    "title": "Consultation note",
+    "body": "Note",
+    "saveDraft": "Save draft",
+    "sign": "Sign note",
+    "signed": "Note signed. It cannot be changed now.",
+    "history": "Notes",
+    "none": "No notes yet.",
+    "draft": "Draft",
+    "signedBadge": "Signed"
+  },
+  "rx": {
+    "title": "Prescription",
+    "item": "Medicine {{no}}",
+    "drug": "Medicine",
+    "strength": "Strength",
+    "dose": "Dose",
+    "doseHint": "For example 1-0-1",
+    "days": "Days",
+    "instructionsEn": "Instructions (English)",
+    "instructionsHi": "Instructions (Hindi)",
+    "addItem": "Add medicine",
+    "adviceEn": "Advice (English)",
+    "adviceHi": "Advice (Hindi)",
+    "save": "Save prescription",
+    "saved": "Prescription saved. Sign it below to print.",
+    "history": "Prescriptions",
+    "none": "No prescriptions yet.",
+    "sign": "Sign",
+    "print": "Print",
+    "printNow": "Print or save as PDF"
+  },
+  "lab": {
+    "order": "Order lab tests",
+    "placeOrder": "Place order",
+    "ordered": "Lab tests ordered.",
+    "tests": {
+      "CBC": "Complete blood count",
+      "RBS": "Random blood sugar",
+      "HBA1C": "HbA1c",
+      "LFT": "Liver function",
+      "KFT": "Kidney function",
+      "LIPID": "Lipid profile",
+      "URINE": "Urine routine"
+    }
+  },
+  "referral": {
+    "title": "Refer",
+    "to": "Refer to",
+    "reason": "Reason",
+    "send": "Send referral",
+    "sent": "Referral sent."
+  },
+  "followUp": {
+    "title": "Follow-up",
+    "book": "Book follow-up",
+    "booked": "Follow-up booked."
+  },
+  "print": {
+    "patient": "Patient",
+    "mrn": "Record no.",
+    "medicine": "Medicine",
+    "dose": "Dose",
+    "days": "Days",
+    "advice": "Advice",
+    "signedBy": "Signed by"
   }
 }
