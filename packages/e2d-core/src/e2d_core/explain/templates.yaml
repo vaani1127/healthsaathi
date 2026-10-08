@@ -1,0 +1,43 @@
+# Explanation templates (SPEC 5.2). Times use s, m, h or d.
+#
+# strength = weight * exp(-dt / tau), where dt is how far the access time falls outside the
+# template's core window around its evidence (dt = 0 inside the window).
+#
+# These are design parameters of the method, not measured results.
+
+resource_groups:
+  clinical: [demographics, vitals, allergies, notes, prescriptions, lab, documents]
+  frontdesk: [demographics, billing, consent]
+  nursing: [demographics, vitals, allergies]
+  all: [demographics, vitals, allergies, notes, prescriptions, lab, billing, documents, consent]
+
+templates:
+  T_APPT:
+    roles: [doctor]
+    resources: clinical
+    weight: 1.0
+    # Core window: from 30 minutes before the slot until 24 hours after it.
+    before: 30m
+    after: 24h
+    tau: 2h
+
+  T_QUEUE:
+    roles: [nurse]
+    resources: nursing
+    weight: 0.9
+    # Core window: the token's clinic day (local time).
+    tau: 2h
+
+  T_FRONTDESK:
+    roles: [reception]
+    resources: frontdesk
+    weight: 0.9
+    # Core window: one day either side of the appointment, the invoice or the registration.
+    before: 1d
+    after: 1d
+    tau: 6h
+
+  T_SELF:
+    roles: [patient]
+    resources: all
+    weight: 1.0

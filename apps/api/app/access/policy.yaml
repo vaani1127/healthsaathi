@@ -1,0 +1,55 @@
+# Access policy (SPEC 4): role x resource x action -> requirement.
+#
+#   none                   allowed; still recorded and explained
+#   explanation_or_review  allowed; recorded, explained, and unexplained accesses go to review
+#   break_glass_only       allowed only with an active break-glass event
+#   deny                   refused and the refusal is recorded
+#
+# Anything not listed is denied. The sha256 of this file is the policy_version stamped on every
+# access event, so any edit here is a new policy version.
+
+version: "2026.10.1"
+
+rules:
+  reception:
+    demographics: {view: none, create: none, edit: none, print: none}
+    billing: {view: none, create: none, edit: none, print: none, export: none}
+    consent: {view: none, create: none, edit: none, print: none}
+
+  nurse:
+    demographics: {view: explanation_or_review}
+    vitals: {view: explanation_or_review, create: explanation_or_review, edit: explanation_or_review}
+    allergies: {view: explanation_or_review, create: explanation_or_review, edit: explanation_or_review}
+    prescriptions: {view: break_glass_only}
+    notes: {view: break_glass_only}
+
+  doctor:
+    demographics: {view: explanation_or_review, edit: explanation_or_review, print: explanation_or_review}
+    vitals: {view: explanation_or_review, create: explanation_or_review, edit: explanation_or_review}
+    allergies: {view: explanation_or_review, create: explanation_or_review, edit: explanation_or_review}
+    notes: {view: explanation_or_review, create: explanation_or_review, edit: explanation_or_review, print: explanation_or_review, export: explanation_or_review}
+    prescriptions: {view: explanation_or_review, create: explanation_or_review, edit: explanation_or_review, print: explanation_or_review, export: explanation_or_review}
+    lab: {view: explanation_or_review, create: explanation_or_review, print: explanation_or_review}
+    documents: {view: explanation_or_review, print: explanation_or_review}
+    consent: {view: explanation_or_review}
+
+  lab_tech:
+    demographics: {view: explanation_or_review}
+    lab: {view: explanation_or_review, create: explanation_or_review, edit: explanation_or_review, print: explanation_or_review}
+    documents: {view: explanation_or_review, create: explanation_or_review}
+
+  clinic_admin:
+    demographics: {view: explanation_or_review, create: none, edit: explanation_or_review}
+    billing: {view: none, export: none, print: none}
+    consent: {view: explanation_or_review}
+
+  patient:
+    demographics: {view: none, print: none, export: none}
+    vitals: {view: none, print: none, export: none}
+    allergies: {view: none, print: none, export: none}
+    notes: {view: none, print: none, export: none}
+    prescriptions: {view: none, print: none, export: none}
+    lab: {view: none, print: none, export: none}
+    billing: {view: none, print: none, export: none}
+    documents: {view: none, print: none, export: none}
+    consent: {view: none, create: none, edit: none, print: none, export: none}

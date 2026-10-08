@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### P5 - Clinic operations and access recording
+
+- APIs for patients (register, search with cursor pagination, view, edit), staff directory,
+  schedules, shifts, appointments, walk-ins, queue tokens and care team assignments.
+- `access.record_and_explain()` writes the access event, its explanation and the audit event in
+  the same transaction as each read or write; denials are logged too. See ADR 0004.
+- e2d-core explanation engine with T_APPT, T_QUEUE, T_FRONTDESK and T_SELF (weights and windows in
+  `templates.yaml`), and the evidence repository with SQL and polars backends that pass one shared
+  test suite.
+- Access policy in `apps/api/app/access/policy.yaml`; its sha256 is stamped on every access event
+  and stored in `policy_versions` at startup.
+- WebSocket `/api/v1/ws` (token in the first message) with queue and appointment updates through
+  Postgres LISTEN/NOTIFY.
+- Monthly partitions are created at startup and every 12 hours.
+
 ### P4 - Smart contracts
 
 - `ClinicRegistry`: registers a clinic's signer key hash and poster address, and rotates keys
