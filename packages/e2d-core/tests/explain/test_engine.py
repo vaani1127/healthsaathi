@@ -118,6 +118,12 @@ def test_evidence_created_after_the_access_does_not_count() -> None:
     )
 
 
+def test_small_clock_skew_is_tolerated() -> None:
+    skewed = appointment(created_at=NOON_IST + timedelta(seconds=2))
+    result = explain(event("doctor", DOCTOR, "notes"), EvidenceBundle(appointments=(skewed,)))
+    assert result.template_code == "T_APPT"
+
+
 def test_appointment_does_not_explain_billing_for_doctor() -> None:
     result = explain(
         event("doctor", DOCTOR, "billing"), EvidenceBundle(appointments=(appointment(),))

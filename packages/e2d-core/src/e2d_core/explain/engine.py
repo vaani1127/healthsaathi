@@ -21,6 +21,11 @@ from e2d_core.explain.templates import TemplateConfig, TemplateSpec, default_con
 
 MAX_ALTERNATIVES = 3
 
+# Evidence stamped up to this long after the access still counts. In the product, evidence the
+# engine can see already existed when the access happened; the check matters when replaying
+# history, and the margin absorbs small backward steps of the database clock.
+CLOCK_SKEW_TOLERANCE = timedelta(seconds=5)
+
 Matcher = Callable[[AccessEvent, EvidenceBundle, TemplateSpec, ZoneInfo], Iterator[Candidate]]
 
 
@@ -45,7 +50,7 @@ def local_day_bounds(day: object, tz: ZoneInfo) -> tuple[datetime, datetime]:
 
 
 def _existed(created_at: datetime | None, at: datetime) -> bool:
-    return created_at is None or created_at <= at
+    return created_at is None or created_at <= at + CLOCK_SKEW_TOLERANCE
 
 
 def match_appt(
