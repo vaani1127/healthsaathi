@@ -9,6 +9,7 @@ run in parallel and the output does not depend on the number of workers. The out
 
 import argparse
 import json
+import multiprocessing
 import os
 import shutil
 import sys
@@ -52,7 +53,9 @@ def simulate(
     if workers == 1:
         results = [run_clinic(job) for job in jobs]
     else:
-        with ProcessPoolExecutor(max_workers=workers) as pool:
+        # spawn, not fork: forking after polars has started its thread pool can deadlock.
+        context = multiprocessing.get_context("spawn")
+        with ProcessPoolExecutor(max_workers=workers, mp_context=context) as pool:
             results = list(pool.map(run_clinic, jobs))
     totals: dict[str, int] = {}
     for result in results:
