@@ -62,7 +62,7 @@ def patient(user: uuid.UUID | None = None, created_at: datetime = EARLY) -> Pati
     return PatientEv(PATIENT, user, RECEPTION, created_at)
 
 
-# T_APPT --------------------------------------------------------------------------------------
+# T_APPT -------------------------------------------------------------------------------------------
 
 
 def test_appointment_explains_doctor_inside_window() -> None:
@@ -131,7 +131,7 @@ def test_appointment_does_not_explain_billing_for_doctor() -> None:
     assert result.template_code is None
 
 
-# T_QUEUE -------------------------------------------------------------------------------------
+# T_QUEUE ------------------------------------------------------------------------------------------
 
 
 def test_token_assigned_to_nurse_explains_vitals() -> None:
@@ -219,7 +219,7 @@ def test_skipped_token_does_not_count() -> None:
     )
 
 
-# T_FRONTDESK ----------------------------------------------------------------------------------
+# T_FRONTDESK --------------------------------------------------------------------------------------
 
 
 def test_reception_explained_by_appointment_any_doctor() -> None:
@@ -271,7 +271,7 @@ def test_old_registration_decays() -> None:
     assert result.template_code is None
 
 
-# T_SELF -------------------------------------------------------------------------------------
+# T_SELF -------------------------------------------------------------------------------------------
 
 
 def test_patient_reads_own_record() -> None:
@@ -289,7 +289,7 @@ def test_patient_cannot_explain_someone_else() -> None:
     assert result.template_code is None
 
 
-# Selection -------------------------------------------------------------------------------------
+# Selection ----------------------------------------------------------------------------------------
 
 
 def test_best_candidate_wins_and_alternatives_are_kept() -> None:
@@ -311,7 +311,7 @@ def test_ties_go_to_the_closest_evidence() -> None:
     assert result.evidence[0].id == b.id
 
 
-# Config ----------------------------------------------------------------------------------------
+# Config -------------------------------------------------------------------------------------------
 
 
 def test_config_lookup() -> None:

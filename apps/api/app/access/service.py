@@ -99,8 +99,10 @@ async def clinic_timezone(db: AsyncSession, clinic_id: uuid.UUID) -> str:
     return tz or "Asia/Kolkata"
 
 
-def _audit_payload(event: AccessEvent, explanation: Explanation | None) -> dict[str, object]:
-    return {
+def _audit_payload(
+    event: AccessEvent, explanation: Explanation | None, detail: dict[str, str] | None = None
+) -> dict[str, object]:
+    payload: dict[str, object] = {
         "type": "access",
         "access_event_id": str(event.id),
         "at": event.at.isoformat(),
@@ -114,6 +116,9 @@ def _audit_payload(event: AccessEvent, explanation: Explanation | None) -> dict[
         "template": explanation.template_code if explanation else None,
         "strength": round(explanation.strength, 6) if explanation else 0,
     }
+    if detail:
+        payload["detail"] = detail
+    return payload
 
 
 async def _write(
@@ -128,6 +133,7 @@ async def _write(
     request: RequestInfo,
     at: datetime,
     break_glass_id: uuid.UUID | None,
+    detail: dict[str, str] | None = None,
 ) -> AccessEvent:
     session = await current_session(db, principal.session_id)
     event = AccessEvent(
@@ -159,7 +165,9 @@ async def _write(
         )
     )
     await db.flush()
-    await append_audit_event(db, principal.clinic_id, "access", _audit_payload(event, explanation))
+    await append_audit_event(
+        db, principal.clinic_id, "access", _audit_payload(event, explanation, detail)
+    )
     return event
 
 
@@ -237,6 +245,7 @@ async def record_and_explain(
     break_glass_id: uuid.UUID | None = None,
     reason: AccessReason | None = None,
     require_reason: bool = False,
+    detail: dict[str, str] | None = None,
 ) -> AccessRecord:
     """Authorise, explain and log one access. Raises 404 or 403 (after logging the denial).
 
@@ -322,6 +331,7 @@ async def record_and_explain(
         request,
         at,
         break_glass_id,
+        detail,
     )
     return AccessRecord(event.id, patient_id, decision.requirement, explanation)
 

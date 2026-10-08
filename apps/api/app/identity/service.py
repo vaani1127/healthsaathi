@@ -103,7 +103,7 @@ async def active_memberships(user_id: uuid.UUID) -> list[MembershipInfo]:
         return [MembershipInfo(r.clinic_id, r.name, Role(r.role)) for r in rows]
 
 
-# Login ---------------------------------------------------------------------------------------
+# Login --------------------------------------------------------------------------------------------
 
 
 async def login_with_password(email: str, password: str) -> LoginChallenge:
@@ -195,7 +195,7 @@ async def activate_totp(enroll_token: str, code: str, device: DeviceInfo) -> Iss
     return await create_session(user_id, "mfa", device)
 
 
-# Patient email OTP -----------------------------------------------------------------------------
+# Patient email OTP --------------------------------------------------------------------------------
 
 
 async def request_email_code(email: str) -> None:
@@ -264,7 +264,7 @@ async def verify_email_code(email: str, code: str, device: DeviceInfo) -> Issued
     return await create_session(user.id, "email", device)
 
 
-# Sessions ----------------------------------------------------------------------------------------
+# Sessions -----------------------------------------------------------------------------------------
 
 
 async def _device_id(db: AsyncSession, user_id: uuid.UUID, device: DeviceInfo) -> uuid.UUID | None:
@@ -470,7 +470,7 @@ async def revoke_session(user_id: uuid.UUID, family: uuid.UUID) -> bool:
     return bool(result.rowcount)  # type: ignore[attr-defined]
 
 
-# Staff invites ---------------------------------------------------------------------------------
+# Staff invites ------------------------------------------------------------------------------------
 
 INVITABLE_ROLES = frozenset(STAFF_ROLES - {Role.PLATFORM_ADMIN})
 

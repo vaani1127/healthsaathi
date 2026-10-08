@@ -58,7 +58,7 @@ async def book(
     return dict(resp.json())
 
 
-# Explanations through the API ------------------------------------------------------------------
+# Explanations through the API ---------------------------------------------------------------------
 
 
 async def test_registration_is_recorded_and_explained(
@@ -154,7 +154,7 @@ async def test_patient_reads_only_own_record(
     assert (other, AccessDecision.DENY) in decisions
 
 
-# Denials ----------------------------------------------------------------------------------------
+# Denials ------------------------------------------------------------------------------------------
 
 
 async def test_reception_reading_notes_is_denied_and_logged(
@@ -239,7 +239,7 @@ async def test_other_clinics_patient_is_not_found(
     assert await access_events(admin_engine, other_clinic) == []
 
 
-# Exactly one access event per patient per call ---------------------------------------------------
+# Exactly one access event per patient per call ----------------------------------------------------
 
 Call = Callable[[AsyncClient, dict[Role, Actor], dict[str, Any]], Awaitable[Any]]
 
@@ -382,7 +382,7 @@ async def test_each_endpoint_records_one_event_per_patient(
     assert await count_rows(admin_engine, m.AuditEvent, clinic) == before_audit + expected
 
 
-# Validation and roles ---------------------------------------------------------------------------
+# Validation and roles -----------------------------------------------------------------------------
 
 
 async def test_roles_are_enforced(client: AsyncClient, staff: dict[Role, Actor]) -> None:
@@ -572,7 +572,7 @@ async def test_mrn_is_sequential_per_clinic(client: AsyncClient, staff: dict[Rol
     assert mrns == ["P000001", "P000002"]
 
 
-# Policy and startup ------------------------------------------------------------------------------
+# Policy and startup -------------------------------------------------------------------------------
 
 
 async def test_policy_version_is_registered(admin_engine: AsyncEngine) -> None:

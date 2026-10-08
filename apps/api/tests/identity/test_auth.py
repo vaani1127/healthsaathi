@@ -99,7 +99,7 @@ async def refresh_with(client: AsyncClient, token: str, body: dict[str, str] | N
     )
 
 
-# Password and lockout ----------------------------------------------------------------------------
+# Password and lockout -----------------------------------------------------------------------------
 
 
 async def test_wrong_password_is_rejected(
@@ -159,7 +159,7 @@ async def test_inactive_user_cannot_log_in(
     assert resp.status_code == 401
 
 
-# TOTP ----------------------------------------------------------------------------------------
+# TOTP ---------------------------------------------------------------------------------------------
 
 
 async def test_password_alone_gives_no_session(
@@ -273,7 +273,7 @@ async def test_patient_data_requires_totp_for_staff(
     assert resp.json()["code"] == "clinic-not-selected"
 
 
-# Clinic selection -------------------------------------------------------------------------------
+# Clinic selection ---------------------------------------------------------------------------------
 
 
 async def test_select_clinic_puts_membership_in_token(
@@ -404,7 +404,7 @@ async def test_expired_refresh_token(
     assert resp.json()["code"] == "session-expired"
 
 
-# Sessions ----------------------------------------------------------------------------------------
+# Sessions -----------------------------------------------------------------------------------------
 
 
 async def test_sessions_list_and_revoke(
@@ -456,7 +456,7 @@ async def test_logout_ends_session_and_clears_cookie(
     ).status_code == 401
 
 
-# Patient email codes ----------------------------------------------------------------------------
+# Patient email codes ------------------------------------------------------------------------------
 
 
 async def make_patient(engine: AsyncEngine, clinic: ClinicGraph) -> str:
@@ -584,7 +584,7 @@ async def test_patient_cannot_use_password_login(
     assert resp.json()["code"] == "use-email-code"
 
 
-# Invites ---------------------------------------------------------------------------------------
+# Invites ------------------------------------------------------------------------------------------
 
 
 async def test_clinic_admin_invites_staff_who_then_enrols(
@@ -681,7 +681,7 @@ async def test_invite_creates_membership_only_in_admins_clinic(
     assert clinics == [clinic.clinic_id]
 
 
-# Headers and OpenAPI ---------------------------------------------------------------------------
+# Headers and OpenAPI ------------------------------------------------------------------------------
 
 
 async def test_security_headers(client: AsyncClient) -> None:

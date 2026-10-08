@@ -148,7 +148,7 @@ def _many_self_created(g: Graph) -> None:
 
 
 CASES = [
-    # Templates -----------------------------------------------------------------------------
+    # Templates ------------------------------------------------------------------------------------
     Case("T_APPT doctor at the slot", _appt_now, "doctor", "doctor", "notes", "T_APPT", 1.0),
     Case(
         "T_APPT one tau after the window",
@@ -242,7 +242,7 @@ CASES = [
     Case("T_BREAKGLASS not for billing", _break_glass, "nurse", "nurse", "billing", None, 0.0),
     Case("T_SELF own record", _nothing, "patient_user", "patient", "lab", "T_SELF", 1.0),
     Case("reception cannot explain notes", _appt_now, "reception", "reception", "notes", None, 0.0),
-    # Forgery flags ----------------------------------------------------------------------------
+    # Forgery flags --------------------------------------------------------------------------------
     Case(
         "self_created_recent and off_path_creation",
         _self_booked_off_path,

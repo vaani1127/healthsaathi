@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import tempfile
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
@@ -25,6 +26,8 @@ os.environ.setdefault("JWT_SECRET", "test-jwt-secret-" + "x" * 32)
 os.environ.setdefault("OTP_HMAC_KEY", "test-otp-key-" + "y" * 32)
 os.environ.setdefault("DATA_KEYS", "t1:" + "A" * 43 + "=")
 os.environ.setdefault("LEDGER_SIGNING_SEED", "test-ledger-seed-" + "z" * 32)
+os.environ["STORAGE_DIR"] = tempfile.mkdtemp(prefix="hs-blobs-")
+os.environ.pop("AZURE_BLOB_CONTAINER_SAS_URL", None)
 
 import asyncpg  # noqa: E402
 from alembic import command  # noqa: E402

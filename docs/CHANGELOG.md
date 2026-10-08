@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### P7 - Clinical, billing and consent APIs
+
+- Consultations (encounters), vitals with range checks, allergies, conditions, clinical notes
+  (draft, sign, new version; body encrypted with AES-256-GCM), prescriptions (draft, sign, new
+  version, print), lab orders and results with an uploaded report, referrals and follow-ups.
+- Migration `0002`: a database trigger rejects any change to a signed note or prescription.
+- Lab report files go through one storage interface: a local folder in development, Azure Blob
+  (container SAS URL) in production. The sha256 of every file is stored and checked on download.
+- Billing: price list, invoices, payments (cash, UPI, card on an offline terminal), receipt view,
+  daily revenue report.
+- Consent: versioned notices in English and Hindi, consent at registration, withdrawal by the
+  patient, history with events. Each consent stores an HMAC commitment for later anchoring.
+- Every write records an access event and an audit event; the audit payload carries the operation
+  and record ids (never clinical content).
+- New env vars: `STORAGE_DIR`, `AZURE_BLOB_CONTAINER_SAS_URL`, `MAX_UPLOAD_BYTES`.
+
 ### P6 - Full explanation engine, forgery flags, task views, break-glass
 
 - All eleven templates from SPEC 5.2 (T_APPT, T_QUEUE, T_FRONTDESK, T_LAB, T_REFERRAL, T_CARETEAM,

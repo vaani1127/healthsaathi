@@ -10,8 +10,11 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app import __version__, health
+from app.billing.router import router as billing_router
 from app.chart.router import router as chart_router
 from app.clinic.router import router as clinic_router
+from app.clinical.router import router as clinical_router
+from app.consent.router import router as consent_router
 from app.core.config import get_settings
 from app.core.errors import install_error_handlers, problem_response
 from app.core.logging import configure_logging
@@ -74,6 +77,9 @@ def create_app() -> FastAPI:
     app.include_router(staff_router, prefix=API_PREFIX)
     app.include_router(clinic_router, prefix=API_PREFIX)
     app.include_router(chart_router, prefix=API_PREFIX)
+    app.include_router(clinical_router, prefix=API_PREFIX)
+    app.include_router(billing_router, prefix=API_PREFIX)
+    app.include_router(consent_router, prefix=API_PREFIX)
     app.include_router(realtime_router, prefix=API_PREFIX)
     return app
 

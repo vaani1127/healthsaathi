@@ -43,12 +43,25 @@ class Settings(BaseSettings):
     cookie_secure: bool = Field(default=True, alias="COOKIE_SECURE")
     rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
 
+    # Files (lab reports). Local folder unless an Azure container SAS URL is set.
+    storage_dir: str | None = Field(default=None, alias="STORAGE_DIR")
+    azure_blob_container_sas_url: SecretStr | None = Field(
+        default=None, alias="AZURE_BLOB_CONTAINER_SAS_URL"
+    )
+    max_upload_bytes: int = Field(default=10 * 1024 * 1024, alias="MAX_UPLOAD_BYTES")
+
     email_backend: Literal["console", "brevo"] = Field(default="console", alias="EMAIL_BACKEND")
     brevo_api_key: SecretStr | None = Field(default=None, alias="BREVO_API_KEY")
     email_from: str = Field(default="no-reply@healthsaathi.test", alias="EMAIL_FROM")
     email_from_name: str = Field(default="HealthSaathi", alias="EMAIL_FROM_NAME")
 
-    @field_validator("cookie_domain", "brevo_api_key", mode="before")
+    @field_validator(
+        "cookie_domain",
+        "brevo_api_key",
+        "storage_dir",
+        "azure_blob_container_sas_url",
+        mode="before",
+    )
     @classmethod
     def _blank_is_unset(cls, value: object) -> object:
         return None if value == "" else value

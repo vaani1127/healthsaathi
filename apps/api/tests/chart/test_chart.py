@@ -121,7 +121,7 @@ async def book(client: AsyncClient, staff: dict[Role, Actor], patient: uuid.UUID
     assert resp.status_code == 201
 
 
-# Task views -------------------------------------------------------------------------------------
+# Task views ---------------------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -189,7 +189,7 @@ async def test_lab_worklist_shows_open_orders(
     assert [o["tests"] for o in body["worklist"]] == [[{"code": "CBC"}]]
 
 
-# Doctor and the reason flow ------------------------------------------------------------------
+# Doctor and the reason flow -----------------------------------------------------------------------
 
 
 async def test_doctor_with_appointment_sees_full_chart(

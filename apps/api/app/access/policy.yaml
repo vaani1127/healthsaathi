@@ -29,7 +29,7 @@ rules:
     allergies: {view: explanation_or_review, create: explanation_or_review, edit: explanation_or_review}
     notes: {view: explanation_or_review, create: explanation_or_review, edit: explanation_or_review, print: explanation_or_review, export: explanation_or_review}
     prescriptions: {view: explanation_or_review, create: explanation_or_review, edit: explanation_or_review, print: explanation_or_review, export: explanation_or_review}
-    lab: {view: explanation_or_review, create: explanation_or_review, print: explanation_or_review}
+    lab: {view: explanation_or_review, create: explanation_or_review, edit: explanation_or_review, print: explanation_or_review}
     documents: {view: explanation_or_review, print: explanation_or_review}
     consent: {view: explanation_or_review}
 

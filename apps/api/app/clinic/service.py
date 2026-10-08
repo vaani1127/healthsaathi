@@ -94,7 +94,7 @@ async def local_today(db: AsyncSession, clinic_id: uuid.UUID) -> date:
     return _now().astimezone(ZoneInfo(await clinic_timezone(db, clinic_id))).date()
 
 
-async def _require_member(
+async def require_member(
     db: AsyncSession, clinic_id: uuid.UUID, user_id: uuid.UUID, roles: frozenset[Role]
 ) -> None:
     found = await db.scalar(
@@ -124,7 +124,7 @@ async def staff_directory(db: AsyncSession, clinic_id: uuid.UUID) -> list[schema
     return [schemas.StaffMember(user_id=r.id, name=r.name, role=r.role) for r in rows]
 
 
-# Patients ----------------------------------------------------------------------------------
+# Patients -----------------------------------------------------------------------------------------
 
 
 async def _next_mrn(db: AsyncSession, clinic_id: uuid.UUID) -> str:
@@ -214,7 +214,7 @@ async def search_patients(
     return page, next_cursor
 
 
-# Schedules and shifts -------------------------------------------------------------------------
+# Schedules and shifts -----------------------------------------------------------------------------
 
 
 async def list_schedules(
@@ -229,7 +229,7 @@ async def list_schedules(
 async def create_schedule(
     db: AsyncSession, principal: ClinicPrincipal, body: schemas.ScheduleCreate
 ) -> Schedule:
-    await _require_member(db, principal.clinic_id, body.doctor_user_id, frozenset({Role.DOCTOR}))
+    await require_member(db, principal.clinic_id, body.doctor_user_id, frozenset({Role.DOCTOR}))
     schedule = Schedule(
         clinic_id=principal.clinic_id, created_by=principal.user_id, **body.model_dump()
     )
@@ -271,7 +271,7 @@ async def list_shifts(
 async def create_shift(
     db: AsyncSession, principal: ClinicPrincipal, body: schemas.ShiftCreate
 ) -> Shift:
-    await _require_member(db, principal.clinic_id, body.user_id, frozenset({body.role}))
+    await require_member(db, principal.clinic_id, body.user_id, frozenset({body.role}))
     shift = Shift(clinic_id=principal.clinic_id, created_by=principal.user_id, **body.model_dump())
     db.add(shift)
     await db.flush()
@@ -288,7 +288,7 @@ async def cancel_shift(db: AsyncSession, shift_id: uuid.UUID) -> Shift:
     return shift
 
 
-# Appointments ---------------------------------------------------------------------------------
+# Appointments -------------------------------------------------------------------------------------
 
 
 async def _slot_length(
@@ -339,7 +339,7 @@ async def create_appointment(
         raise ProblemError(422, "use-walkin-endpoint")
     # Booking shows who the patient is but does not change their record.
     await _touch(db, principal, body.patient_id, AccessAction.VIEW, req)
-    await _require_member(db, principal.clinic_id, body.doctor_user_id, frozenset({Role.DOCTOR}))
+    await require_member(db, principal.clinic_id, body.doctor_user_id, frozenset({Role.DOCTOR}))
     tz = await clinic_timezone(db, principal.clinic_id)
     start = body.slot_start
     if start.tzinfo is None:
@@ -439,7 +439,7 @@ async def update_appointment(
     return appointment
 
 
-# Queue ----------------------------------------------------------------------------------------
+# Queue --------------------------------------------------------------------------------------------
 
 
 async def _issue_token(
@@ -493,7 +493,7 @@ async def create_walkin(
     db: AsyncSession, principal: ClinicPrincipal, body: schemas.WalkInCreate, req: RequestInfo
 ) -> tuple[Appointment, QueueToken]:
     await _touch(db, principal, body.patient_id, AccessAction.VIEW, req)
-    await _require_member(db, principal.clinic_id, body.doctor_user_id, frozenset({Role.DOCTOR}))
+    await require_member(db, principal.clinic_id, body.doctor_user_id, frozenset({Role.DOCTOR}))
     now = _now()
     appointment = Appointment(
         clinic_id=principal.clinic_id,
@@ -577,7 +577,7 @@ async def update_token(
     if body.unassign_nurse:
         token.assigned_nurse_user_id = None
     elif body.assigned_nurse_user_id is not None:
-        await _require_member(
+        await require_member(
             db, principal.clinic_id, body.assigned_nurse_user_id, frozenset({Role.NURSE})
         )
         token.assigned_nurse_user_id = body.assigned_nurse_user_id
@@ -586,7 +586,7 @@ async def update_token(
     return token
 
 
-# Care team -------------------------------------------------------------------------------------
+# Care team ----------------------------------------------------------------------------------------
 
 
 async def add_care_team_member(
@@ -595,7 +595,7 @@ async def add_care_team_member(
     await record_and_explain(db, principal, body.patient_id, DEMOGRAPHICS, AccessAction.EDIT, req)
     if body.role not in STAFF_ROLES:
         raise ProblemError(422, "not-a-staff-role")
-    await _require_member(db, principal.clinic_id, body.user_id, frozenset({body.role}))
+    await require_member(db, principal.clinic_id, body.user_id, frozenset({body.role}))
     starts = body.starts_at or _now()
     if body.ends_at is not None and body.ends_at <= starts:
         raise ProblemError(422, "bad-window", "ends_at must be after starts_at.")

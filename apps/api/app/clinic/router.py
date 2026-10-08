@@ -36,7 +36,7 @@ QueueWorkers = Annotated[ClinicPrincipal, _only(R.RECEPTION, R.NURSE, R.DOCTOR)]
 CareTeamEditors = Annotated[ClinicPrincipal, _only(R.CLINIC_ADMIN, R.DOCTOR)]
 
 
-# Patients ----------------------------------------------------------------------------------
+# Patients -----------------------------------------------------------------------------------------
 
 
 @router.post("/patients", response_model=schemas.PatientOut, status_code=status.HTTP_201_CREATED)
@@ -102,7 +102,7 @@ async def list_care_team(
     return [schemas.CareTeamOut.model_validate(r) for r in rows]
 
 
-# Staff, schedules, shifts -----------------------------------------------------------------------
+# Staff, schedules, shifts -------------------------------------------------------------------------
 
 
 @router.get("/staff", response_model=list[schemas.StaffMember])
@@ -168,7 +168,7 @@ async def cancel_shift(principal: Admin, shift_id: uuid.UUID, db: Db) -> schemas
     return schemas.ShiftOut.model_validate(await service.cancel_shift(db, shift_id))
 
 
-# Appointments ----------------------------------------------------------------------------------
+# Appointments -------------------------------------------------------------------------------------
 
 
 @router.post(
@@ -228,7 +228,7 @@ async def create_walkin(
     )
 
 
-# Queue ----------------------------------------------------------------------------------------
+# Queue --------------------------------------------------------------------------------------------
 
 
 @router.post("/queue/tokens", response_model=schemas.TokenOut, status_code=status.HTTP_201_CREATED)
@@ -273,7 +273,7 @@ async def update_token(
     )
 
 
-# Care team ------------------------------------------------------------------------------------
+# Care team ----------------------------------------------------------------------------------------
 
 
 @router.post("/care-team", response_model=schemas.CareTeamOut, status_code=status.HTTP_201_CREATED)
