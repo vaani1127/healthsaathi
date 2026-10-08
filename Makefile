@@ -2,7 +2,7 @@ COMPOSE := docker compose -f infra/docker-compose.dev.yml
 UV := uv run
 PY_TYPED := packages/e2d-core/src apps/api
 
-.PHONY: help env install dev dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
+.PHONY: help env install dev vectors dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
 	test-sol migrate seed sim exp audit
 
 help:
@@ -58,13 +58,17 @@ format:
 test: test-py test-js test-sol
 
 test-py: db-up
-	$(UV) pytest
+	$(UV) pytest --cov=e2d_core --cov-report=term-missing:skip-covered --cov-fail-under=90
 
 test-js:
 	pnpm -r test
 
 test-sol:
 	cd contracts && forge test
+
+# Regenerate the ledger test vectors shared by e2d-core and receipt-verify.
+vectors:
+	$(UV) python -m e2d_core.ledger.vectors packages/receipt-verify/test/vectors/ledger.json
 
 audit:
 	uv export --frozen --no-dev --no-emit-workspace --no-hashes -o .pip-audit-requirements.txt

@@ -401,6 +401,12 @@ wheels = [
 name = "e2d-core"
 version = "0.1.0"
 source = { editable = "packages/e2d-core" }
+dependencies = [
+    { name = "cryptography" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "cryptography", specifier = ">=50.0.2" }]
 
 [[package]]
 name = "e2d-experiments"

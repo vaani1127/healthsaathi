@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     # Comma separated "key_id:base64_key" pairs for AES-256-GCM. The first one encrypts new data.
     data_keys: SecretStr = Field(alias="DATA_KEYS")
     otp_hmac_key: SecretStr = Field(alias="OTP_HMAC_KEY")
+    # Seed for the per-clinic Ed25519 keys that sign Merkle checkpoints (HKDF per clinic).
+    ledger_signing_seed: SecretStr = Field(alias="LEDGER_SIGNING_SEED")
 
     access_token_minutes: int = 15
     refresh_token_days: int = Field(default=14, alias="REFRESH_TOKEN_DAYS")
@@ -51,7 +53,7 @@ class Settings(BaseSettings):
     def _blank_is_unset(cls, value: object) -> object:
         return None if value == "" else value
 
-    @field_validator("jwt_secret", "otp_hmac_key")
+    @field_validator("jwt_secret", "otp_hmac_key", "ledger_signing_seed")
     @classmethod
     def _long_enough(cls, value: SecretStr) -> SecretStr:
         if len(value.get_secret_value()) < 32:

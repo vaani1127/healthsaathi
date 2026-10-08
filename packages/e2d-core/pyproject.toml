@@ -3,7 +3,9 @@ name = "e2d-core"
 version = "0.1.0"
 description = "Explain-then-Detect core: explanations, features, scoring, ledger"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+    "cryptography>=50.0.2",
+]
 
 [build-system]
 requires = ["hatchling"]

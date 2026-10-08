@@ -24,6 +24,7 @@ os.environ["EMAIL_BACKEND"] = "console"
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-" + "x" * 32)
 os.environ.setdefault("OTP_HMAC_KEY", "test-otp-key-" + "y" * 32)
 os.environ.setdefault("DATA_KEYS", "t1:" + "A" * 43 + "=")
+os.environ.setdefault("LEDGER_SIGNING_SEED", "test-ledger-seed-" + "z" * 32)
 
 import asyncpg  # noqa: E402
 from alembic import command  # noqa: E402
