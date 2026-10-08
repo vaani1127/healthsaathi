@@ -14,6 +14,11 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://healthsaathi:healthsaathi@localhost:5432/healthsaathi",
         alias="DATABASE_URL",
     )
+    # Used only by Alembic and the seed script. It must be able to create roles and own tables.
+    migrator_database_url: str = Field(
+        default="postgresql+asyncpg://healthsaathi:healthsaathi@localhost:5432/healthsaathi",
+        alias="MIGRATOR_DATABASE_URL",
+    )
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:5173"], alias="CORS_ORIGINS"
     )

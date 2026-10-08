@@ -45,7 +45,7 @@ ignore = ["S101"]
 known-first-party = ["app", "e2d_core", "saathibench", "e2d_experiments"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S105", "S106", "S311"]
+"**/tests/**" = ["S105", "S106", "S311", "S608"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -54,6 +54,10 @@ warn_unreachable = true
 plugins = ["pydantic.mypy"]
 mypy_path = ["packages/e2d-core/src", "apps/api"]
 explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = ["asyncpg.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -66,3 +70,4 @@ testpaths = [
     "experiments/tests",
 ]
 addopts = "--import-mode=importlib"
+pythonpath = ["apps/api"]

@@ -67,11 +67,11 @@ audit:
 	$(UV) pip-audit --strict -r .pip-audit-requirements.txt
 	pnpm audit --prod
 
-migrate:
-	@echo "migrations are added in phase P1" && exit 1
+migrate: db-up
+	cd apps/api && $(UV) alembic upgrade head
 
-seed:
-	@echo "seed data is added in phase P1" && exit 1
+seed: db-up
+	cd apps/api && $(UV) python -m app.scripts.seed
 
 sim:
 	@echo "the simulator is added in phase P12" && exit 1
