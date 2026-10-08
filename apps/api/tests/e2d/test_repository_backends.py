@@ -18,9 +18,10 @@ from app.core.db import TenantContext, tenant_session
 from app.db import models as m
 from e2d_core.explain import AccessEvent, EvidenceBundle, EvidenceQuery, explain
 from e2d_core.repo import EvidenceRepository
-from e2d_core.repo.memory import COLUMNS, MemoryRepository
+from e2d_core.repo.memory import COLUMNS, MemoryRepository, frames_from_rows
 from e2d_core.repo.sql import SqlRepository
 
+BASIC = ("patients", "appointments", "queue_tokens", "shifts", "invoices")
 AT = datetime(2026, 10, 8, 6, 30, tzinfo=UTC)  # 12:00 in Asia/Kolkata
 EARLIER = AT - timedelta(days=3)
 
@@ -33,7 +34,7 @@ class Scenario:
             uuid.uuid4() for _ in range(4)
         )
         self.patient, self.other_patient = uuid.uuid4(), uuid.uuid4()
-        self.rows: dict[str, list[dict[str, Any]]] = {t: [] for t in COLUMNS}
+        self.rows: dict[str, list[dict[str, Any]]] = {t: [] for t in COLUMNS if t in BASIC}
         self.extra_users = [self.doctor, self.nurse, self.reception, self.patient_user]
 
         def patient(pid: uuid.UUID, clinic: uuid.UUID, user: uuid.UUID | None) -> None:
@@ -157,14 +158,7 @@ async def _write_sql(engine: AsyncEngine, sc: Scenario) -> None:
 
 
 def _frames(sc: Scenario) -> dict[str, pl.DataFrame]:
-    frames = {}
-    for table, rows in sc.rows.items():
-        data = {
-            c: [r[c] if not isinstance(r[c], uuid.UUID) else str(r[c]) for r in rows]
-            for c in COLUMNS[table]
-        }
-        frames[table] = pl.DataFrame(data)
-    return frames
+    return frames_from_rows(sc.rows)
 
 
 @pytest.fixture(scope="module")

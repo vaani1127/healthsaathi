@@ -9,6 +9,10 @@ resource_groups:
   clinical: [demographics, vitals, allergies, notes, prescriptions, lab, documents]
   frontdesk: [demographics, billing, consent]
   nursing: [demographics, vitals, allergies]
+  lab: [demographics, lab, documents]
+  billing: [billing, demographics]
+  # Break-glass view: allergies, active conditions (under notes), current medicines, last vitals.
+  emergency: [demographics, allergies, vitals, prescriptions, notes]
   all: [demographics, vitals, allergies, notes, prescriptions, lab, billing, documents, consent]
 
 templates:
@@ -16,7 +20,7 @@ templates:
     roles: [doctor]
     resources: clinical
     weight: 1.0
-    # Core window: from 30 minutes before the slot until 24 hours after it.
+    # From 30 minutes before the slot until 24 hours after it.
     before: 30m
     after: 24h
     tau: 2h
@@ -25,19 +29,92 @@ templates:
     roles: [nurse]
     resources: nursing
     weight: 0.9
-    # Core window: the token's clinic day (local time).
+    # The token's clinic day (local time).
     tau: 2h
 
   T_FRONTDESK:
     roles: [reception]
     resources: frontdesk
     weight: 0.9
-    # Core window: one day either side of the appointment, the invoice or the registration.
+    # One day either side of the appointment, the invoice or the registration.
     before: 1d
     after: 1d
     tau: 6h
+
+  T_LAB:
+    roles: [lab_tech]
+    resources: lab
+    weight: 1.0
+    # From the order until 2 days after the result is released (open while not released).
+    after: 2d
+    tau: 6h
+
+  T_REFERRAL:
+    roles: [doctor]
+    resources: clinical
+    weight: 0.8
+    # From the referral until valid_until.
+    tau: 1d
+
+  T_CARETEAM:
+    roles: [doctor, nurse, reception, lab_tech, clinic_admin]
+    resources: all
+    weight: 0.8
+    # The assignment window. Each role only gets its default resources.
+    role_resources:
+      doctor: clinical
+      nurse: nursing
+      reception: frontdesk
+      lab_tech: lab
+      clinic_admin: frontdesk
+    tau: 1d
+
+  T_FOLLOWUP:
+    roles: [doctor]
+    resources: clinical
+    weight: 0.6
+    # The doctor saw the patient in the last 90 days and has a future appointment with them.
+    lookback: 90d
+    tau: 7d
+
+  T_BILLING:
+    roles: [reception]
+    resources: billing
+    weight: 0.8
+    # While the invoice is open, and 7 days after it is paid.
+    after: 7d
+    tau: 2d
+
+  T_REASON:
+    roles: [doctor]
+    resources: clinical
+    weight: 0.3
+
+  T_BREAKGLASS:
+    roles: [doctor, nurse]
+    resources: emergency
+    weight: 0.2
+    # Four hours from the break-glass event.
+    after: 4h
+    tau: 1h
 
   T_SELF:
     roles: [patient]
     resources: all
     weight: 1.0
+
+# Scoring gate (SPEC 5.5): accesses explained below theta are scored. The product also asks a
+# doctor for a typed reason before opening a chart explained below theta.
+gate:
+  theta: 0.5
+  # Matches weaker than this are dropped, so long-decayed evidence does not count as an explanation.
+  min_strength: 0.001
+
+# Forgery indicators (SPEC 5.3).
+forgery:
+  self_created_recent: 60m
+  no_progress_after: 24h
+  # Off-path creation is flagged when at least this share of recent bookings came from reception.
+  reception_norm: 0.8
+  # self_creation_rate is reported as (own + 1) / (role median + 1); it is "high" at or above this.
+  self_creation_high: 3.0

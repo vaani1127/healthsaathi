@@ -268,7 +268,7 @@ def test_reception_not_explained_for_notes() -> None:
 def test_old_registration_decays() -> None:
     old = patient(created_at=NOON_IST - timedelta(days=30))
     result = explain(event("reception", RECEPTION, "demographics"), EvidenceBundle(patient=old))
-    assert 0 < result.strength < 0.01
+    assert result.template_code is None
 
 
 # T_SELF -------------------------------------------------------------------------------------
@@ -294,7 +294,7 @@ def test_patient_cannot_explain_someone_else() -> None:
 
 def test_best_candidate_wins_and_alternatives_are_kept() -> None:
     near = appointment(start=NOON_IST)
-    far = appointment(start=NOON_IST - timedelta(days=3))
+    far = appointment(start=NOON_IST - timedelta(hours=26, minutes=15))
     result = explain(event("doctor", DOCTOR, "notes"), EvidenceBundle(appointments=(far, near)))
     assert result.evidence[0].id == near.id
     assert len(result.alternatives) == 1
@@ -314,9 +314,8 @@ def test_ties_go_to_the_closest_evidence() -> None:
 # Config ----------------------------------------------------------------------------------------
 
 
-def test_default_config_has_p5_templates() -> None:
+def test_config_lookup() -> None:
     config = default_config()
-    assert {"T_APPT", "T_QUEUE", "T_FRONTDESK", "T_SELF"} <= set(config.templates)
     assert "notes" in config.templates["T_APPT"].resources
     assert config.get("T_UNKNOWN") is None
 
@@ -330,12 +329,61 @@ def test_config_validation_and_durations() -> None:
         parse_config(
             {"templates": {"T_X": {"roles": ["doctor"], "resources": ["notes"], "weight": 2}}}
         )
+    with pytest.raises(ValueError, match="unknown resource group"):
+        parse_config(
+            {"templates": {"T_X": {"roles": ["doctor"], "resources": "nope", "weight": 1}}}
+        )
     custom = parse_config(
         {
+            "resource_groups": {"mini": ["vitals"]},
             "templates": {
-                "T_X": {"roles": ["doctor"], "resources": ["notes"], "weight": 0.5, "extra": 3}
-            }
+                "T_X": {
+                    "roles": ["doctor", "nurse"],
+                    "resources": ["notes", "vitals"],
+                    "weight": 0.5,
+                    "role_resources": {"nurse": "mini"},
+                }
+            },
+            "gate": {"theta": 0.4},
         }
     )
-    assert custom.templates["T_X"].param("extra") == 3
-    assert custom.templates["T_X"].param("missing", "d") == "d"
+    spec = custom.templates["T_X"]
+    assert spec.applies_to("doctor", "notes")
+    assert spec.applies_to("nurse", "vitals")
+    assert not spec.applies_to("nurse", "notes")
+    assert not spec.applies_to("reception", "vitals")
+    assert custom.theta == 0.4
+    assert custom.forgery.no_progress_after == timedelta(hours=24)
+
+
+def test_default_config_has_every_spec_template() -> None:
+    expected = {
+        "T_APPT",
+        "T_QUEUE",
+        "T_FRONTDESK",
+        "T_LAB",
+        "T_REFERRAL",
+        "T_CARETEAM",
+        "T_FOLLOWUP",
+        "T_BILLING",
+        "T_REASON",
+        "T_BREAKGLASS",
+        "T_SELF",
+    }
+    config = default_config()
+    assert set(config.templates) == expected
+    weights = {code: spec.weight for code, spec in config.templates.items()}
+    assert weights == {
+        "T_APPT": 1.0,
+        "T_QUEUE": 0.9,
+        "T_FRONTDESK": 0.9,
+        "T_LAB": 1.0,
+        "T_REFERRAL": 0.8,
+        "T_CARETEAM": 0.8,
+        "T_FOLLOWUP": 0.6,
+        "T_BILLING": 0.8,
+        "T_REASON": 0.3,
+        "T_BREAKGLASS": 0.2,
+        "T_SELF": 1.0,
+    }
+    assert config.theta == 0.5

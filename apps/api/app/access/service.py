@@ -19,7 +19,7 @@ import uuid
 from collections.abc import AsyncIterator, Iterable, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,11 +29,19 @@ from app.core.config import get_settings
 from app.core.db import tenant_session
 from app.core.errors import ProblemError
 from app.db.enums import AccessAction, AccessDecision, ResourceType, Role
-from app.db.models import AccessEvent, AccessExplanation, Clinic, Patient, UserSession
+from app.db.models import (
+    AccessEvent,
+    AccessExplanation,
+    BreakGlassEvent,
+    Clinic,
+    Patient,
+    UserSession,
+)
 from app.identity.deps import ClinicPrincipal
 from app.ledger.writer import append_audit_event
 from e2d_core.explain import AccessEvent as CoreAccessEvent
-from e2d_core.explain import EvidenceQuery, Explanation, explain
+from e2d_core.explain import EvidenceQuery, Explanation, default_config, explain
+from e2d_core.explain.model import AccessReason
 from e2d_core.ids import uuid7
 from e2d_core.repo.sql import SqlRepository
 
@@ -166,9 +174,28 @@ class Denial:
 
 
 class AccessDeniedError(ProblemError):
-    def __init__(self, denial: Denial) -> None:
-        super().__init__(403, "access-denied", "Your role cannot open this part of the record.")
+    def __init__(
+        self,
+        denial: Denial,
+        status: int = 403,
+        code: str = "access-denied",
+        detail: str = "Your role cannot open this part of the record.",
+    ) -> None:
+        super().__init__(status, code, detail)
         self.denial = denial
+
+
+BREAK_GLASS_WINDOW = timedelta(hours=4)
+
+
+async def _valid_break_glass(
+    db: AsyncSession, principal: ClinicPrincipal, patient_id: uuid.UUID, break_glass_id: uuid.UUID
+) -> bool:
+    row = await db.get(BreakGlassEvent, break_glass_id)
+    if row is None or row.user_id != principal.user_id or row.patient_id != patient_id:
+        return False
+    age: timedelta = await db_now(db) - row.at
+    return age <= BREAK_GLASS_WINDOW
 
 
 async def log_denial(denial: Denial) -> None:
@@ -208,8 +235,14 @@ async def record_and_explain(
     request: RequestInfo | None = None,
     *,
     break_glass_id: uuid.UUID | None = None,
+    reason: AccessReason | None = None,
+    require_reason: bool = False,
 ) -> AccessRecord:
-    """Authorise, explain and log one access. Raises 404 or 403 (after logging the denial)."""
+    """Authorise, explain and log one access. Raises 404 or 403 (after logging the denial).
+
+    With `require_reason`, a doctor whose access is explained below theta and who gave no reason
+    gets 428 (the attempt is logged as a denial) and must retry with a typed reason (T_REASON).
+    """
     request = request or RequestInfo()
     policy = get_policy()
     row = (
@@ -222,6 +255,10 @@ async def record_and_explain(
     if row is None:
         raise ProblemError(404, "patient-not-found")
 
+    if break_glass_id is not None and not await _valid_break_glass(
+        db, principal, patient_id, break_glass_id
+    ):
+        raise ProblemError(403, "break-glass-expired", "Start a new break-glass access.")
     decision = policy.decide(
         principal.role, resource, action, break_glass=break_glass_id is not None
     )
@@ -243,12 +280,36 @@ async def record_and_explain(
         resource=resource.value,
         action=action.value,
         at=at,
+        reason=reason,
+        break_glass_id=break_glass_id,
     )
     timezone = await clinic_timezone(db, principal.clinic_id)
     bundle = await SqlRepository(db).evidence_for(
-        EvidenceQuery(principal.clinic_id, principal.user_id, patient_id, at, timezone)
+        EvidenceQuery(
+            principal.clinic_id,
+            principal.user_id,
+            patient_id,
+            at,
+            timezone,
+            role=principal.role.value,
+        )
     )
     explanation = explain(core_event, bundle, timezone=timezone)
+    needs_reason = (
+        require_reason
+        and principal.role == Role.DOCTOR
+        and reason is None
+        and break_glass_id is None
+        and decision.requirement == Requirement.EXPLANATION_OR_REVIEW
+        and explanation.strength < default_config().theta
+    )
+    if needs_reason:
+        raise AccessDeniedError(
+            Denial(principal, patient_id, resource, action, request, break_glass_id),
+            status=428,
+            code="reason-required",
+            detail="Tell us why you need this record. The reason is saved with the access.",
+        )
     event = await _write(
         db,
         principal,

@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### P6 - Full explanation engine, forgery flags, task views, break-glass
+
+- All eleven templates from SPEC 5.2 (T_APPT, T_QUEUE, T_FRONTDESK, T_LAB, T_REFERRAL, T_CARETEAM,
+  T_FOLLOWUP, T_BILLING, T_REASON, T_BREAKGLASS, T_SELF) and all six forgery indicators from
+  SPEC 5.3, with parameters in `templates.yaml`. See ADR 0005.
+- Both repository backends now return encounters, lab orders with release times, referrals, care
+  team assignments, break-glass events, care progress, clinic hours, the clinic booking norm and
+  per-user evidence creation counts.
+- `GET /patients/{id}/chart` returns a different schema per role (reception, nurse, lab, doctor,
+  admin) and records one access per resource type shown.
+- Doctor reason flow: 428 when the chart is not explained, then `POST /patients/{id}/chart` with a
+  typed reason (T_REASON).
+- Break-glass: emergency view for doctors and nurses, valid 4 hours, and an admin review queue.
+- Table-driven tests run every template and flag on both backends.
+
 ### P5 - Clinic operations and access recording
 
 - APIs for patients (register, search with cursor pagination, view, edit), staff directory,
