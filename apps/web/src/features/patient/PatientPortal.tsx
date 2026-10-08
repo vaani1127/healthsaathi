@@ -2,6 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { Receipt } from "@healthsaathi/receipt-verify";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +10,9 @@ import { Alert, Badge, Textarea } from "@/components/ui/form";
 import { DocumentLink, ResultValues } from "@/features/common/LabResult";
 import { VitalsList } from "@/features/common/VitalsList";
 import { accessSentence } from "@/features/patient/explain";
-import { api, call, type Schemas } from "@/lib/api/client";
+import { checkReceipt, downloadReceipt } from "@/features/verify/check";
+import { ReceiptResultView } from "@/features/verify/ReceiptResultView";
+import { api, ApiError, call, type Schemas } from "@/lib/api/client";
 import { errorMessage, formatDate, formatDateTime, formatMoney, formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -232,6 +235,17 @@ function AccessRow({ entry, patientId }: { entry: Schemas["AccessLogEntry"]; pat
       ),
     onSuccess: () => client.invalidateQueries({ queryKey: ["access-log", patientId] }),
   });
+  const verify = useMutation({
+    mutationFn: async () => {
+      const receipt = (await call(() =>
+        api.GET("/api/v1/access-events/{access_event_id}/receipt", {
+          params: { path: { access_event_id: entry.id } },
+        }),
+      )) as unknown as Receipt;
+      return { receipt, result: await checkReceipt(receipt) };
+    },
+  });
+  const notReady = verify.error instanceof ApiError && verify.error.status === 409;
   return (
     <li className="rounded-md border p-3 text-sm" data-testid="access-entry">
       <div className="flex items-start justify-between gap-2">
@@ -249,7 +263,28 @@ function AccessRow({ entry, patientId }: { entry: Schemas["AccessLogEntry"]; pat
             </Button>
           )
         )}
+        {!verify.data && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="px-0 text-primary underline"
+            disabled={verify.isPending}
+            onClick={() => verify.mutate()}
+          >
+            {t("verify.checkThis")}
+          </Button>
+        )}
       </div>
+      {notReady && <p className="mt-2 text-xs text-muted-foreground">{t("verify.notReady")}</p>}
+      {verify.isError && !notReady && <Alert tone="error">{errorMessage(verify.error)}</Alert>}
+      {verify.data && (
+        <div className="mt-2 flex flex-col gap-2 rounded-md bg-muted p-2">
+          <ReceiptResultView result={verify.data.result} />
+          <Button size="sm" variant="outline" onClick={() => downloadReceipt(verify.data.receipt)}>
+            {t("verify.download")}
+          </Button>
+        </div>
+      )}
       {open && !entry.query_status && (
         <div className="mt-2 flex flex-col gap-2">
           <Textarea

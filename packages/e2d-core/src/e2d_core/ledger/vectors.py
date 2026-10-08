@@ -11,6 +11,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from e2d_core.ledger.hashchain import payload_hash
 from e2d_core.ledger.jcs import canonicalize
 from e2d_core.ledger.merkle import MerkleTree, leaf_hash
 from e2d_core.ledger.sth import (
@@ -38,6 +39,56 @@ JCS_INPUTS = [
 
 def _hex(items: list[bytes]) -> list[str]:
     return [b.hex() for b in items]
+
+
+def _access_payload(i: int) -> dict[str, Any]:
+    """Shaped like the audit payload the API writes for an access (synthetic ids only)."""
+    return {
+        "type": "access",
+        "access_event_id": f"01920000-0000-7000-8000-{i:012x}",
+        "at": f"2026-10-01T09:{i:02d}:00+00:00",
+        "user_id": "01920000-0000-7000-8000-0000000000d1",
+        "role": "doctor",
+        "patient_id": "01920000-0000-7000-8000-0000000000e1",
+        "resource": "notes",
+        "action": "view",
+        "decision": "allow",
+        "policy_version": "1",
+        "template": "T1_APPOINTMENT" if i % 2 == 0 else None,
+        "strength": 0.731058 if i % 2 == 0 else 0,
+    }
+
+
+def _api_receipt(key: Any, public_key: bytes) -> dict[str, Any]:
+    """A receipt exactly as GET /access-events/{id}/receipt returns it."""
+    payloads = [_access_payload(i) for i in range(6)]
+    hashes = [payload_hash(p) for p in payloads]
+    tree = MerkleTree([leaf_hash(h) for h in hashes])
+    head = TreeHead(
+        clinic_id=str(CLINIC_ID),
+        tree_size=tree.size,
+        root_hex=tree.root().hex(),
+        prev_root_hex=None,
+        timestamp=TIMESTAMP,
+        key_id=key_id(public_key),
+    )
+    index = 4
+    return {
+        "version": 1,
+        "clinic_id": str(CLINIC_ID),
+        "clinic_id_bytes32": "0x" + (CLINIC_ID.bytes + bytes(16)).hex(),
+        "public_key": public_key.hex(),
+        "audit_seq": 100 + index,
+        "payload": payloads[index],
+        "payload_hash": hashes[index].hex(),
+        "leaf_hash": leaf_hash(hashes[index]).hex(),
+        "leaf_index": index,
+        "proof": _hex(tree.inclusion_proof(index)),
+        "sth": head.to_json(),
+        "signature": sign(head, key).hex(),
+        "sth_digest": head.digest().hex(),
+        "anchors": [],
+    }
 
 
 def build_vectors() -> dict[str, Any]:
@@ -133,6 +184,7 @@ def build_vectors() -> dict[str, Any]:
             "heads": heads,
         },
         "receipt": receipt,
+        "api_receipt": _api_receipt(key, public_key),
     }
 
 

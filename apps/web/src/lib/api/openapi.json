@@ -275,6 +275,60 @@
         "title": "AllergyUpdate",
         "type": "object"
       },
+      "AnchorRef": {
+        "properties": {
+          "backend": {
+            "title": "Backend",
+            "type": "string"
+          },
+          "block_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Ref"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "tx_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tx Ref"
+          }
+        },
+        "required": [
+          "backend",
+          "status",
+          "tx_ref",
+          "block_ref",
+          "link"
+        ],
+        "title": "AnchorRef",
+        "type": "object"
+      },
       "AppointmentCreate": {
         "properties": {
           "doctor_user_id": {
@@ -473,6 +527,94 @@
           "status"
         ],
         "title": "AppointmentUpdate",
+        "type": "object"
+      },
+      "AuditStatus": {
+        "properties": {
+          "anchors": {
+            "items": {
+              "$ref": "#/components/schemas/AnchorRef"
+            },
+            "title": "Anchors",
+            "type": "array"
+          },
+          "chain_ok": {
+            "title": "Chain Ok",
+            "type": "boolean"
+          },
+          "confirmed_backends": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Confirmed Backends",
+            "type": "array"
+          },
+          "consistency_ok": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consistency Ok"
+          },
+          "events": {
+            "title": "Events",
+            "type": "integer"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem"
+          },
+          "public_key": {
+            "title": "Public Key",
+            "type": "string"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signature"
+          },
+          "sth": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sth"
+          }
+        },
+        "required": [
+          "sth",
+          "signature",
+          "public_key",
+          "events",
+          "chain_ok",
+          "consistency_ok",
+          "problem",
+          "anchors",
+          "confirmed_backends"
+        ],
+        "title": "AuditStatus",
         "type": "object"
       },
       "Because": {
@@ -3333,6 +3475,87 @@
         "title": "ReadyResponse",
         "type": "object"
       },
+      "Receipt": {
+        "properties": {
+          "anchors": {
+            "items": {
+              "$ref": "#/components/schemas/AnchorRef"
+            },
+            "title": "Anchors",
+            "type": "array"
+          },
+          "audit_seq": {
+            "title": "Audit Seq",
+            "type": "integer"
+          },
+          "clinic_id": {
+            "title": "Clinic Id",
+            "type": "string"
+          },
+          "clinic_id_bytes32": {
+            "title": "Clinic Id Bytes32",
+            "type": "string"
+          },
+          "leaf_hash": {
+            "title": "Leaf Hash",
+            "type": "string"
+          },
+          "leaf_index": {
+            "title": "Leaf Index",
+            "type": "integer"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "payload_hash": {
+            "title": "Payload Hash",
+            "type": "string"
+          },
+          "proof": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Proof",
+            "type": "array"
+          },
+          "public_key": {
+            "title": "Public Key",
+            "type": "string"
+          },
+          "signature": {
+            "title": "Signature",
+            "type": "string"
+          },
+          "sth": {
+            "additionalProperties": true,
+            "title": "Sth",
+            "type": "object"
+          },
+          "version": {
+            "default": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "clinic_id",
+          "clinic_id_bytes32",
+          "public_key",
+          "audit_seq",
+          "payload",
+          "payload_hash",
+          "leaf_hash",
+          "leaf_index",
+          "proof",
+          "sth",
+          "signature",
+          "anchors"
+        ],
+        "title": "Receipt",
+        "type": "object"
+      },
       "ReceptionChart": {
         "properties": {
           "appointments": {
@@ -4609,6 +4832,54 @@
         ]
       }
     },
+    "/api/v1/access-events/{access_event_id}/receipt": {
+      "get": {
+        "operationId": "receipt_api_v1_access_events__access_event_id__receipt_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "access_event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Access Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Receipt",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
     "/api/v1/access-queries": {
       "get": {
         "operationId": "list_queries_api_v1_access_queries_get",
@@ -5000,6 +5271,32 @@
         "summary": "Start Encounter",
         "tags": [
           "clinical"
+        ]
+      }
+    },
+    "/api/v1/audit/status": {
+      "get": {
+        "operationId": "audit_status_api_v1_audit_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Audit Status",
+        "tags": [
+          "audit"
         ]
       }
     },
@@ -6119,6 +6416,58 @@
         "summary": "Health",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/api/v1/internal/anchor/run": {
+      "post": {
+        "description": "Called by the scheduled GitHub Action. Disabled unless ANCHOR_TRIGGER_TOKEN is set.",
+        "operationId": "run_anchor_job_api_v1_internal_anchor_run_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Run Anchor Job Api V1 Internal Anchor Run Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Anchor Job",
+        "tags": [
+          "audit"
         ]
       }
     },

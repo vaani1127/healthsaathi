@@ -100,10 +100,12 @@ class CheckpointResult:
     created: bool
 
 
-async def build_checkpoint(clinic_id: uuid.UUID, now: datetime | None = None) -> CheckpointResult:
+async def build_checkpoint(
+    clinic_id: uuid.UUID, now: datetime | None = None, db_role: str = "app_rw"
+) -> CheckpointResult:
     key = clinic_signing_key(clinic_id)
     public_key = public_key_bytes(key)
-    ctx = TenantContext(clinic_id=clinic_id, role=SYSTEM_ROLE)
+    ctx = TenantContext(clinic_id=clinic_id, role=SYSTEM_ROLE, db_role=db_role)
     async with tenant_session(ctx) as db:
         await lock_clinic(db, "checkpoint", clinic_id)
         clinic = await db.get(Clinic, clinic_id)

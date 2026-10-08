@@ -437,5 +437,44 @@
       "key_id": "717e27bdd9e83245"
     },
     "signature": "d4c73daf9ad959c75fa6645b80ac38f938cfb6e60100fde36ba53f18b2d306c3b4000621699cde0d3e31be9f4b83db09520cb115cdf44bd1b4a985d06e97f00b"
+  },
+  "api_receipt": {
+    "version": 1,
+    "clinic_id": "01920000-0000-7000-8000-00000000c001",
+    "clinic_id_bytes32": "0x0192000000007000800000000000c00100000000000000000000000000000000",
+    "public_key": "07d8808c3434e046069faba0cabd7b50bae82876b1f684287ac388c88d9bac48",
+    "audit_seq": 104,
+    "payload": {
+      "type": "access",
+      "access_event_id": "01920000-0000-7000-8000-000000000004",
+      "at": "2026-10-01T09:04:00+00:00",
+      "user_id": "01920000-0000-7000-8000-0000000000d1",
+      "role": "doctor",
+      "patient_id": "01920000-0000-7000-8000-0000000000e1",
+      "resource": "notes",
+      "action": "view",
+      "decision": "allow",
+      "policy_version": "1",
+      "template": "T1_APPOINTMENT",
+      "strength": 0.731058
+    },
+    "payload_hash": "b7ba96ac6fae480c091fb447bb55c42267ddf879e4e244e3444789c5475cf7ed",
+    "leaf_hash": "d648f07f300766c43d306b53fe7d8c650a3072fcf2a00874d5cbe8edbc946886",
+    "leaf_index": 4,
+    "proof": [
+      "e9d1fe0d1df3d9e5ea79e6dc2ca82d7ee31f025c06a75498be334817ff477003",
+      "b52fb49c0a68842a5ae254425cbdf05dcf79d8a71ae88307d101f8745e849ff3"
+    ],
+    "sth": {
+      "clinic_id": "01920000-0000-7000-8000-00000000c001",
+      "tree_size": 6,
+      "root_hex": "cea88bdb420f59126735251c463b2020d7f7904e7a9af30f7b63a01a0359305a",
+      "prev_root_hex": null,
+      "timestamp": 1790000000000,
+      "key_id": "717e27bdd9e83245"
+    },
+    "signature": "9511a52cdc32c17ceb05102d0e8c05e2857a7ef174add4ef9206862bc05eb7b4aa89301d912ac0b2c6102ee2efab1db10f75596d59ecf9a2f4a2d223e1453505",
+    "sth_digest": "812affb8f8e9635420ddec36e14da61caa7eb237a7c288d10fde573f4df6fc2d",
+    "anchors": []
   }
 }

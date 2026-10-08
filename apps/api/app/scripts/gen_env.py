@@ -12,6 +12,7 @@ GENERATED: dict[str, Callable[[], str]] = {
     "OTP_HMAC_KEY": lambda: secrets.token_urlsafe(48),
     "DATA_KEYS": generate_key_spec,
     "LEDGER_SIGNING_SEED": lambda: secrets.token_urlsafe(48),
+    "ANCHOR_TRIGGER_TOKEN": lambda: secrets.token_urlsafe(32),
 }
 
 

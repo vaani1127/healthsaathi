@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### P10 - Anchoring, receipts and verification
+
+- Anchor job: signs a checkpoint for each clinic with new audit events, posts it to AuditAnchor,
+  commits it to the GitHub witness repository and stamps it with OpenTimestamps at most once an
+  hour, upgrading pending stamps later. Safe to run twice at once and picks up interrupted runs.
+  Refuses to anchor a log whose history no longer matches the root on chain.
+- Triggers: CLI, a token-protected `POST /internal/anchor/run` called every 15 minutes by
+  `.github/workflows/anchor.yml`, and a fallback timer in the new worker process.
+- Patient receipts: `GET /access-events/{id}/receipt`, checked in the browser with
+  `packages/receipt-verify` and viem (payload hash, inclusion proof, signature, registered key,
+  on-chain root). "Check receipt" on each access log entry and a public `/verify` page.
+- Admin audit tab: `GET /audit/status` with the latest checkpoint, hash chain and consistency
+  checks, and links to each witness.
+- `app.scripts.register_clinic` for the two-of-three ClinicRegistry registration.
+- `make tamper-demo` rewrites an audit row on a local chain and shows verification fail.
+- Migration 0003: lets `anchor_job` record a clinic's signer key, and indexes access audit rows.
+- CI runs the anchoring tests against anvil.
+- New env vars: `ANCHOR_RPC_URL`, `ANCHOR_CHAIN`, `AUDIT_ANCHOR_ADDRESS`,
+  `CLINIC_REGISTRY_ADDRESS`, `ANCHOR_POSTER_PRIVATE_KEY`, `ANCHOR_EXPLORER_URL`,
+  `ANCHOR_TX_TIMEOUT_SECONDS`, `ANCHOR_TRIGGER_TOKEN`, `ANCHOR_FALLBACK_MINUTES`, `WITNESS_REPO`,
+  `WITNESS_BRANCH`, `WITNESS_GITHUB_TOKEN`, `OTS_ENABLED`, `OTS_CALENDARS`, and the web
+  `VITE_CHAIN_RPC_URL`, `VITE_AUDIT_ANCHOR_ADDRESS`, `VITE_CLINIC_REGISTRY_ADDRESS`,
+  `VITE_EXPLORER_URL`.
+
 ### P9 - Web app: lab, billing, admin, patient portal
 
 - Lab worklist: sample collected, results with an optional PDF or image report, release to the

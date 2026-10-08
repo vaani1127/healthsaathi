@@ -2,7 +2,7 @@ COMPOSE := docker compose -f infra/docker-compose.dev.yml
 UV := uv run
 PY_TYPED := packages/e2d-core/src apps/api
 
-.PHONY: help env install dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
+.PHONY: help env install dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
 	test-sol migrate seed sim exp audit
 
 help:
@@ -13,6 +13,7 @@ help:
 	@echo "test      pytest, vitest, forge test"
 	@echo "migrate   alembic upgrade head"
 	@echo "seed      load the synthetic demo clinics"
+	@echo "tamper-demo  show a rewritten audit log failing verification (local)"
 	@echo "sim       run the simulator, CONFIG=path/to/config.yaml"
 	@echo "exp       run an experiment, NAME=experiment_name"
 
@@ -85,6 +86,10 @@ contracts-amoy:
 # Any other EVM chain (for example the Besu test network): make contracts-deploy NETWORK=besu
 contracts-deploy:
 	set -a && . ./.env && set +a && cd contracts && DEPLOY_NETWORK=$(NETWORK) forge script 		script/Deploy.s.sol --rpc-url "$$CUSTOM_RPC_URL" --broadcast --private-key "$$DEPLOYER_PRIVATE_KEY"
+
+# Local only: anchor a demo clinic on anvil, rewrite one audit row, and show verification fail.
+tamper-demo: contracts-local
+	cd apps/api && $(UV) python -m app.scripts.tamper_demo
 
 # Regenerate the web app's typed API client from the API's OpenAPI document.
 api-types:

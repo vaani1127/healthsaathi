@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/access-events/{access_event_id}/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Receipt */
+        get: operations["receipt_api_v1_access_events__access_event_id__receipt_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/access-queries": {
         parameters: {
             query?: never;
@@ -118,6 +135,23 @@ export interface paths {
         put?: never;
         /** Start Encounter */
         post: operations["start_encounter_api_v1_appointments__appointment_id__encounter_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Audit Status */
+        get: operations["audit_status_api_v1_audit_status_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -561,6 +595,26 @@ export interface paths {
         get: operations["health_api_v1_health_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/internal/anchor/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Anchor Job
+         * @description Called by the scheduled GitHub Action. Disabled unless ANCHOR_TRIGGER_TOKEN is set.
+         */
+        post: operations["run_anchor_job_api_v1_internal_anchor_run_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1614,6 +1668,19 @@ export interface components {
             /** Is Active */
             is_active: boolean;
         };
+        /** AnchorRef */
+        AnchorRef: {
+            /** Backend */
+            backend: string;
+            /** Block Ref */
+            block_ref: string | null;
+            /** Link */
+            link: string | null;
+            /** Status */
+            status: string;
+            /** Tx Ref */
+            tx_ref: string | null;
+        };
         /** AppointmentCreate */
         AppointmentCreate: {
             /**
@@ -1727,6 +1794,29 @@ export interface components {
         /** AppointmentUpdate */
         AppointmentUpdate: {
             status: components["schemas"]["AppointmentStatus"];
+        };
+        /** AuditStatus */
+        AuditStatus: {
+            /** Anchors */
+            anchors: components["schemas"]["AnchorRef"][];
+            /** Chain Ok */
+            chain_ok: boolean;
+            /** Confirmed Backends */
+            confirmed_backends: string[];
+            /** Consistency Ok */
+            consistency_ok: boolean | null;
+            /** Events */
+            events: number;
+            /** Problem */
+            problem: string | null;
+            /** Public Key */
+            public_key: string;
+            /** Signature */
+            signature: string | null;
+            /** Sth */
+            sth: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * Because
@@ -2807,6 +2897,42 @@ export interface components {
              */
             status: "ok" | "unavailable";
         };
+        /** Receipt */
+        Receipt: {
+            /** Anchors */
+            anchors: components["schemas"]["AnchorRef"][];
+            /** Audit Seq */
+            audit_seq: number;
+            /** Clinic Id */
+            clinic_id: string;
+            /** Clinic Id Bytes32 */
+            clinic_id_bytes32: string;
+            /** Leaf Hash */
+            leaf_hash: string;
+            /** Leaf Index */
+            leaf_index: number;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Payload Hash */
+            payload_hash: string;
+            /** Proof */
+            proof: string[];
+            /** Public Key */
+            public_key: string;
+            /** Signature */
+            signature: string;
+            /** Sth */
+            sth: {
+                [key: string]: unknown;
+            };
+            /**
+             * Version
+             * @default 1
+             */
+            version?: number;
+        };
         /** ReceptionChart */
         ReceptionChart: {
             /** Appointments */
@@ -3342,6 +3468,37 @@ export interface operations {
             };
         };
     };
+    receipt_api_v1_access_events__access_event_id__receipt_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                access_event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Receipt"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_queries_api_v1_access_queries_get: {
         parameters: {
             query?: {
@@ -3570,6 +3727,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    audit_status_api_v1_audit_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditStatus"];
                 };
             };
         };
@@ -4358,6 +4535,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    run_anchor_job_api_v1_internal_anchor_run_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

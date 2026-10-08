@@ -440,7 +440,8 @@
       "consent": "Consent notices",
       "breakGlass": "Emergency access",
       "reports": "Patient reports",
-      "revenue": "Revenue"
+      "revenue": "Revenue",
+      "audit": "Audit log"
     },
     "staff": "Staff",
     "invite": "Invite staff",
@@ -476,6 +477,56 @@
     "revenue": "Daily revenue",
     "day": "Day",
     "totalCollected": "Collected",
-    "invoicesPaid": "Invoices paid"
+    "invoicesPaid": "Invoices paid",
+    "audit": {
+      "title": "Audit log integrity",
+      "explain": "Every access is written to an append-only log. Signed checkpoints of the log are published to public witnesses.",
+      "events": "Events in the log",
+      "checkpoint": "Latest checkpoint",
+      "checkpointOf": "{{size}} events, signed {{at}}",
+      "none": "None yet",
+      "chain": "Hash chain intact",
+      "consistency": "Log matches earlier checkpoints",
+      "root": "Root",
+      "noAnchors": "Not published to any witness yet.",
+      "open": "Open",
+      "backend": {
+        "amoy": "Polygon Amoy",
+        "besu": "Consortium chain",
+        "github": "GitHub witness",
+        "ots": "OpenTimestamps (Bitcoin)"
+      },
+      "status": {
+        "pending": "Pending",
+        "confirmed": "Confirmed",
+        "failed": "Failed"
+      }
+    }
+  },
+  "verify": {
+    "title": "Check an access receipt",
+    "explain": "A receipt proves that one access to your record is in the clinic's signed audit log. The check runs in your browser.",
+    "file": "Receipt file",
+    "paste": "Or paste the receipt",
+    "check": "Check receipt",
+    "checkThis": "Check receipt",
+    "invalid": "This does not look like a HealthSaathi receipt.",
+    "verified": "Verified. This access is in the clinic's signed log.",
+    "notVerified": "Not verified. Some checks failed.",
+    "checkPayload": "Receipt details match their fingerprint",
+    "checkInclusion": "Access is in the signed log",
+    "checkSignature": "Log is signed by the clinic key",
+    "checkChain": "Log fingerprint is on the public chain",
+    "checkKey": "Clinic key is registered on chain",
+    "pass": "Pass",
+    "fail": "Fail",
+    "skipped": "Not checked",
+    "noChain": "No public chain is set up for this clinic yet, so the chain check was skipped.",
+    "chainUnreachable": "Could not reach the public chain. Try again later.",
+    "notAnchoredYet": "The latest log fingerprint is not on the chain yet. This usually takes up to 15 minutes.",
+    "mismatch": "The chain holds a different fingerprint for this log. Please report this to the clinic.",
+    "notReady": "This access is not in a signed log yet. Try again in a few minutes.",
+    "viewTx": "View on the chain explorer",
+    "download": "Download receipt"
   }
 }

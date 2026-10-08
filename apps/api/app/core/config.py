@@ -50,6 +50,32 @@ class Settings(BaseSettings):
     )
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, alias="MAX_UPLOAD_BYTES")
 
+    # Anchoring (SPEC 6). Every backend is optional; unset means that witness is skipped.
+    anchor_rpc_url: str | None = Field(default=None, alias="ANCHOR_RPC_URL")
+    anchor_chain: Literal["amoy", "besu"] = Field(default="amoy", alias="ANCHOR_CHAIN")
+    audit_anchor_address: str | None = Field(default=None, alias="AUDIT_ANCHOR_ADDRESS")
+    clinic_registry_address: str | None = Field(default=None, alias="CLINIC_REGISTRY_ADDRESS")
+    anchor_poster_private_key: SecretStr | None = Field(
+        default=None, alias="ANCHOR_POSTER_PRIVATE_KEY"
+    )
+    anchor_explorer_url: str | None = Field(default=None, alias="ANCHOR_EXPLORER_URL")
+    anchor_tx_timeout_seconds: int = Field(default=120, alias="ANCHOR_TX_TIMEOUT_SECONDS")
+    anchor_trigger_token: SecretStr | None = Field(default=None, alias="ANCHOR_TRIGGER_TOKEN")
+    # The worker runs the anchor job itself when no run has happened for this long. 0 turns it off.
+    anchor_fallback_minutes: int = Field(default=30, ge=0, alias="ANCHOR_FALLBACK_MINUTES")
+    witness_repo: str | None = Field(default=None, alias="WITNESS_REPO")
+    witness_branch: str = Field(default="main", alias="WITNESS_BRANCH")
+    witness_github_token: SecretStr | None = Field(default=None, alias="WITNESS_GITHUB_TOKEN")
+    ots_enabled: bool = Field(default=False, alias="OTS_ENABLED")
+    ots_calendars: list[str] = Field(
+        default_factory=lambda: [
+            "https://a.pool.opentimestamps.org",
+            "https://b.pool.opentimestamps.org",
+            "https://a.pool.eternitywall.com",
+        ],
+        alias="OTS_CALENDARS",
+    )
+
     email_backend: Literal["console", "brevo"] = Field(default="console", alias="EMAIL_BACKEND")
     brevo_api_key: SecretStr | None = Field(default=None, alias="BREVO_API_KEY")
     email_from: str = Field(default="no-reply@healthsaathi.test", alias="EMAIL_FROM")
@@ -63,6 +89,14 @@ class Settings(BaseSettings):
         "storage_dir",
         "azure_blob_container_sas_url",
         "email_outbox_dir",
+        "anchor_rpc_url",
+        "audit_anchor_address",
+        "clinic_registry_address",
+        "anchor_poster_private_key",
+        "anchor_explorer_url",
+        "anchor_trigger_token",
+        "witness_repo",
+        "witness_github_token",
         mode="before",
     )
     @classmethod

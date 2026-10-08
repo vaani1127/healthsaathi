@@ -35,9 +35,18 @@ jobs:
       SKIP_DB_UP: "1"
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+      # The anchoring tests deploy the contracts to a throwaway anvil chain.
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.5
+      - name: forge build
+        working-directory: contracts
+        run: forge build
       - run: uv sync --frozen --python 3.12
       - name: ruff
         run: make lint-py

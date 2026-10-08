@@ -28,11 +28,16 @@ APP_ROLE = "app_rw"
 _TENANT_KEY = "tenant"
 
 
+DB_ROLES = frozenset({"app_rw", "anchor_job"})
+
+
 @dataclass(frozen=True, slots=True)
 class TenantContext:
     clinic_id: uuid.UUID | None = None
     user_id: uuid.UUID | None = None
     role: str | None = None
+    # The database role for the transaction. Only the anchor job uses anything but app_rw.
+    db_role: str = APP_ROLE
 
 
 ANONYMOUS = TenantContext()
@@ -45,7 +50,9 @@ def _apply_tenant_context(
     ctx = session.info.get(_TENANT_KEY)
     if not isinstance(ctx, TenantContext):
         return
-    connection.execute(text(f"SET LOCAL ROLE {APP_ROLE}"))
+    if ctx.db_role not in DB_ROLES:
+        raise ValueError(f"unknown database role {ctx.db_role!r}")
+    connection.execute(text(f"SET LOCAL ROLE {ctx.db_role}"))
     connection.execute(
         text(
             "SELECT set_config('app.clinic_id', :clinic_id, true),"

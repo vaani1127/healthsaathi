@@ -1,0 +1,32 @@
+name: anchor
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: anchor
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  anchor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Run the anchor job on the API
+        env:
+          API_URL: ${{ secrets.ANCHOR_API_URL }}
+          TOKEN: ${{ secrets.ANCHOR_TRIGGER_TOKEN }}
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$TOKEN" ]; then
+            echo "ANCHOR_API_URL or ANCHOR_TRIGGER_TOKEN is not set; nothing to do."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 540 \
+            --retry 3 --retry-delay 20 --retry-all-errors \
+            -X POST -H "Authorization: Bearer $TOKEN" \
+            "${API_URL%/}/api/v1/internal/anchor/run"

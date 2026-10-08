@@ -10,6 +10,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app import __version__, health
+from app.anchor.router import router as anchor_router
 from app.billing.router import router as billing_router
 from app.chart.router import router as chart_router
 from app.clinic.router import router as clinic_router
@@ -83,6 +84,7 @@ def create_app() -> FastAPI:
     app.include_router(consent_router, prefix=API_PREFIX)
     app.include_router(portal_router, prefix=API_PREFIX)
     app.include_router(realtime_router, prefix=API_PREFIX)
+    app.include_router(anchor_router, prefix=API_PREFIX)
     return app
 
 

@@ -47,6 +47,11 @@ const selectClinicRoute = createRoute({
   component: SelectClinicPage,
 });
 const statusRoute = createRoute({ getParentRoute: () => rootRoute, path: "/status", component: HomePage });
+const verifyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/verify",
+  component: lazyRouteComponent(() => import("@/features/verify/VerifyPage"), "VerifyPage"),
+});
 const patientLoginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/patient/login",
@@ -182,6 +187,7 @@ const routeTree = rootRoute.addChildren([
   enrolRoute,
   selectClinicRoute,
   statusRoute,
+  verifyRoute,
   patientLoginRoute,
   appRoute.addChildren([
     receptionRoute,
