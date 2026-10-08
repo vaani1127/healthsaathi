@@ -1,5 +1,5 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 import { expect, type Page } from "@playwright/test";
 import { TOTP } from "otpauth";
@@ -33,16 +33,27 @@ export function user(role: string): FixtureUser {
   return found;
 }
 
-const used = new Map<string, number>();
+// Steps already used per secret. Kept in a file because a retry runs in a new worker process,
+// while the API remembers every step it has accepted.
+const USED = join(dirname(FIXTURE), "totp-steps.json");
 
-/** A TOTP code the server has not seen yet for this user (each 30 s step works once). */
-function freshCode(secret: string): string {
-  const totp = new TOTP({ secret, digits: 6, period: 30 });
+function usedSteps(): Record<string, number> {
+  return existsSync(USED) ? (JSON.parse(readFileSync(USED, "utf-8")) as Record<string, number>) : {};
+}
+
+/**
+ * A TOTP code the server has not seen yet for this user. The server accepts the current step or
+ * one either side, each only once, so after many sign-ins in a row this waits for the clock.
+ */
+async function freshCode(secret: string): Promise<string> {
+  const used = usedSteps();
   const step = Math.floor(Date.now() / 30_000);
-  const last = used.get(secret) ?? -1;
-  const next = Math.max(step, last + 1);
-  used.set(secret, next);
-  return totp.generate({ timestamp: next * 30_000 });
+  const next = Math.max(step, (used[secret] ?? -1) + 1);
+  if (next > step + 1) {
+    await new Promise((resolve) => setTimeout(resolve, (next - 1) * 30_000 - Date.now() + 500));
+  }
+  writeFileSync(USED, JSON.stringify({ ...usedSteps(), [secret]: next }));
+  return new TOTP({ secret, digits: 6, period: 30 }).generate({ timestamp: next * 30_000 });
 }
 
 export async function signIn(page: Page, role: string): Promise<FixtureUser> {
@@ -51,7 +62,7 @@ export async function signIn(page: Page, role: string): Promise<FixtureUser> {
   await page.getByLabel("Email").fill(u.email);
   await page.getByLabel("Password").fill(fixture().password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.getByLabel("6 digit code").fill(freshCode(u.totp_secret));
+  await page.getByLabel("6 digit code").fill(await freshCode(u.totp_secret));
   await page.getByRole("button", { name: "Verify" }).click();
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
   return u;
