@@ -1,0 +1,68 @@
+name: healthsaathi-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-healthsaathi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-healthsaathi}
+      POSTGRES_DB: ${POSTGRES_DB:-healthsaathi}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/api.Dockerfile
+      target: dev
+    environment:
+      APP_ENV: local
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-healthsaathi}:${POSTGRES_PASSWORD:-healthsaathi}@postgres:5432/${POSTGRES_DB:-healthsaathi}
+      CORS_ORIGINS: '["http://localhost:5173"]'
+    command: >
+      uv run --no-sync uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      --reload-dir /repo/apps/api/app --reload-dir /repo/packages/e2d-core/src
+    working_dir: /repo/apps/api
+    volumes:
+      - ../apps/api/app:/repo/apps/api/app
+      - ../packages/e2d-core/src:/repo/packages/e2d-core/src
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    image: node:22-alpine
+    working_dir: /repo
+    environment:
+      VITE_API_URL: http://localhost:8000
+      CI: "true"
+      npm_config_store_dir: /pnpm-store
+    command: >
+      sh -c "corepack enable && pnpm install --frozen-lockfile &&
+             pnpm --filter @healthsaathi/web dev --host 0.0.0.0"
+    volumes:
+      - ..:/repo
+      - web_node_modules:/repo/node_modules
+      - web_app_node_modules:/repo/apps/web/node_modules
+      - rv_node_modules:/repo/packages/receipt-verify/node_modules
+      - pnpm_store:/pnpm-store
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  web_node_modules:
+  web_app_node_modules:
+  rv_node_modules:
+  pnpm_store:

@@ -1,0 +1,68 @@
+[project]
+name = "healthsaathi"
+version = "0.1.0"
+description = "HealthSaathi monorepo (Python workspace root)"
+requires-python = ">=3.12,<3.13"
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["apps/api", "packages/e2d-core", "sim", "experiments"]
+
+[tool.uv.sources]
+e2d-core = { workspace = true }
+healthsaathi-api = { workspace = true }
+saathibench = { workspace = true }
+e2d-experiments = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "healthsaathi-api",
+    "e2d-core",
+    "saathibench",
+    "e2d-experiments",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.112",
+    "pip-audit>=2.7",
+    "pre-commit>=3.8",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["apps/api/migrations/versions", "contracts/lib", "node_modules"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "S", "SIM", "RUF", "ASYNC"]
+ignore = ["S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "e2d_core", "saathibench", "e2d_experiments"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S105", "S106", "S311"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+mypy_path = ["packages/e2d-core/src", "apps/api"]
+explicit_package_bases = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = [
+    "packages/e2d-core/tests",
+    "apps/api/tests",
+    "sim/tests",
+    "experiments/tests",
+]
+addopts = "--import-mode=importlib"

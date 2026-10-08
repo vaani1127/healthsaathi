@@ -1,0 +1,21 @@
+{
+  "app": {
+    "name": "HealthSaathi",
+    "tagline": "Clinic management for small OPD clinics"
+  },
+  "health": {
+    "title": "System status",
+    "checking": "Checking the server...",
+    "ok": "API health OK",
+    "error": "Cannot reach the server",
+    "version": "API version {{version}}",
+    "retry": "Try again"
+  },
+  "pwa": {
+    "update": "A new version is ready.",
+    "reload": "Reload"
+  },
+  "language": {
+    "switch": "हिन्दी"
+  }
+}

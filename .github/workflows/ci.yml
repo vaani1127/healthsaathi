@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: healthsaathi
+          POSTGRES_PASSWORD: healthsaathi
+          POSTGRES_DB: healthsaathi
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U healthsaathi"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgresql+asyncpg://healthsaathi:healthsaathi@localhost:5432/healthsaathi
+      SKIP_DB_UP: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --python 3.12
+      - name: ruff
+        run: make lint-py
+      - name: pytest
+        run: make test-py
+      - name: pip-audit
+        run: |
+          uv export --frozen --no-dev --no-emit-workspace --no-hashes -o requirements-audit.txt
+          uv run pip-audit --strict -r requirements-audit.txt
+
+  web:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: eslint
+        run: pnpm -r lint
+      - name: tsc
+        run: pnpm -r typecheck
+      - name: vitest
+        run: pnpm -r test
+      - name: build
+        run: pnpm --filter @healthsaathi/web build
+      - name: pnpm audit
+        run: pnpm audit --prod
+
+  contracts:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: forge fmt
+        run: forge fmt --check
+      - name: forge build
+        run: forge build --sizes
+      - name: forge test
+        run: forge test -vvv

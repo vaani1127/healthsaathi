@@ -1,0 +1,40 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--unsafe]
+      - id: check-toml
+      - id: check-json
+        exclude: tsconfig\.json$
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: detect-private-key
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+      - id: eslint
+        name: eslint
+        entry: pnpm -r lint
+        language: system
+        files: \.(ts|tsx|js)$
+        pass_filenames: false
+      - id: forge-fmt
+        name: forge fmt
+        entry: bash -c "cd contracts && forge fmt --check"
+        language: system
+        files: \.sol$
+        pass_filenames: false

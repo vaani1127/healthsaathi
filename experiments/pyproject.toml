@@ -1,0 +1,13 @@
+[project]
+name = "e2d-experiments"
+version = "0.1.0"
+description = "Experiment runners, statistics and table export for the E2D paper"
+requires-python = ">=3.12,<3.13"
+dependencies = ["e2d-core"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/e2d_experiments"]
