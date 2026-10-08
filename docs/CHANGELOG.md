@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### P2 - Identity, sessions, MFA
+
+- Staff sign in with password then TOTP; staff without TOTP must enrol first. Patients sign in
+  with a 6 digit email code (10 minutes, 5 attempts). See ADR 0003.
+- 15 minute access tokens, rotating refresh token in an HttpOnly cookie, reuse of a rotated token
+  ends the whole session, sessions list and revoke, sign out, clinic selection.
+- Clinic admins invite staff by email; the invitee sets a password (minimum 10 characters, not a
+  common password) and then enrols TOTP.
+- Rate limits from SPEC 4 (slowapi, in memory), account lockout after 5 wrong passwords, TOTP codes
+  accepted once, security headers, RFC 7807 problem+json errors.
+- AES-256-GCM key ring with key ids for data at rest.
+- New env vars: `JWT_SECRET`, `OTP_HMAC_KEY`, `DATA_KEYS`, `REFRESH_TOKEN_DAYS`, `COOKIE_DOMAIN`,
+  `COOKIE_SECURE`, `RATE_LIMIT_ENABLED`, `PUBLIC_APP_URL`, `EMAIL_BACKEND`, `BREVO_API_KEY`,
+  `EMAIL_FROM`, `EMAIL_FROM_NAME`. `make env` writes a local `.env` with random secrets.
+
 ### P1 - Data model, migrations, RLS, DB roles
 
 - SQLAlchemy models for every table in SPEC 3.1 with UUIDv7 ids and `timestamptz` columns.

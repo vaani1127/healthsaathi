@@ -23,7 +23,6 @@ from app.db.enums import (
     Role,
     Sex,
 )
-from e2d_core.ids import uuid7
 
 
 @dataclass(frozen=True)
@@ -39,7 +38,9 @@ class ClinicGraph:
 
 
 def _user(label: str, role: str) -> m.User:
-    return m.User(email=f"{role}.{label}.{uuid7().hex[:8]}@example.test", name=f"{role} {label}")
+    return m.User(
+        email=f"{role}.{label}.{uuid.uuid4().hex[:12]}@example.test", name=f"{role} {label}"
+    )
 
 
 async def build_clinic_graph(engine: AsyncEngine, label: str) -> ClinicGraph:

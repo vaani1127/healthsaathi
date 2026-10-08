@@ -2,10 +2,11 @@ COMPOSE := docker compose -f infra/docker-compose.dev.yml
 UV := uv run
 PY_TYPED := packages/e2d-core/src apps/api
 
-.PHONY: help install dev dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
+.PHONY: help env install dev dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
 	test-sol migrate seed sim exp audit
 
 help:
+	@echo "env       create .env with fresh local secrets"
 	@echo "install   install Python, JS and Solidity dependencies"
 	@echo "dev       start postgres, api and web with docker compose"
 	@echo "lint      ruff, mypy, eslint, tsc, forge fmt --check"
@@ -15,12 +16,15 @@ help:
 	@echo "sim       run the simulator, CONFIG=path/to/config.yaml"
 	@echo "exp       run an experiment, NAME=experiment_name"
 
+env:
+	cd apps/api && $(UV) python -m app.scripts.gen_env
+
 install:
 	uv sync
 	pnpm install
 	git submodule update --init --recursive
 
-dev:
+dev: env
 	$(COMPOSE) up --build
 
 dev-down:

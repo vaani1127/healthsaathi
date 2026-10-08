@@ -18,6 +18,12 @@ TEST_DB_URL = _base_url.set(database=TEST_DB_NAME).render_as_string(hide_passwor
 os.environ["DATABASE_URL"] = TEST_DB_URL
 os.environ["MIGRATOR_DATABASE_URL"] = TEST_DB_URL
 os.environ["APP_ENV"] = "test"
+os.environ["COOKIE_SECURE"] = "false"
+os.environ["EMAIL_BACKEND"] = "console"
+# Fixed test-only secrets. Real ones come from .env or deployment secrets.
+os.environ.setdefault("JWT_SECRET", "test-jwt-secret-" + "x" * 32)
+os.environ.setdefault("OTP_HMAC_KEY", "test-otp-key-" + "y" * 32)
+os.environ.setdefault("DATA_KEYS", "t1:" + "A" * 43 + "=")
 
 import asyncpg  # noqa: E402
 from alembic import command  # noqa: E402
@@ -61,6 +67,13 @@ async def admin_engine(migrated_database: str) -> AsyncIterator[AsyncEngine]:
     engine = create_async_engine(migrated_database)
     yield engine
     await engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limits() -> None:
+    from app.core.ratelimit import reset
+
+    reset()
 
 
 @pytest.fixture

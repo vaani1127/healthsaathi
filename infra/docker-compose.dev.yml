@@ -18,6 +18,9 @@ services:
       retries: 30
 
   api:
+    env_file:
+      - path: ../.env
+        required: false
     build:
       context: ..
       dockerfile: infra/api.Dockerfile
