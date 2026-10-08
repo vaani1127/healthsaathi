@@ -162,8 +162,16 @@ jobs:
         run: docker build -f infra/api.Dockerfile --target prod -t healthsaathi-api:ci .
       - name: the image starts as a non-root user and loads the app
         run: |
+          # Throwaway secrets: importing the app reads its settings.
+          {
+            echo "JWT_SECRET=$(openssl rand -base64 48)"
+            echo "OTP_HMAC_KEY=$(openssl rand -base64 48)"
+            echo "LEDGER_SIGNING_SEED=$(openssl rand -base64 48)"
+            echo "DATA_KEYS=ci:$(openssl rand -base64 32)"
+          } >ci.env
           test "$(docker run --rm healthsaathi-api:ci whoami)" = app
-          docker run --rm healthsaathi-api:ci python -c "import app.worker, app.anchor.job"
+          docker run --rm --env-file ci.env healthsaathi-api:ci python -c \
+            "import app.main, app.worker, app.anchor.job, app.detect.job"
       - name: prod compose file is valid
         run: |
           sed 's#/opt/healthsaathi/.env#../.env.example#' infra/docker-compose.prod.yml >infra/check.yml
