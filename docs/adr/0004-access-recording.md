@@ -41,6 +41,11 @@ against both and also checks that they return identical bundles.
 `NOTIFY` only on commit, every API worker listens and forwards to its WebSocket clients, and
 messages carry ids and types only. Clients refetch through the API, which records the access.
 
+**Commit before the response.** The request's database dependency uses `scope="function"`, so
+the transaction is committed (or a denial is logged) before the response is sent. With the
+default scope the commit ran after the response, and a client's next request could miss the write
+it had just made; `tests/test_commit_before_response.py` guards this.
+
 ## Consequences
 
 - A list of 40 patients writes 40 access events. That is the intended granularity for detection.

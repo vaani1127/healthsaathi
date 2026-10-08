@@ -1,7 +1,11 @@
 """Transactional email. Brevo free tier in staging and prod; the console in local and test."""
 
+import asyncio
+import json
 import logging
-from dataclasses import dataclass, field
+import time
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 import httpx
 
@@ -35,6 +39,13 @@ class Outbox:
 outbox = Outbox()
 
 
+def _write_outbox(folder: Path, email: Email) -> None:
+    """Browser tests read sign-in codes from here (local and test only)."""
+    folder.mkdir(parents=True, exist_ok=True)
+    name = f"{time.time_ns()}-{email.to.replace('@', '_at_')}.json"
+    (folder / name).write_text(json.dumps(asdict(email)), encoding="utf-8")
+
+
 async def send_email(email: Email) -> None:
     settings = get_settings()
     if settings.email_backend == "console":
@@ -43,6 +54,8 @@ async def send_email(email: Email) -> None:
         if settings.env == "local":
             # Only in local dev, so developers can log in without a mail server.
             logger.info("email body", extra={"to": email.to, "body": email.text})
+        if settings.email_outbox_dir and settings.env in ("local", "test"):
+            await asyncio.to_thread(_write_outbox, Path(settings.email_outbox_dir), email)
         return
 
     if settings.brevo_api_key is None:

@@ -23,6 +23,7 @@ from app.core.ratelimit import limiter
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.identity.router import router as auth_router
 from app.identity.router import staff_router
+from app.portal.router import router as portal_router
 from app.realtime.hub import hub
 from app.realtime.router import router as realtime_router
 from app.startup import maintenance_loop, run_startup_tasks
@@ -80,6 +81,7 @@ def create_app() -> FastAPI:
     app.include_router(clinical_router, prefix=API_PREFIX)
     app.include_router(billing_router, prefix=API_PREFIX)
     app.include_router(consent_router, prefix=API_PREFIX)
+    app.include_router(portal_router, prefix=API_PREFIX)
     app.include_router(realtime_router, prefix=API_PREFIX)
     return app
 

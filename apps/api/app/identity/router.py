@@ -204,3 +204,21 @@ async def invite_staff(
         principal.tenant(), body.email, body.name, body.role
     )
     return schemas.InviteResponse(user_id=user_id, membership_id=membership_id)
+
+
+@staff_router.get("/members", response_model=list[schemas.StaffMemberOut])
+async def list_staff(
+    principal: Annotated[ClinicPrincipal, Depends(require_roles(Role.CLINIC_ADMIN))],
+) -> list[schemas.StaffMemberOut]:
+    rows = await service.list_staff(principal.tenant())
+    return [schemas.StaffMemberOut(**r.__dict__) for r in rows]
+
+
+@staff_router.patch("/members/{membership_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_membership(
+    principal: Annotated[ClinicPrincipal, Depends(require_roles(Role.CLINIC_ADMIN))],
+    membership_id: uuid.UUID,
+    body: schemas.MembershipUpdate,
+) -> Response:
+    await service.set_membership_active(principal.tenant(), membership_id, body.is_active)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

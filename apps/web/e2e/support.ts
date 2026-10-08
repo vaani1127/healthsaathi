@@ -1,8 +1,10 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { expect, type Page } from "@playwright/test";
 import { TOTP } from "otpauth";
 
+import { OUTBOX } from "../playwright.config";
 import { FIXTURE } from "./global-setup";
 
 interface FixtureUser {
@@ -53,4 +55,20 @@ export async function signIn(page: Page, role: string): Promise<FixtureUser> {
   await page.getByRole("button", { name: "Verify" }).click();
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
   return u;
+}
+
+/** A sign-in code emailed to this address after `sinceMs` (test runs write emails as files). */
+export function emailCode(email: string, sinceMs: number): string | null {
+  const key = `${email.replace("@", "_at_")}.json`;
+  const files = readdirSync(OUTBOX)
+    .filter((f) => f.endsWith(key) && Number(f.split("-")[0]) / 1e6 >= sinceMs)
+    .sort();
+  for (const file of files.reverse()) {
+    const body = JSON.parse(readFileSync(join(OUTBOX, file), "utf-8")) as { text: string };
+    const match = /\b(\d{6})\b/.exec(body.text);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+  return null;
 }

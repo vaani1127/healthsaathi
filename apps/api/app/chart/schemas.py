@@ -152,6 +152,23 @@ class AdminChart(BaseModel):
     patient: PatientOut
 
 
+class PatientChart(BaseModel):
+    """What a patient sees of their own record: signed notes and prescriptions, released results."""
+
+    view: Literal["patient"] = "patient"
+    patient: PatientOut
+    appointments: list[AppointmentOut]
+    vitals: list[VitalOut]
+    allergies: list[AllergyOut]
+    conditions: list[ConditionOut]
+    notes: list[NoteOut]
+    prescriptions: list[PrescriptionOut]
+    lab_orders: list[LabOrderOut]
+    documents: list[DocumentOut]
+    invoices: list[InvoiceSummary]
+    consent: ConsentStatus | None
+
+
 class EmergencyChart(BaseModel):
     view: Literal["emergency"] = "emergency"
     break_glass_id: uuid.UUID
@@ -164,7 +181,7 @@ class EmergencyChart(BaseModel):
 
 
 Chart = Annotated[
-    ReceptionChart | NurseChart | LabChart | DoctorChart | AdminChart,
+    ReceptionChart | NurseChart | LabChart | DoctorChart | AdminChart | PatientChart,
     Field(discriminator="view"),
 ]
 

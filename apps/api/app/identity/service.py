@@ -545,3 +545,48 @@ async def accept_invite(email: str, token: str, password: str) -> None:
             raise ProblemError(400, "invalid-invite")
         if user.password_hash is None:
             user.password_hash = passwords.hash_password(password)
+
+
+@dataclass(frozen=True)
+class StaffRow:
+    membership_id: uuid.UUID
+    user_id: uuid.UUID
+    name: str
+    email: str
+    role: Role
+    is_active: bool
+    mfa_enabled: bool
+
+
+async def list_staff(ctx: TenantContext) -> list[StaffRow]:
+    async with tenant_session(ctx) as db:
+        rows = await db.execute(
+            select(Membership, User, MfaSecret.enabled_at)
+            .join(User, User.id == Membership.user_id)
+            .outerjoin(MfaSecret, MfaSecret.user_id == User.id)
+            .where(Membership.clinic_id == ctx.clinic_id, Membership.role.in_(INVITABLE_ROLES))
+            .order_by(Membership.role, User.name)
+        )
+        return [
+            StaffRow(m.id, u.id, u.name, u.email, Role(m.role), m.is_active, enabled is not None)
+            for m, u, enabled in rows.all()
+        ]
+
+
+async def set_membership_active(
+    ctx: TenantContext, membership_id: uuid.UUID, is_active: bool
+) -> None:
+    async with tenant_session(ctx) as db:
+        membership = await db.get(Membership, membership_id)
+        if membership is None or membership.role not in INVITABLE_ROLES:
+            raise ProblemError(404, "membership-not-found")
+        if membership.user_id == ctx.user_id and not is_active:
+            raise ProblemError(409, "cannot-deactivate-self", "Ask another admin to do this.")
+        membership.is_active = is_active
+        if not is_active:
+            # End the person's sessions so the change takes effect now.
+            await db.execute(
+                update(UserSession)
+                .where(UserSession.user_id == membership.user_id, UserSession.revoked_at.is_(None))
+                .values(revoked_at=_now())
+            )

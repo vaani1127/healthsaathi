@@ -1,4 +1,8 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig, devices } from "@playwright/test";
+
+export const OUTBOX = fileURLToPath(new URL("./test-results/outbox", import.meta.url));
 
 // Runs against the local dev stack: the API on :8000 (local Postgres) and Vite on :5173.
 // globalSetup creates a fresh clinic and staff for each run.
@@ -21,6 +25,8 @@ export default defineConfig({
     {
       command: "uv run uvicorn app.main:app --port 8000",
       cwd: "../api",
+      // Many sign-ins from one IP in a minute; the limits themselves are covered by API tests.
+      env: { EMAIL_OUTBOX_DIR: OUTBOX, RATE_LIMIT_ENABLED: "false" },
       url: "http://localhost:8000/api/v1/health",
       reuseExistingServer: true,
       timeout: 120_000,

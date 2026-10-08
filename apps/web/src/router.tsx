@@ -6,11 +6,11 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router";
-import i18n from "i18next";
 
-import { AppShell, Placeholder } from "@/components/AppShell";
+import { AppShell } from "@/components/AppShell";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { LoginPage } from "@/features/auth/LoginPage";
+import { PatientLoginPage } from "@/features/auth/PatientLoginPage";
 import { SelectClinicPage } from "@/features/auth/SelectClinicPage";
 import { TotpPage } from "@/features/auth/TotpPage";
 import { HomePage } from "@/features/home/HomePage";
@@ -50,7 +50,7 @@ const statusRoute = createRoute({ getParentRoute: () => rootRoute, path: "/statu
 const patientLoginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/patient/login",
-  component: () => <Placeholder title={i18n.t("auth.patientLink")} />,
+  component: PatientLoginPage,
 });
 
 const appRoute = createRoute({
@@ -142,19 +142,37 @@ const labRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/lab",
   beforeLoad: only("lab_tech"),
-  component: () => <Placeholder title={i18n.t("roles.lab_tech")} />,
+  component: lazyRouteComponent(() => import("@/features/lab/LabWorklist"), "LabWorklist"),
 });
 const adminRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/admin",
   beforeLoad: only("clinic_admin"),
-  component: () => <Placeholder title={i18n.t("roles.clinic_admin")} />,
+  component: lazyRouteComponent(() => import("@/features/admin/AdminHome"), "AdminHome"),
 });
 const patientRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/patient",
   beforeLoad: only("patient"),
-  component: () => <Placeholder title={i18n.t("roles.patient")} />,
+  component: lazyRouteComponent(() => import("@/features/patient/PatientPortal"), "PatientPortal"),
+});
+const patientPrintRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/patient/print",
+  beforeLoad: only("patient"),
+  component: lazyRouteComponent(() => import("@/features/patient/RecordPrint"), "RecordPrint"),
+});
+const invoiceRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/reception/invoices/$invoiceId",
+  beforeLoad: only("reception"),
+  component: lazyRouteComponent(() => import("@/features/billing/InvoicePage"), "InvoicePage"),
+});
+const receiptRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/print/receipt/$invoiceId",
+  beforeLoad: only("reception", "patient"),
+  component: lazyRouteComponent(() => import("@/features/print/ReceiptPrint"), "ReceiptPrint"),
 });
 
 const routeTree = rootRoute.addChildren([
@@ -176,6 +194,9 @@ const routeTree = rootRoute.addChildren([
     labRoute,
     adminRoute,
     patientRoute,
+    patientPrintRoute,
+    invoiceRoute,
+    receiptRoute,
   ]),
 ]);
 

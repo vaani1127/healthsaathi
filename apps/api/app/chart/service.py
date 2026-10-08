@@ -242,6 +242,7 @@ async def build_chart(
     | schemas.LabChart
     | schemas.DoctorChart
     | schemas.AdminChart
+    | schemas.PatientChart
 ):
     async def record(resource: ResourceType, ask_reason: bool = False) -> AccessRecord:
         return await record_and_explain(
@@ -295,10 +296,52 @@ async def build_chart(
             invoices=await _invoices(db, patient_id),
             consent=await _consent(db, patient_id),
         )
+    if role == Role.PATIENT:
+        return await patient_chart(db, principal, patient_id, req)
     if role == Role.CLINIC_ADMIN:
         await record(R.DEMOGRAPHICS)
         return schemas.AdminChart(patient=PatientOut.model_validate(await _patient(db, patient_id)))
     raise ProblemError(403, "forbidden-role", "Your role has no chart view.")
+
+
+PATIENT_RESOURCES = (
+    R.DEMOGRAPHICS,
+    R.VITALS,
+    R.ALLERGIES,
+    R.NOTES,
+    R.PRESCRIPTIONS,
+    R.LAB,
+    R.DOCUMENTS,
+    R.BILLING,
+    R.CONSENT,
+)
+
+
+async def patient_chart(
+    db: AsyncSession,
+    principal: ClinicPrincipal,
+    patient_id: uuid.UUID,
+    req: RequestInfo,
+    action: AccessAction = VIEW,
+) -> schemas.PatientChart:
+    for resource in PATIENT_RESOURCES:
+        await record_and_explain(db, principal, patient_id, resource, action, req)
+    patient = await _patient(db, patient_id)
+    orders = [o for o in await _lab_orders(db, patient_id) if o.result and o.result.released_at]
+    released_docs = {o.result.document_id for o in orders if o.result and o.result.document_id}
+    return schemas.PatientChart(
+        patient=PatientOut.model_validate(patient),
+        appointments=await _appointments(db, patient_id),
+        vitals=await _vitals(db, patient_id),
+        allergies=await _allergies(db, patient_id),
+        conditions=await _conditions(db, patient_id),
+        notes=[n for n in await _notes(db, patient_id) if n.signed_at],
+        prescriptions=[p for p in await _prescriptions(db, patient_id) if p.signed_at],
+        lab_orders=orders,
+        documents=[d for d in await _documents(db, patient_id) if d.id in released_docs],
+        invoices=await _invoices(db, patient_id),
+        consent=await _consent(db, patient_id),
+    )
 
 
 # Break-glass ----------------------------------------------------------------------------------

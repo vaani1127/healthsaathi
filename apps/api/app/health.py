@@ -35,7 +35,7 @@ async def health() -> HealthResponse:
     responses={503: {"model": ReadyResponse}},
 )
 async def ready(
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: Annotated[AsyncSession, Depends(get_session, scope="function")],
 ) -> ReadyResponse | JSONResponse:
     try:
         await session.execute(text("SELECT 1"))

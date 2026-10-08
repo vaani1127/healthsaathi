@@ -109,3 +109,17 @@ class AcceptInviteRequest(BaseModel):
     email: EmailStr
     token: str = Field(min_length=10, max_length=128)
     password: str = Field(min_length=1, max_length=256)
+
+
+class StaffMemberOut(BaseModel):
+    membership_id: uuid.UUID
+    user_id: uuid.UUID
+    name: str
+    email: str
+    role: Role
+    is_active: bool
+    mfa_enabled: bool
+
+
+class MembershipUpdate(BaseModel):
+    is_active: bool

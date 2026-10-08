@@ -1,10 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { signIn, user } from "./support";
+import { emailCode, signIn, user } from "./support";
 
-// SPEC 1.3 flows 1 to 3, run in order on one patient.
+// SPEC 1.3 flows 1 to 6, run in order on one patient.
 test.describe.serial("OPD day", () => {
-  const patientName = `Kavita Demo ${Date.now().toString().slice(-5)}`;
+  const stamp = Date.now().toString().slice(-6);
+  const patientName = `Kavita Demo ${stamp}`;
+  const patientEmail = `kavita.${stamp}@e2e.healthsaathi.test`;
 
   test("flow 1: reception registers a patient with consent, books and issues a token", async ({ page }) => {
     await signIn(page, "reception");
@@ -86,6 +88,84 @@ test.describe.serial("OPD day", () => {
     await expect(page.getByText("खाने के बाद लें")).toBeVisible();
     await expect(page.getByText("Medicine / दवा")).toBeVisible();
     await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeVisible();
+  });
+
+  test("flow 4: lab marks the sample collected and uploads the result; the doctor sees it", async ({ page }) => {
+    await signIn(page, "lab_tech");
+    const item = page.getByTestId("work-item").filter({ hasText: patientName });
+    await item.getByRole("button", { name: "Sample collected" }).click();
+    await item.getByLabel("Complete blood count result").fill("13.4");
+    await item.getByLabel("Unit").fill("g/dL");
+    await item.getByLabel("Report file").setInputFiles({
+      name: "cbc.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4 synthetic CBC report"),
+    });
+    await item.getByRole("button", { name: "Save and release result" }).click();
+    await expect(page.getByText("Result saved and released to the doctor.")).toBeVisible();
+
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await signIn(page, "doctor");
+    await page.getByRole("link", { name: new RegExp(patientName) }).click();
+    await expect(page.getByTestId("result-values")).toContainText("13.4 g/dL");
+  });
+
+  test("flow 5: reception bills the visit, records payment and prints the receipt", async ({ page }) => {
+    await signIn(page, "reception");
+    await page.getByLabel("Search patients").fill(patientName);
+    await page.getByRole("link", { name: new RegExp(patientName) }).click();
+
+    await page.getByLabel(/^Consultation/).fill("1");
+    await page.getByRole("button", { name: "Create invoice" }).click();
+    await page.getByRole("button", { name: "Issue invoice" }).click();
+    await page.getByRole("button", { name: "Record payment" }).click();
+    await expect(page.getByText("Paid", { exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Print receipt" }).click();
+    await expect(page.getByText("Receipt / रसीद")).toBeVisible();
+    await expect(page.getByText(/Total \/ कुल/)).toContainText("300");
+
+    await page.goBack();
+    await page.getByRole("link", { name: "Back to patient" }).click();
+    await page.getByLabel("Email", { exact: true }).fill(patientEmail);
+    await page.getByRole("button", { name: "Give portal access" }).click();
+    await expect(page.getByText("Done. The patient can now sign in with this email.")).toBeVisible();
+  });
+
+  test("flow 6: the patient signs in by email code, sees records and the access log, and reports an access", async ({ page }) => {
+    await page.goto("/patient/login");
+    await page.getByLabel("Email").fill(patientEmail);
+    const sentAfter = Date.now() - 1000;
+    await page.getByRole("button", { name: "Send code" }).click();
+    await expect(page.getByLabel("6 digit code")).toBeVisible();
+    let code: string | null = null;
+    await expect
+      .poll(() => (code = emailCode(patientEmail, sentAfter)), { timeout: 10_000 })
+      .not.toBeNull();
+    await page.getByLabel("6 digit code").fill(code ?? "");
+    await page.getByRole("button", { name: "Sign in" }).click();
+
+    await expect(page.getByRole("heading", { name: `Hello, ${patientName}` })).toBeVisible();
+    await expect(page.getByText("Paracetamol")).toBeVisible();
+    await expect(page.getByTestId("result-values")).toContainText("13.4 g/dL");
+
+    await page.getByRole("tab", { name: "Who opened my record" }).click();
+    const doctorEntry = page
+      .getByTestId("access-entry")
+      .filter({ hasText: `${user("doctor").name} (Doctor) opened your notes because of appointment token` })
+      .first();
+    await expect(doctorEntry).toBeVisible();
+    await expect(doctorEntry).toContainText(/at \d{1,2}:\d{2}/);
+
+    const entry = page.getByTestId("access-entry").first();
+    await entry.getByRole("button", { name: "I do not recognise this" }).click();
+    await entry.getByLabel("Tell us what looks wrong").fill("This is a test report.");
+    await entry.getByRole("button", { name: "Send to the clinic" }).click();
+    await expect(entry.getByText("Reported to the clinic")).toBeVisible();
+
+    await page.getByRole("button", { name: "हिन्दी" }).click();
+    await expect(page.getByRole("tab", { name: "मेरा रिकॉर्ड किसने खोला" })).toBeVisible();
+    await expect(page.getByText("क्लिनिक को बताया गया").first()).toBeVisible();
+    await page.getByRole("button", { name: "English" }).click();
   });
 });
 

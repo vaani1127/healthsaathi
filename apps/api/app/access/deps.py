@@ -22,7 +22,9 @@ def request_info(request: Request) -> RequestInfo:
     )
 
 
-Db = Annotated[AsyncSession, Depends(get_db)]
+# scope="function": commit (or log a denial) before the response is sent, so the client's next
+# request always sees this request's writes.
+Db = Annotated[AsyncSession, Depends(get_db, scope="function")]
 ReqInfo = Annotated[RequestInfo, Depends(request_info)]
 Staff = CurrentClinicPrincipal
 __all__ = ["ClinicPrincipal", "Db", "ReqInfo", "Staff", "get_db", "request_info"]

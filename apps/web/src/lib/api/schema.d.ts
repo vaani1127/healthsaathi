@@ -4,6 +4,57 @@
  */
 
 export interface paths {
+    "/api/v1/access-events/{access_event_id}/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Raise Query */
+        post: operations["raise_query_api_v1_access_events__access_event_id__query_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/access-queries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Queries */
+        get: operations["list_queries_api_v1_access_queries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/access-queries/{query_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Query */
+        patch: operations["update_query_api_v1_access_queries__query_id__patch"];
+        trace?: never;
+    };
     "/api/v1/allergies/{allergy_id}": {
         parameters: {
             query?: never;
@@ -686,6 +737,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/patient": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Patient */
+        get: operations["my_patient_api_v1_me_patient_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notes/{note_id}": {
         parameters: {
             query?: never;
@@ -788,6 +856,23 @@ export interface paths {
         head?: never;
         /** Update Patient */
         patch: operations["update_patient_api_v1_patients__patient_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/patients/{patient_id}/access-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Access Log */
+        get: operations["access_log_api_v1_patients__patient_id__access_log_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/patients/{patient_id}/allergies": {
@@ -911,6 +996,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/patients/{patient_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export */
+        get: operations["export_api_v1_patients__patient_id__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/patients/{patient_id}/follow-ups": {
         parameters: {
             query?: never;
@@ -973,6 +1075,23 @@ export interface paths {
         put?: never;
         /** Create Note */
         post: operations["create_note_api_v1_patients__patient_id__notes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/patients/{patient_id}/portal-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Portal Access */
+        post: operations["portal_access_api_v1_patients__patient_id__portal_access_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1339,6 +1458,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staff/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Staff */
+        get: operations["list_staff_api_v1_staff_members_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/members/{membership_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Membership */
+        patch: operations["update_membership_api_v1_staff_members__membership_id__patch"];
+        trace?: never;
+    };
     "/api/v1/walkins": {
         parameters: {
             query?: never;
@@ -1368,6 +1521,46 @@ export interface components {
             password: string;
             /** Token */
             token: string;
+        };
+        /**
+         * AccessAction
+         * @enum {string}
+         */
+        AccessAction: "view" | "create" | "edit" | "export" | "print";
+        /**
+         * AccessDecision
+         * @enum {string}
+         */
+        AccessDecision: "allow" | "deny";
+        /** AccessLogEntry */
+        AccessLogEntry: {
+            action: components["schemas"]["AccessAction"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            because: components["schemas"]["Because"];
+            /** Break Glass */
+            break_glass: boolean;
+            decision: components["schemas"]["AccessDecision"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            query_status: components["schemas"]["QueryStatus"] | null;
+            resource: components["schemas"]["ResourceType"];
+            role: components["schemas"]["Role"];
+            /** User Name */
+            user_name: string;
+        };
+        /** AccessLogPage */
+        AccessLogPage: {
+            /** Items */
+            items: components["schemas"]["AccessLogEntry"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
         };
         /** AccessReasonIn */
         AccessReasonIn: {
@@ -1534,6 +1727,26 @@ export interface components {
         /** AppointmentUpdate */
         AppointmentUpdate: {
             status: components["schemas"]["AppointmentStatus"];
+        };
+        /**
+         * Because
+         * @description Why an access was expected, with the details the patient needs to recognise it.
+         */
+        Because: {
+            /** From Name */
+            from_name?: string | null;
+            /** Kind */
+            kind?: string | null;
+            /** Reason Code */
+            reason_code?: string | null;
+            /** Slot Start */
+            slot_start?: string | null;
+            /** Template */
+            template: string | null;
+            /** Tests */
+            tests?: string[] | null;
+            /** Token No */
+            token_no?: number | null;
         };
         /** Body_record_result_api_v1_lab_orders__order_id__result_post */
         Body_record_result_api_v1_lab_orders__order_id__result_post: {
@@ -2182,6 +2395,11 @@ export interface components {
             clinic_name: string;
             role: components["schemas"]["Role"];
         };
+        /** MembershipUpdate */
+        MembershipUpdate: {
+            /** Is Active */
+            is_active: boolean;
+        };
         /** NoteEdit */
         NoteEdit: {
             /** Body */
@@ -2271,6 +2489,37 @@ export interface components {
             /** Next Cursor */
             next_cursor?: string | null;
         };
+        /**
+         * PatientChart
+         * @description What a patient sees of their own record: signed notes and prescriptions, released results.
+         */
+        PatientChart: {
+            /** Allergies */
+            allergies: components["schemas"]["AllergyOut"][];
+            /** Appointments */
+            appointments: components["schemas"]["AppointmentOut"][];
+            /** Conditions */
+            conditions: components["schemas"]["ConditionOut"][];
+            consent: components["schemas"]["ConsentStatus"] | null;
+            /** Documents */
+            documents: components["schemas"]["DocumentOut"][];
+            /** Invoices */
+            invoices: components["schemas"]["InvoiceSummary"][];
+            /** Lab Orders */
+            lab_orders: components["schemas"]["LabOrderOut"][];
+            /** Notes */
+            notes: components["schemas"]["NoteOut"][];
+            patient: components["schemas"]["PatientOut"];
+            /** Prescriptions */
+            prescriptions: components["schemas"]["PrescriptionOut"][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            view: "patient";
+            /** Vitals */
+            vitals: components["schemas"]["VitalOut"][];
+        };
         /** PatientCreate */
         PatientCreate: {
             /** Abha Number */
@@ -2286,6 +2535,21 @@ export interface components {
             /** Phone */
             phone?: string | null;
             sex: components["schemas"]["Sex"];
+        };
+        /** PatientExport */
+        PatientExport: {
+            /** Access Log */
+            access_log: components["schemas"]["AccessLogEntry"][];
+            /** Consents */
+            consents: components["schemas"]["ConsentOut"][];
+            /**
+             * Exported At
+             * Format: date-time
+             */
+            exported_at: string;
+            /** Note */
+            note: string;
+            record: components["schemas"]["PatientChart"];
         };
         /** PatientOut */
         PatientOut: {
@@ -2378,6 +2642,11 @@ export interface components {
              */
             received_by: string;
         };
+        /** PortalAccessIn */
+        PortalAccessIn: {
+            /** Email */
+            email: string;
+        };
         /** PrescriptionEdit */
         PrescriptionEdit: {
             /** Advice En */
@@ -2450,6 +2719,46 @@ export interface components {
             signed_at: string | null;
             /** Version */
             version: number;
+        };
+        /** QueryIn */
+        QueryIn: {
+            /** Message */
+            message: string;
+        };
+        /** QueryOut */
+        QueryOut: {
+            /**
+             * Access Event Id
+             * Format: uuid
+             */
+            access_event_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Message */
+            message: string;
+            /**
+             * Patient Id
+             * Format: uuid
+             */
+            patient_id: string;
+            status: components["schemas"]["QueryStatus"];
+        };
+        /**
+         * QueryStatus
+         * @enum {string}
+         */
+        QueryStatus: "open" | "answered" | "closed";
+        /** QueryUpdate */
+        QueryUpdate: {
+            status: components["schemas"]["QueryStatus"];
         };
         /** QueueItem */
         QueueItem: {
@@ -2578,6 +2887,11 @@ export interface components {
             clinic_id?: string | null;
             role?: components["schemas"]["Role"] | null;
         };
+        /**
+         * ResourceType
+         * @enum {string}
+         */
+        ResourceType: "demographics" | "vitals" | "allergies" | "notes" | "prescriptions" | "lab" | "billing" | "documents" | "consent";
         /**
          * ReviewOutcome
          * @enum {string}
@@ -2767,6 +3081,28 @@ export interface components {
         ShiftStatus: "scheduled" | "cancelled";
         /** StaffMember */
         StaffMember: {
+            /** Name */
+            name: string;
+            role: components["schemas"]["Role"];
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+        };
+        /** StaffMemberOut */
+        StaffMemberOut: {
+            /** Email */
+            email: string;
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Membership Id
+             * Format: uuid
+             */
+            membership_id: string;
+            /** Mfa Enabled */
+            mfa_enabled: boolean;
             /** Name */
             name: string;
             role: components["schemas"]["Role"];
@@ -2971,6 +3307,107 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    raise_query_api_v1_access_events__access_event_id__query_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                access_event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QueryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_queries_api_v1_access_queries_get: {
+        parameters: {
+            query?: {
+                open_only?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_query_api_v1_access_queries__query_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                query_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QueryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     update_allergy_api_v1_allergies__allergy_id__patch: {
         parameters: {
             query?: never;
@@ -4236,6 +4673,26 @@ export interface operations {
             };
         };
     };
+    my_patient_api_v1_me_patient_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatientOut"];
+                };
+            };
+        };
+    };
     edit_note_api_v1_notes__note_id__patch: {
         parameters: {
             query?: never;
@@ -4500,6 +4957,40 @@ export interface operations {
             };
         };
     };
+    access_log_api_v1_patients__patient_id__access_log_get: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                patient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessLogPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     add_allergy_api_v1_patients__patient_id__allergies_post: {
         parameters: {
             query?: never;
@@ -4618,7 +5109,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReceptionChart"] | components["schemas"]["NurseChart"] | components["schemas"]["LabChart"] | components["schemas"]["DoctorChart"] | components["schemas"]["AdminChart"];
+                    "application/json": components["schemas"]["ReceptionChart"] | components["schemas"]["NurseChart"] | components["schemas"]["LabChart"] | components["schemas"]["DoctorChart"] | components["schemas"]["AdminChart"] | components["schemas"]["PatientChart"];
                 };
             };
             /** @description Validation Error */
@@ -4804,6 +5295,37 @@ export interface operations {
             };
         };
     };
+    export_api_v1_patients__patient_id__export_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                patient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatientExport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     book_follow_up_api_v1_patients__patient_id__follow_ups_post: {
         parameters: {
             query?: never;
@@ -4931,6 +5453,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NoteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    portal_access_api_v1_patients__patient_id__portal_access_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                patient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalAccessIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatientOut"];
                 };
             };
             /** @description Validation Error */
@@ -5712,6 +6269,59 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["InviteResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_staff_api_v1_staff_members_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMemberOut"][];
+                };
+            };
+        };
+    };
+    update_membership_api_v1_staff_members__membership_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                membership_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MembershipUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

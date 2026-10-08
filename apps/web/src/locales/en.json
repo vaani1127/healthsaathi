@@ -113,7 +113,11 @@
     "doctor": "Doctor",
     "when": "Date and time",
     "walkIn": "Walk-in",
-    "addWalkIn": "Add walk-in and issue token"
+    "addWalkIn": "Add walk-in and issue token",
+    "portalTitle": "Patient portal",
+    "portalExplain": "Let the patient see their record, prescriptions and access log with their own email.",
+    "portalGrant": "Give portal access",
+    "portalSent": "Done. The patient can now sign in with this email."
   },
   "appointmentStatus": {
     "booked": "Booked",
@@ -266,7 +270,17 @@
       "KFT": "Kidney function",
       "LIPID": "Lipid profile",
       "URINE": "Urine routine"
-    }
+    },
+    "worklist": "Lab worklist",
+    "empty": "No pending tests.",
+    "collected": "Sample collected",
+    "valueFor": "{{test}} result",
+    "unit": "Unit",
+    "report": "Report file",
+    "reportHint": "PDF, PNG or JPEG, up to 10 MB",
+    "saveAndRelease": "Save and release result",
+    "released": "Result saved and released to the doctor.",
+    "results": "Lab results"
   },
   "referral": {
     "title": "Refer",
@@ -288,5 +302,180 @@
     "days": "Days",
     "advice": "Advice",
     "signedBy": "Signed by"
+  },
+  "actions": {
+    "view": "{{who}} opened your {{what}}",
+    "create": "{{who}} added to your {{what}}",
+    "edit": "{{who}} updated your {{what}}",
+    "export": "{{who}} exported your {{what}}",
+    "print": "{{who}} printed your {{what}}"
+  },
+  "resources": {
+    "demographics": "details",
+    "vitals": "vitals",
+    "allergies": "allergy list",
+    "notes": "notes",
+    "prescriptions": "prescriptions",
+    "lab": "lab results",
+    "billing": "bills",
+    "documents": "documents",
+    "consent": "consent"
+  },
+  "why": {
+    "none": "{{did}}. No appointment or other reason was found for this.",
+    "denied": "{{did}}, but the access was refused.",
+    "appointmentToken": "{{did}} because of appointment token {{token}} at {{time}}.",
+    "appointment": "{{did}} because of your appointment on {{date}} at {{time}}.",
+    "queue": "{{did}} because you were in today's queue (token {{token}}).",
+    "lab": "{{did}} because of your lab test: {{tests}}.",
+    "referral": "{{did}} because {{from}} referred you.",
+    "reason": "{{did}} and gave this reason: {{reason}}.",
+    "T_FRONTDESK": "{{did}} at the front desk for your visit or bill.",
+    "T_CARETEAM": "{{did}} as part of your care team.",
+    "T_FOLLOWUP": "{{did}} because you have a follow-up visit with them.",
+    "T_BILLING": "{{did}} to prepare or settle your bill.",
+    "T_BREAKGLASS": "{{did}} using emergency access.",
+    "T_SELF": "You opened your own record."
+  },
+  "portal": {
+    "signInTitle": "Patient sign in",
+    "signInSubtitle": "We will email you a 6 digit code. No password needed.",
+    "sendCode": "Send code",
+    "resend": "Send a new code",
+    "codeSent": "If this email is registered with a clinic, a code is on its way. It works for 10 minutes.",
+    "hello": "Hello, {{name}}",
+    "tabs": {
+      "record": "My record",
+      "log": "Who opened my record",
+      "consent": "Consent",
+      "download": "Download"
+    },
+    "labResults": "Lab results",
+    "noResults": "No released lab results yet.",
+    "downloadReport": "Open report",
+    "forDays": "{{days}} days",
+    "bills": "Bills",
+    "noBills": "No bills.",
+    "logIntro": "Every time clinic staff open your record it is written here, with the reason we found for it. If you do not recognise one, tell us.",
+    "logEmpty": "Nobody from the clinic has opened your record yet.",
+    "more": "Show more",
+    "notMe": "I do not recognise this",
+    "notMeMessage": "Tell us what looks wrong",
+    "sendReport": "Send to the clinic",
+    "queryStatus": {
+      "open": "Reported to the clinic",
+      "answered": "Clinic replied",
+      "closed": "Closed by the clinic"
+    },
+    "consentTitle": "Your consent",
+    "consentExplain": "You agreed to this clinic using your information for your care. You can withdraw at any time. Records the clinic must keep by law are not deleted.",
+    "consentEvent": {
+      "granted": "Given",
+      "withdrawn": "Withdrawn"
+    },
+    "withdraw": "Withdraw consent",
+    "withdrawConfirm": "Withdraw your consent? The clinic will be told.",
+    "downloadTitle": "Download your data",
+    "downloadExplain": "Get a copy of your record and the log of who opened it.",
+    "downloadJson": "Download file (JSON)",
+    "printRecord": "Print my record"
+  },
+  "billing": {
+    "title": "Billing",
+    "total": "Total {{amount}}",
+    "create": "Create invoice",
+    "invoice": "Invoice",
+    "backToPatient": "Back to patient",
+    "issue": "Issue invoice",
+    "void": "Void",
+    "method": "Paid by",
+    "amount": "Amount (₹)",
+    "markPaid": "Record payment",
+    "printReceipt": "Print receipt"
+  },
+  "invoiceStatus": {
+    "draft": "Draft",
+    "issued": "Issued",
+    "paid": "Paid",
+    "void": "Void"
+  },
+  "paymentMethod": {
+    "cash": "Cash",
+    "upi": "UPI",
+    "card_offline": "Card"
+  },
+  "receipt": {
+    "title": "Receipt",
+    "patient": "Patient",
+    "item": "Item",
+    "amount": "Amount",
+    "total": "Total",
+    "paid": "Paid"
+  },
+  "labStatus": {
+    "ordered": "Ordered",
+    "collected": "Sample collected",
+    "resulted": "Result ready",
+    "cancelled": "Cancelled"
+  },
+  "outcome": {
+    "benign": "Justified",
+    "misuse": "Misuse",
+    "unsure": "Not sure"
+  },
+  "weekdays": {
+    "0": "Monday",
+    "1": "Tuesday",
+    "2": "Wednesday",
+    "3": "Thursday",
+    "4": "Friday",
+    "5": "Saturday",
+    "6": "Sunday"
+  },
+  "admin": {
+    "tabs": {
+      "staff": "Staff",
+      "schedules": "Schedules",
+      "services": "Services",
+      "consent": "Consent notices",
+      "breakGlass": "Emergency access",
+      "reports": "Patient reports",
+      "revenue": "Revenue"
+    },
+    "staff": "Staff",
+    "invite": "Invite staff",
+    "role": "Role",
+    "sendInvite": "Send invite",
+    "invited": "Invite sent by email.",
+    "noMfa": "No authenticator yet",
+    "deactivate": "Deactivate",
+    "activate": "Activate",
+    "pause": "Pause",
+    "schedules": "Doctor schedules",
+    "addSchedule": "Add schedule",
+    "weekday": "Day",
+    "slotMinutes": "Minutes per slot",
+    "from": "From",
+    "to": "To",
+    "add": "Add",
+    "services": "Services and prices",
+    "serviceName": "Service",
+    "priceRupees": "Price (₹)",
+    "notices": "Consent notices",
+    "newNotice": "New notice version",
+    "textEn": "Text (English)",
+    "textHi": "Text (Hindi)",
+    "purposes": "Purposes (comma separated)",
+    "saveDraft": "Save draft",
+    "publish": "Publish",
+    "publishedOn": "Published {{date}}",
+    "breakGlassQueue": "Emergency access to review",
+    "nothingToReview": "Nothing to review.",
+    "reports": "Accesses reported by patients",
+    "close": "Close",
+    "revenue": "Daily revenue",
+    "day": "Day",
+    "totalCollected": "Collected",
+    "invoicesPaid": "Invoices paid"
   }
 }

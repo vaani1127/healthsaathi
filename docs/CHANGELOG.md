@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### P9 - Web app: lab, billing, admin, patient portal
+
+- Lab worklist: sample collected, results with an optional PDF or image report, release to the
+  doctor. Doctors see results and open reports from the chart.
+- Billing: invoice from the price list, issue, payments, bilingual receipt print view.
+- Clinic admin: staff list, invites and deactivation (ends their sessions), schedules, services,
+  consent notice versions, break-glass review, accesses reported by patients, daily revenue.
+- Patient portal: sign in with an email code, own record (signed notes and prescriptions, released
+  results, bills), access log grouped by day with a plain sentence for each access in English or
+  Hindi, "I do not recognise this", consent withdrawal and history, data download as JSON and a
+  print view. Reception can give a patient portal access by email.
+- API: `/me/patient`, `/patients/{id}/access-log`, `/access-events/{id}/query`,
+  `/access-queries`, `/patients/{id}/export`, `/patients/{id}/portal-access`, `/staff/members`.
+- Fixed: a request's transaction is now committed before its response is sent (found by the
+  browser tests; see ADR 0004).
+- Playwright tests for SPEC flows 1 to 6.
+- New env var: `EMAIL_OUTBOX_DIR` (local and test only).
+
 ### P8 - Web app: sign in, reception, nurse, doctor
 
 - Sign in with password and authenticator code, authenticator set-up with QR code, clinic choice,

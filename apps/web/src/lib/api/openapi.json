@@ -30,6 +30,113 @@
         "title": "AcceptInviteRequest",
         "type": "object"
       },
+      "AccessAction": {
+        "enum": [
+          "view",
+          "create",
+          "edit",
+          "export",
+          "print"
+        ],
+        "title": "AccessAction",
+        "type": "string"
+      },
+      "AccessDecision": {
+        "enum": [
+          "allow",
+          "deny"
+        ],
+        "title": "AccessDecision",
+        "type": "string"
+      },
+      "AccessLogEntry": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/AccessAction"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "because": {
+            "$ref": "#/components/schemas/Because"
+          },
+          "break_glass": {
+            "title": "Break Glass",
+            "type": "boolean"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/AccessDecision"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "query_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QueryStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resource": {
+            "$ref": "#/components/schemas/ResourceType"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "user_name": {
+            "title": "User Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "user_name",
+          "role",
+          "resource",
+          "action",
+          "decision",
+          "break_glass",
+          "because",
+          "query_status"
+        ],
+        "title": "AccessLogEntry",
+        "type": "object"
+      },
+      "AccessLogPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AccessLogEntry"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "AccessLogPage",
+        "type": "object"
+      },
       "AccessReasonIn": {
         "properties": {
           "reason_code": {
@@ -366,6 +473,97 @@
           "status"
         ],
         "title": "AppointmentUpdate",
+        "type": "object"
+      },
+      "Because": {
+        "description": "Why an access was expected, with the details the patient needs to recognise it.",
+        "properties": {
+          "from_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Name"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "slot_start": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Start"
+          },
+          "template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template"
+          },
+          "tests": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tests"
+          },
+          "token_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token No"
+          }
+        },
+        "required": [
+          "template"
+        ],
+        "title": "Because",
         "type": "object"
       },
       "Body_record_result_api_v1_lab_orders__order_id__result_post": {
@@ -1929,6 +2127,19 @@
         "title": "MembershipOut",
         "type": "object"
       },
+      "MembershipUpdate": {
+        "properties": {
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "is_active"
+        ],
+        "title": "MembershipUpdate",
+        "type": "object"
+      },
       "NoteEdit": {
         "properties": {
           "body": {
@@ -2181,6 +2392,108 @@
         "title": "Page[PatientSummary]",
         "type": "object"
       },
+      "PatientChart": {
+        "description": "What a patient sees of their own record: signed notes and prescriptions, released results.",
+        "properties": {
+          "allergies": {
+            "items": {
+              "$ref": "#/components/schemas/AllergyOut"
+            },
+            "title": "Allergies",
+            "type": "array"
+          },
+          "appointments": {
+            "items": {
+              "$ref": "#/components/schemas/AppointmentOut"
+            },
+            "title": "Appointments",
+            "type": "array"
+          },
+          "conditions": {
+            "items": {
+              "$ref": "#/components/schemas/ConditionOut"
+            },
+            "title": "Conditions",
+            "type": "array"
+          },
+          "consent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConsentStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentOut"
+            },
+            "title": "Documents",
+            "type": "array"
+          },
+          "invoices": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceSummary"
+            },
+            "title": "Invoices",
+            "type": "array"
+          },
+          "lab_orders": {
+            "items": {
+              "$ref": "#/components/schemas/LabOrderOut"
+            },
+            "title": "Lab Orders",
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/NoteOut"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "patient": {
+            "$ref": "#/components/schemas/PatientOut"
+          },
+          "prescriptions": {
+            "items": {
+              "$ref": "#/components/schemas/PrescriptionOut"
+            },
+            "title": "Prescriptions",
+            "type": "array"
+          },
+          "view": {
+            "const": "patient",
+            "default": "patient",
+            "title": "View",
+            "type": "string"
+          },
+          "vitals": {
+            "items": {
+              "$ref": "#/components/schemas/VitalOut"
+            },
+            "title": "Vitals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "patient",
+          "appointments",
+          "vitals",
+          "allergies",
+          "conditions",
+          "notes",
+          "prescriptions",
+          "lab_orders",
+          "documents",
+          "invoices",
+          "consent"
+        ],
+        "title": "PatientChart",
+        "type": "object"
+      },
       "PatientCreate": {
         "properties": {
           "abha_number": {
@@ -2258,6 +2571,45 @@
           "sex"
         ],
         "title": "PatientCreate",
+        "type": "object"
+      },
+      "PatientExport": {
+        "properties": {
+          "access_log": {
+            "items": {
+              "$ref": "#/components/schemas/AccessLogEntry"
+            },
+            "title": "Access Log",
+            "type": "array"
+          },
+          "consents": {
+            "items": {
+              "$ref": "#/components/schemas/ConsentOut"
+            },
+            "title": "Consents",
+            "type": "array"
+          },
+          "exported_at": {
+            "format": "date-time",
+            "title": "Exported At",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "record": {
+            "$ref": "#/components/schemas/PatientChart"
+          }
+        },
+        "required": [
+          "exported_at",
+          "record",
+          "consents",
+          "access_log",
+          "note"
+        ],
+        "title": "PatientExport",
         "type": "object"
       },
       "PatientOut": {
@@ -2548,6 +2900,21 @@
         "title": "PaymentOut",
         "type": "object"
       },
+      "PortalAccessIn": {
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "PortalAccessIn",
+        "type": "object"
+      },
       "PrescriptionEdit": {
         "properties": {
           "advice_en": {
@@ -2792,6 +3159,83 @@
           "signed_at"
         ],
         "title": "PrescriptionOut",
+        "type": "object"
+      },
+      "QueryIn": {
+        "properties": {
+          "message": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "QueryIn",
+        "type": "object"
+      },
+      "QueryOut": {
+        "properties": {
+          "access_event_id": {
+            "format": "uuid",
+            "title": "Access Event Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/QueryStatus"
+          }
+        },
+        "required": [
+          "id",
+          "patient_id",
+          "access_event_id",
+          "message",
+          "status",
+          "created_at"
+        ],
+        "title": "QueryOut",
+        "type": "object"
+      },
+      "QueryStatus": {
+        "enum": [
+          "open",
+          "answered",
+          "closed"
+        ],
+        "title": "QueryStatus",
+        "type": "string"
+      },
+      "QueryUpdate": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/QueryStatus"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "QueryUpdate",
         "type": "object"
       },
       "QueueItem": {
@@ -3065,6 +3509,21 @@
         },
         "title": "RefreshRequest",
         "type": "object"
+      },
+      "ResourceType": {
+        "enum": [
+          "demographics",
+          "vitals",
+          "allergies",
+          "notes",
+          "prescriptions",
+          "lab",
+          "billing",
+          "documents",
+          "consent"
+        ],
+        "title": "ResourceType",
+        "type": "string"
       },
       "ReviewOutcome": {
         "enum": [
@@ -3456,6 +3915,50 @@
           "role"
         ],
         "title": "StaffMember",
+        "type": "object"
+      },
+      "StaffMemberOut": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "membership_id": {
+            "format": "uuid",
+            "title": "Membership Id",
+            "type": "string"
+          },
+          "mfa_enabled": {
+            "title": "Mfa Enabled",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "membership_id",
+          "user_id",
+          "name",
+          "email",
+          "role",
+          "is_active",
+          "mfa_enabled"
+        ],
+        "title": "StaffMemberOut",
         "type": "object"
       },
       "TokenCreate": {
@@ -4048,6 +4551,174 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/access-events/{access_event_id}/query": {
+      "post": {
+        "operationId": "raise_query_api_v1_access_events__access_event_id__query_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "access_event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Access Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Raise Query",
+        "tags": [
+          "portal"
+        ]
+      }
+    },
+    "/api/v1/access-queries": {
+      "get": {
+        "operationId": "list_queries_api_v1_access_queries_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "open_only",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Open Only",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QueryOut"
+                  },
+                  "title": "Response List Queries Api V1 Access Queries Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Queries",
+        "tags": [
+          "portal"
+        ]
+      }
+    },
+    "/api/v1/access-queries/{query_id}": {
+      "patch": {
+        "operationId": "update_query_api_v1_access_queries__query_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "query_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Query Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Query",
+        "tags": [
+          "portal"
+        ]
+      }
+    },
     "/api/v1/allergies/{allergy_id}": {
       "patch": {
         "operationId": "update_allergy_api_v1_allergies__allergy_id__patch",
@@ -5954,6 +6625,32 @@
         ]
       }
     },
+    "/api/v1/me/patient": {
+      "get": {
+        "operationId": "my_patient_api_v1_me_patient_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "My Patient",
+        "tags": [
+          "portal"
+        ]
+      }
+    },
     "/api/v1/notes/{note_id}": {
       "patch": {
         "operationId": "edit_note_api_v1_notes__note_id__patch",
@@ -6401,6 +7098,82 @@
         ]
       }
     },
+    "/api/v1/patients/{patient_id}/access-log": {
+      "get": {
+        "operationId": "access_log_api_v1_patients__patient_id__access_log_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessLogPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Access Log",
+        "tags": [
+          "portal"
+        ]
+      }
+    },
     "/api/v1/patients/{patient_id}/allergies": {
       "post": {
         "operationId": "add_allergy_api_v1_patients__patient_id__allergies_post",
@@ -6595,6 +7368,7 @@
                       "doctor": "#/components/schemas/DoctorChart",
                       "lab": "#/components/schemas/LabChart",
                       "nurse": "#/components/schemas/NurseChart",
+                      "patient": "#/components/schemas/PatientChart",
                       "reception": "#/components/schemas/ReceptionChart"
                     },
                     "propertyName": "view"
@@ -6614,6 +7388,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/AdminChart"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PatientChart"
                     }
                   ],
                   "title": "Response Chart Api V1 Patients  Patient Id  Chart Get"
@@ -6917,6 +7694,54 @@
         ]
       }
     },
+    "/api/v1/patients/{patient_id}/export": {
+      "get": {
+        "operationId": "export_api_v1_patients__patient_id__export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientExport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export",
+        "tags": [
+          "portal"
+        ]
+      }
+    },
     "/api/v1/patients/{patient_id}/follow-ups": {
       "post": {
         "operationId": "book_follow_up_api_v1_patients__patient_id__follow_ups_post",
@@ -7146,6 +7971,64 @@
         "summary": "Create Note",
         "tags": [
           "clinical"
+        ]
+      }
+    },
+    "/api/v1/patients/{patient_id}/portal-access": {
+      "post": {
+        "operationId": "portal_access_api_v1_patients__patient_id__portal_access_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalAccessIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Portal Access",
+        "tags": [
+          "portal"
         ]
       }
     },
@@ -8423,6 +9306,87 @@
           }
         ],
         "summary": "Invite Staff",
+        "tags": [
+          "staff"
+        ]
+      }
+    },
+    "/api/v1/staff/members": {
+      "get": {
+        "operationId": "list_staff_api_v1_staff_members_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StaffMemberOut"
+                  },
+                  "title": "Response List Staff Api V1 Staff Members Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Staff",
+        "tags": [
+          "staff"
+        ]
+      }
+    },
+    "/api/v1/staff/members/{membership_id}": {
+      "patch": {
+        "operationId": "update_membership_api_v1_staff_members__membership_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Membership Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MembershipUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Membership",
         "tags": [
           "staff"
         ]

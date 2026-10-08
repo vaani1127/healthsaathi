@@ -54,12 +54,15 @@ class Settings(BaseSettings):
     brevo_api_key: SecretStr | None = Field(default=None, alias="BREVO_API_KEY")
     email_from: str = Field(default="no-reply@healthsaathi.test", alias="EMAIL_FROM")
     email_from_name: str = Field(default="HealthSaathi", alias="EMAIL_FROM_NAME")
+    # Local and test only: also write console emails as files here (used by browser tests).
+    email_outbox_dir: str | None = Field(default=None, alias="EMAIL_OUTBOX_DIR")
 
     @field_validator(
         "cookie_domain",
         "brevo_api_key",
         "storage_dir",
         "azure_blob_container_sas_url",
+        "email_outbox_dir",
         mode="before",
     )
     @classmethod

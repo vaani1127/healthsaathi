@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, Badge, Field, Input, Select } from "@/components/ui/form";
+import { CreateInvoice } from "@/features/billing/CreateInvoice";
 import { useChart, useDoctors, useQueue } from "@/features/common/queries";
 import { api, call } from "@/lib/api/client";
 import { errorMessage, formatDate, formatDateTime, toLocalInput } from "@/lib/format";
@@ -58,6 +59,8 @@ export function ReceptionPatient() {
       <div className="flex flex-col gap-4">
         <BookAppointment patientId={patientId} />
         <WalkIn patientId={patientId} />
+        <CreateInvoice patientId={patientId} invoices={data.invoices} />
+        <PortalAccess patientId={patientId} />
       </div>
     </div>
   );
@@ -161,6 +164,44 @@ function WalkIn({ patientId }: { patientId: string }) {
             </Button>
           </>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PortalAccess({ patientId }: { patientId: string }) {
+  const { t } = useTranslation();
+  const [email, setEmail] = useState("");
+  const grant = useMutation({
+    mutationFn: () =>
+      call(() =>
+        api.POST("/api/v1/patients/{patient_id}/portal-access", {
+          params: { path: { patient_id: patientId } },
+          body: { email },
+        }),
+      ),
+  });
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    grant.mutate();
+  };
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("reception.portalTitle")}</CardTitle>
+        <p className="text-sm text-muted-foreground">{t("reception.portalExplain")}</p>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={submit} className="flex flex-col gap-3">
+          <Field label={t("auth.email")} htmlFor="portal-email">
+            <Input id="portal-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          </Field>
+          {grant.isError && <Alert tone="error">{errorMessage(grant.error)}</Alert>}
+          {grant.isSuccess && <Alert tone="success">{t("reception.portalSent")}</Alert>}
+          <Button type="submit" disabled={grant.isPending}>
+            {t("reception.portalGrant")}
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );

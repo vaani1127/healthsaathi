@@ -18,7 +18,7 @@ def _only(*allowed: Role) -> Any:
     return Depends(require_roles(*allowed))
 
 
-ChartReaders = Annotated[ClinicPrincipal, _only(*(STAFF_ROLES - {R.PLATFORM_ADMIN}))]
+ChartReaders = Annotated[ClinicPrincipal, _only(*(STAFF_ROLES - {R.PLATFORM_ADMIN}), R.PATIENT)]
 Doctor = Annotated[ClinicPrincipal, _only(R.DOCTOR)]
 Clinicians = Annotated[ClinicPrincipal, _only(R.DOCTOR, R.NURSE)]
 Admin = Annotated[ClinicPrincipal, _only(R.CLINIC_ADMIN)]
@@ -37,6 +37,7 @@ async def chart(
     | schemas.LabChart
     | schemas.DoctorChart
     | schemas.AdminChart
+    | schemas.PatientChart
 ):
     return await service.build_chart(db, principal, patient_id, req)
 

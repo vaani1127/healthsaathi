@@ -61,13 +61,3 @@ export function AppShell() {
     </div>
   );
 }
-
-export function Placeholder({ title }: { title: string }) {
-  const { t } = useTranslation();
-  return (
-    <section className="flex flex-col gap-2">
-      <h1 className="text-xl font-semibold">{title}</h1>
-      <p className="text-muted-foreground">{t("common.comingSoon")}</p>
-    </section>
-  );
-}

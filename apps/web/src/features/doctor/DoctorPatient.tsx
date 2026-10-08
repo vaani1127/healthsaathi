@@ -10,6 +10,7 @@ import { VitalsList } from "@/features/common/VitalsList";
 import { useChart } from "@/features/common/queries";
 import { BreakGlass } from "@/features/doctor/BreakGlass";
 import { Consultation } from "@/features/doctor/Consultation";
+import { DocumentLink, ResultValues } from "@/features/common/LabResult";
 import { api, ApiError, call, type Schemas } from "@/lib/api/client";
 import { errorMessage, formatDate } from "@/lib/format";
 
@@ -91,6 +92,25 @@ export function DoctorPatient() {
           </CardContent>
         </Card>
       </div>
+      {data.lab_orders.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("lab.results")}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2 text-sm">
+            {data.lab_orders.map((o) => (
+              <article key={o.id} className="rounded-md border p-2">
+                <p className="font-medium">
+                  {o.tests.map((x) => String(x.name ?? x.code)).join(", ")}{" "}
+                  <Badge>{t(`labStatus.${o.status}`)}</Badge>
+                </p>
+                <ResultValues values={o.result?.values ?? {}} />
+                {o.result?.document_id && <DocumentLink id={o.result.document_id} label={t("portal.downloadReport")} />}
+              </article>
+            ))}
+          </CardContent>
+        </Card>
+      )}
       <Consultation chart={data} appointmentId={appointment} />
     </div>
   );
