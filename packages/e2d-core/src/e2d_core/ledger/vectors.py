@@ -45,7 +45,7 @@ def build_vectors() -> dict[str, Any]:
     tree = MerkleTree.from_data(data)
     n = tree.size
 
-    inclusion = []
+    inclusion: list[dict[str, Any]] = []
     for size in (1, 2, 5, 8, 13):
         for index in sorted({0, size // 2, size - 1}):
             inclusion.append(
@@ -63,7 +63,7 @@ def build_vectors() -> dict[str, Any]:
     inclusion.append({**good, "root": tree.root(n - 1).hex(), "valid": False})
     inclusion.append({**good, "proof": good["proof"][:-1], "valid": False})
 
-    consistency = []
+    consistency: list[dict[str, Any]] = []
     for old, new in ((1, 2), (3, 7), (4, 8), (5, 13), (8, 13), (13, 13)):
         consistency.append(
             {
@@ -80,7 +80,7 @@ def build_vectors() -> dict[str, Any]:
 
     key = derive_clinic_key(SEED, CLINIC_ID)
     public_key = public_key_bytes(key)
-    heads = []
+    heads: list[dict[str, Any]] = []
     for size, prev in ((8, None), (13, tree.root(8).hex())):
         head = TreeHead(
             clinic_id=str(CLINIC_ID),
@@ -99,7 +99,7 @@ def build_vectors() -> dict[str, Any]:
                 "valid": True,
             }
         )
-    tampered = dict(heads[1])
+    tampered: dict[str, Any] = dict(heads[1])
     tampered["head"] = {**heads[1]["head"], "tree_size": 12}
     tampered["valid"] = False
     heads.append(tampered)
