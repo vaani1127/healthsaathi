@@ -34,6 +34,84 @@ def _scan(run: Path, table: str) -> pl.LazyFrame:
     return pl.scan_parquet(str(run / "tables" / table / "*.parquet"))
 
 
+# A doctor books the next follow-up seconds after the encounter ends.
+FOLLOWUP_LINK = timedelta(minutes=2)
+
+
+def followup_chains(run: Path, start: datetime, end: datetime) -> dict[str, Any]:
+    """Visits per patient and chains of follow-ups, each booked at the visit of the one before.
+
+    A chain starts at a follow-up booked during a visit that was not itself a chained follow-up.
+    Its length counts follow-ups with a slot inside the run. Its end is "missed" (the last
+    follow-up was a no-show or cancelled), "no_next_booking" (it was seen and no further follow-up
+    was booked) or "run_end" (the next follow-up falls after the last day).
+    """
+    appointments = (
+        _scan(run, "appointments")
+        .select("id", "patient_id", "slot_start", "status", "source", "created_at")
+        .collect()
+    )
+    encounters = (
+        _scan(run, "encounters").select("appointment_id", "patient_id", "ended_at").collect()
+    )
+    visits = encounters.height
+    patients = _scan(run, "patients").select(pl.len()).collect().item()
+    seen_patients = encounters["patient_id"].n_unique()
+    links = (
+        appointments.filter(pl.col("source") == "doctor")
+        .sort("created_at")
+        .join_asof(
+            encounters.sort("ended_at").rename({"appointment_id": "parent"}),
+            left_on="created_at",
+            right_on="ended_at",
+            by="patient_id",
+            strategy="backward",
+            tolerance=FOLLOWUP_LINK,
+        )
+        .filter(pl.col("parent").is_not_null())
+    )
+    child = dict(zip(links["parent"].to_list(), links["id"].to_list(), strict=False))
+    chained = set(links["id"].to_list())
+    info = {
+        r[0]: (r[1], r[2]) for r in appointments.select("id", "slot_start", "status").iter_rows()
+    }
+    lengths: list[int] = []
+    ends: dict[str, int] = {"missed": 0, "no_next_booking": 0, "run_end": 0}
+    for parent, first in child.items():
+        if parent in chained:
+            continue  # not the start of a chain
+        length, current = 0, first
+        while True:
+            slot, status = info[current]
+            if slot >= end:
+                reason = "run_end"
+                break
+            length += 1
+            if status in ("no_show", "cancelled"):
+                reason = "missed"
+                break
+            nxt = child.get(current)
+            if nxt is None:
+                reason = "no_next_booking"
+                break
+            current = nxt
+        if length:
+            lengths.append(length)
+            ends[reason] += 1
+    buckets = {"1": 0, "2": 0, "3": 0, "4": 0, "5+": 0}
+    for n in lengths:
+        buckets[str(n) if n < 5 else "5+"] += 1
+    return {
+        "visits": visits,
+        "visits_per_patient": visits / patients if patients else None,
+        "visits_per_patient_seen": visits / seen_patients if seen_patients else None,
+        "chains": len(lengths),
+        "chain_lengths": buckets,
+        "longest_chain": max(lengths, default=0),
+        "chain_ends": ends,
+    }
+
+
 def measure(run: Path) -> dict[str, Any]:
     manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
     tz = manifest["timezone"]
@@ -86,6 +164,7 @@ def measure(run: Path) -> dict[str, Any]:
         "appointments_after_run": int(counts["after_run"][0]),
         "incidental_snooping_share": incidental / snooping.height if snooping.height else None,
         "snooping_accesses": snooping.height,
+        "followups": followup_chains(run, start.astimezone(UTC), end),
     }
 
 

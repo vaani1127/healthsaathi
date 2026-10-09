@@ -99,3 +99,24 @@ def test_appointments_after_the_run_stay_booked_and_are_counted_apart(run: Path)
     assert report["non_walk_in_appointments_in_run"] == booked.height
     lost = booked.filter(pl.col("status").is_in(["no_show", "cancelled"])).height
     assert report["no_show_or_cancelled_share"] == pytest.approx(lost / booked.height)
+
+
+def test_followup_chain_statistics(run: Path) -> None:
+    chains = measure(run)["followups"]
+    assert chains["visits"] > 0 and chains["visits_per_patient"] > 0
+    assert chains["visits_per_patient_seen"] >= chains["visits_per_patient"]
+    assert chains["chains"] > 0
+    assert sum(chains["chain_lengths"].values()) == chains["chains"]
+    assert sum(chains["chain_ends"].values()) == chains["chains"]
+    assert chains["longest_chain"] >= 1
+
+
+def test_forgery_flag_auc_report(run: Path) -> None:
+    from e2d_experiments.prereg_audit import FLAG_SIGNALS, forgery_flag_auc
+
+    report = forgery_flag_auc(run, 0)
+    assert report["forged_accesses"] > 0 and report["benign_sampled"] > 0
+    assert set(FLAG_SIGNALS) == set(report["auc"])
+    assert all(0.0 <= report["auc"][f] <= 1.0 for f in FLAG_SIGNALS)
+    assert set(report["fire_rate_type10"]) == set(report["fire_rate_benign"])
+    assert all(0.0 <= v <= 1.0 for v in report["fire_rate_benign"].values())
