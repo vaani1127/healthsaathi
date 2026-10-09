@@ -3,7 +3,8 @@
 Each template looks for workflow evidence that makes an access expected. The strength of a match is
 weight * exp(-dt / tau), where dt is how far the access falls outside the template's core window.
 The explanation is the strongest match, plus the forgery indicators of SPEC 5.3 for its evidence.
-Evidence created after the access never counts.
+Evidence created after the access never counts, and a record's status is the one it had at the
+access (from its status history), never a later one.
 """
 
 import math
@@ -18,6 +19,7 @@ from e2d_core.explain.model import (
     EvidenceBundle,
     EvidenceRef,
     Explanation,
+    InvoiceEv,
 )
 from e2d_core.explain.templates import TemplateConfig, TemplateSpec, default_config
 
@@ -59,7 +61,9 @@ def match_appt(
     event: AccessEvent, bundle: EvidenceBundle, spec: TemplateSpec, tz: ZoneInfo
 ) -> Iterator[Candidate]:
     for appt in bundle.appointments:
-        if appt.doctor_user_id != event.user_id or appt.status == "cancelled":
+        if appt.doctor_user_id != event.user_id:
+            continue
+        if bundle.status_at("appointment", appt, event.at) == "cancelled":
             continue
         if appt.patient_id != event.patient_id or not existed(appt.created_at, event.at):
             continue
@@ -151,7 +155,9 @@ def match_lab(
     event: AccessEvent, bundle: EvidenceBundle, spec: TemplateSpec, tz: ZoneInfo
 ) -> Iterator[Candidate]:
     for order in bundle.lab_orders:
-        if order.patient_id != event.patient_id or order.status == "cancelled":
+        if order.patient_id != event.patient_id:
+            continue
+        if bundle.status_at("lab_order", order, event.at) == "cancelled":
             continue
         if not existed(order.created_at, event.at):
             continue
@@ -172,7 +178,9 @@ def match_referral(
     for ref in bundle.referrals:
         if ref.to_user_id != event.user_id or ref.patient_id != event.patient_id:
             continue
-        if ref.status != "active" or not existed(ref.created_at, event.at):
+        if not existed(ref.created_at, event.at):
+            continue
+        if bundle.status_at("referral", ref, event.at) != "active":
             continue
         yield Candidate(
             spec.code,
@@ -210,8 +218,8 @@ def match_followup(
         for a in bundle.appointments
         if a.doctor_user_id == event.user_id
         and a.patient_id == event.patient_id
-        and a.status == "completed"
         and a.slot_start <= event.at
+        and bundle.status_at("appointment", a, event.at) == "completed"
     ]
     seen += [
         (e.started_at, EvidenceRef("encounter", e.id))
@@ -226,8 +234,8 @@ def match_followup(
         if a.doctor_user_id == event.user_id
         and a.patient_id == event.patient_id
         and a.slot_start > event.at
-        and a.status not in ("cancelled", "no_show")
         and existed(a.created_at, event.at)
+        and bundle.status_at("appointment", a, event.at) not in ("cancelled", "no_show")
     ]
     if not seen or not upcoming:
         return
@@ -244,15 +252,22 @@ def match_followup(
     )
 
 
+def _paid_at(bundle: EvidenceBundle, invoice: InvoiceEv) -> datetime:
+    """When the invoice was paid, from its status history (its last update if it has none)."""
+    paid = [s.at for s in bundle.status_changes("invoice", invoice) if s.status == "paid"]
+    return paid[0] if paid else invoice.updated_at
+
+
 def match_billing(
     event: AccessEvent, bundle: EvidenceBundle, spec: TemplateSpec, tz: ZoneInfo
 ) -> Iterator[Candidate]:
     for invoice in bundle.invoices:
-        if invoice.patient_id != event.patient_id or invoice.status == "void":
+        if invoice.patient_id != event.patient_id or not existed(invoice.created_at, event.at):
             continue
-        if not existed(invoice.created_at, event.at):
+        status = bundle.status_at("invoice", invoice, event.at)
+        if status == "void":
             continue
-        end = invoice.updated_at + spec.after if invoice.status == "paid" else None
+        end = _paid_at(bundle, invoice) + spec.after if status == "paid" else None
         yield Candidate(
             spec.code,
             decayed(spec, window_distance(event.at, invoice.created_at, end)),

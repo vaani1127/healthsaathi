@@ -35,6 +35,8 @@ async def owner(admin_engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
         "TRUNCATE audit_events",
         "UPDATE access_events SET action = 'export'",
         "DELETE FROM access_explanations",
+        "UPDATE status_events SET status = 'completed'",
+        "DELETE FROM status_events",
     ],
 )
 async def test_app_rw_cannot_change_append_only_tables(
@@ -49,7 +51,12 @@ async def test_app_rw_cannot_change_append_only_tables(
 
 @pytest.mark.parametrize(
     "sql",
-    ["UPDATE audit_events SET kind = 'changed'", "DELETE FROM audit_events"],
+    [
+        "UPDATE audit_events SET kind = 'changed'",
+        "DELETE FROM audit_events",
+        "UPDATE status_events SET status = 'completed'",
+        "DELETE FROM status_events",
+    ],
 )
 async def test_trigger_blocks_even_the_owner(
     sql: str, owner: AsyncConnection, clinics: tuple[ClinicGraph, ClinicGraph]

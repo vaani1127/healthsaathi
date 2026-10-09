@@ -5,14 +5,16 @@ the access, did the care it implies ever happen, was it made outside the usual p
 it cancelled afterwards, and does this user create unusually much evidence.
 
 Flags are True, False, or None when they cannot be decided yet (for example no_progress before 24
-hours have passed) or do not apply to the evidence.
+hours have passed) or do not apply to the evidence. Flags about what happened to the evidence after
+the access use its status 24 hours after the access, from the status history, never its final
+status.
 """
 
 from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from e2d_core.explain.model import AccessEvent, Candidate, EvidenceBundle
+from e2d_core.explain.model import AccessEvent, AppointmentEv, Candidate, EvidenceBundle
 from e2d_core.explain.templates import ForgeryConfig
 
 FLAG_NAMES = (
@@ -26,9 +28,15 @@ FLAG_NAMES = (
 
 # Evidence that a user can create themselves, so forging it is possible.
 CREATABLE = {"appointment", "lab_order", "referral", "care_team", "invoice", "registration"}
-# Evidence that implies care should follow.
+# Evidence that implies care should follow, and the statuses that show it did.
 NEEDS_PROGRESS = {"appointment", "lab_order"}
+FORWARD = {
+    "appointment": {"checked_in", "in_consult", "completed"},
+    "lab_order": {"collected", "resulted"},
+}
 CANCELLED = {"cancelled", "no_show", "void"}
+# cancelled_after_access looks at the evidence's status this long after the access.
+STATUS_HORIZON = timedelta(hours=24)
 CLOCK_SKEW = timedelta(seconds=5)
 
 
@@ -97,24 +105,37 @@ def forgery_flags(
 
     item = _find(bundle, ref.kind, ref.id)
     if ref.kind == "appointment" and item is not None:
-        norm = bundle.clinic.reception_booking_share
-        flags["off_path_creation"] = (
-            None if norm is None else item.source != "reception" and norm >= config.reception_norm
-        )
+        flags["off_path_creation"] = _off_path(item, bundle, as_of)
     elif ref.kind in ("lab_order", "referral", "care_team", "invoice"):
         flags["off_path_creation"] = False
 
-    if ref.kind in NEEDS_PROGRESS:
-        deadline = created_at + config.no_progress_after
+    if ref.kind in NEEDS_PROGRESS and item is not None:
+        deadline = event.at + config.no_progress_after
         if as_of >= deadline:
-            flags["no_progress"] = not any(created_at < p.at <= deadline for p in bundle.progress)
+            moved = bundle.status_at(ref.kind, item, deadline) in FORWARD[ref.kind]
+            cared = any(created_at < p.at <= deadline for p in bundle.progress)
+            flags["no_progress"] = not (moved or cared)
 
-    if item is not None and as_of > event.at:
-        updated = getattr(item, "updated_at", None)
-        flags["cancelled_after_access"] = bool(
-            item.status in CANCELLED and updated is not None and updated > event.at
-        )
+    horizon = event.at + STATUS_HORIZON
+    if item is not None and as_of >= horizon:
+        before = bundle.status_at(ref.kind, item, event.at)
+        after = bundle.status_at(ref.kind, item, horizon)
+        flags["cancelled_after_access"] = before not in CANCELLED and after in CANCELLED
     return flags
+
+
+def _off_path(appointment: AppointmentEv, bundle: EvidenceBundle, as_of: datetime) -> bool:
+    """Booked by a clinician (not reception or the patient) for a patient who had no completed
+    encounter with that clinician begun before the booking."""
+    if appointment.source != "doctor":
+        return False
+    return not any(
+        e.doctor_user_id == appointment.created_by
+        and e.started_at < appointment.created_at
+        and e.ended_at is not None
+        and e.ended_at <= as_of
+        for e in bundle.encounters
+    )
 
 
 def any_flag(flags: dict[str, Any]) -> bool:

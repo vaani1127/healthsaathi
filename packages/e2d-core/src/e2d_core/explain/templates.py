@@ -44,7 +44,6 @@ class TemplateSpec:
 class ForgeryConfig:
     self_created_recent: timedelta = timedelta(minutes=60)
     no_progress_after: timedelta = timedelta(hours=24)
-    reception_norm: float = 0.8
     self_creation_high: float = 3.0
 
 
@@ -95,7 +94,6 @@ def parse_config(data: dict[str, Any]) -> TemplateConfig:
     forgery = ForgeryConfig(
         self_created_recent=parse_duration(raw_forgery.get("self_created_recent", "60m")),
         no_progress_after=parse_duration(raw_forgery.get("no_progress_after", "24h")),
-        reception_norm=float(raw_forgery.get("reception_norm", 0.8)),
         self_creation_high=float(raw_forgery.get("self_creation_high", 3.0)),
     )
     gate = data.get("gate", {})

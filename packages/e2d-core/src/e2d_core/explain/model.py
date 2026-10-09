@@ -5,6 +5,7 @@ same engine runs on the database and on simulator output.
 """
 
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime, time
 from typing import Any
@@ -109,6 +110,7 @@ class EncounterEv:
     patient_id: uuid.UUID
     doctor_user_id: uuid.UUID
     started_at: datetime
+    ended_at: datetime | None
     created_by: uuid.UUID
     created_at: datetime
 
@@ -160,6 +162,33 @@ class BreakGlassEv:
 
 
 @dataclass(frozen=True, slots=True)
+class StatusEv:
+    """One status an appointment, lab order, referral or invoice took, and from when
+    (status_events)."""
+
+    entity_type: str  # appointment, lab_order, referral or invoice
+    entity_id: uuid.UUID
+    status: str
+    at: datetime
+
+
+def status_at(history: Iterable[StatusEv], at: datetime) -> str | None:
+    """The status a record had at `at`: the last one it took at or before `at`, or None if it
+    had none yet. `history` is one record's statuses in time order."""
+    current = None
+    for event in history:
+        if event.at > at:
+            break
+        current = event.status
+    return current
+
+
+def status_order(event: StatusEv) -> tuple[str, uuid.UUID, datetime, str]:
+    """The order repositories return a bundle's statuses in."""
+    return (event.entity_type, event.entity_id, event.at, event.status)
+
+
+@dataclass(frozen=True, slots=True)
 class ProgressEv:
     """Something that moved a patient's care forward (for the no_progress flag)."""
 
@@ -179,7 +208,6 @@ class ClinicContext:
     """Clinic-level history used by forgery flags."""
 
     hours: tuple[OpenHours, ...] = ()
-    reception_booking_share: float | None = None  # share of recent bookings made by reception
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,7 +226,7 @@ class EvidenceQuery:
     at: datetime
     timezone: str = "Asia/Kolkata"
     role: str | None = None
-    as_of: datetime | None = None  # how far ahead to look for progress and cancellations
+    as_of: datetime | None = None  # how far ahead to look for progress and status changes
 
 
 @dataclass(frozen=True, slots=True)
@@ -216,8 +244,21 @@ class EvidenceBundle:
     care_team: tuple[CareTeamEv, ...] = ()
     break_glass: tuple[BreakGlassEv, ...] = ()
     progress: tuple[ProgressEv, ...] = ()
+    # Statuses of the bundle's appointments, lab orders, referrals and invoices up to as_of.
+    statuses: tuple[StatusEv, ...] = ()
     clinic: ClinicContext = field(default_factory=ClinicContext)
     user: UserContext = field(default_factory=UserContext)
+
+    def status_at(self, kind: str, record: Any, at: datetime) -> str | None:
+        """The status `record` (of type `kind`) had at `at`, from the status history. A record
+        with no history at all (written before histories were kept) keeps its stored status."""
+        history = [s for s in self.statuses if s.entity_type == kind and s.entity_id == record.id]
+        if not history:
+            return str(record.status)
+        return status_at(history, at)
+
+    def status_changes(self, kind: str, record: Any) -> tuple[StatusEv, ...]:
+        return tuple(s for s in self.statuses if s.entity_type == kind and s.entity_id == record.id)
 
 
 @dataclass(frozen=True, slots=True)

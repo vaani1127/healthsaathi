@@ -102,7 +102,7 @@ def glass(
             "doctor",
             "notes",
             EvidenceBundle(
-                encounters=(EncounterEv(uuid.uuid4(), PATIENT, USER, EARLY, USER, EARLY),)
+                encounters=(EncounterEv(uuid.uuid4(), PATIENT, USER, EARLY, EARLY, USER, EARLY),)
             ),
         ),
     ],

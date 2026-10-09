@@ -32,14 +32,15 @@ from e2d_core.explain.model import (
     QueueTokenEv,
     ReferralEv,
     ShiftEv,
+    StatusEv,
     UserContext,
+    status_at,
+    status_order,
 )
 from e2d_core.repo import (
     APPOINTMENT_LOOKAHEAD,
     APPOINTMENT_LOOKBACK,
     ASSIGNMENT_GRACE,
-    BOOKING_NORM_MIN,
-    BOOKING_NORM_WINDOW,
     CREATION_WINDOW,
     ENCOUNTER_LOOKBACK,
     INVOICE_LOOKBACK,
@@ -92,6 +93,7 @@ COLUMNS: dict[str, tuple[str, ...]] = {
         "patient_id",
         "doctor_user_id",
         "started_at",
+        "ended_at",
         "created_by",
         "created_at",
     ),
@@ -135,6 +137,7 @@ COLUMNS: dict[str, tuple[str, ...]] = {
     "prescriptions": ("id", "clinic_id", "patient_id", "created_at"),
     "schedules": ("id", "clinic_id", "weekday", "start_time", "end_time", "status"),
     "memberships": ("id", "clinic_id", "user_id", "role", "is_active"),
+    "status_events": ("clinic_id", "entity_type", "entity_id", "status", "at"),
 }
 
 DATETIME = pl.Datetime("us", "UTC")
@@ -146,6 +149,7 @@ _TYPES: dict[str, pl.DataType] = {
     "starts_at": DATETIME,
     "ends_at": DATETIME,
     "started_at": DATETIME,
+    "ended_at": DATETIME,
     "valid_until": DATETIME,
     "resulted_at": DATETIME,
     "released_at": DATETIME,
@@ -253,7 +257,7 @@ class MemoryRepository:
         self._results: dict[uuid.UUID, list[Rec]] | None = None
         self._patients: dict[tuple[uuid.UUID, uuid.UUID], Rec] | None = None
         self._hours: dict[uuid.UUID, tuple[OpenHours, ...]] = {}
-        self._bookings: dict[uuid.UUID, tuple[list[Any], list[int]]] = {}
+        self._statuses: dict[tuple[uuid.UUID, uuid.UUID], list[StatusEv]] | None = None
         self._members: dict[tuple[uuid.UUID, str], list[uuid.UUID]] = {}
         self._created: dict[uuid.UUID, tuple[list[Any], list[uuid.UUID]]] = {}
 
@@ -310,7 +314,21 @@ class MemoryRepository:
                 self._results[row["lab_order_id"]].append(row)
         return self._results.get(order, [])
 
+    def _status_history(self, clinic: uuid.UUID, entity: uuid.UUID) -> list[StatusEv]:
+        if self._statuses is None:
+            groups: dict[tuple[uuid.UUID, uuid.UUID], list[StatusEv]] = defaultdict(list)
+            for row in self._table("status_events"):
+                groups[(row["clinic_id"], row["entity_id"])].append(_build(StatusEv, row))
+            self._statuses = {k: sorted(v, key=status_order) for k, v in groups.items()}
+        return self._statuses.get((clinic, entity), [])
+
     # Queries ----------------------------------------------------------------------------------
+
+    async def status_at(
+        self, clinic_id: uuid.UUID, entity_type: str, entity_id: uuid.UUID, at: Any
+    ) -> str | None:
+        history = self._status_history(clinic_id, entity_id)
+        return status_at([s for s in history if s.entity_type == entity_type], at)
 
     async def evidence_for(self, query: EvidenceQuery) -> EvidenceBundle:
         return self.evidence_for_sync(query)
@@ -379,6 +397,22 @@ class MemoryRepository:
             if b["user_id"] == user
         ]
         found = self._patient(clinic, patient)
+        tracked = (
+            ("appointment", appointments),
+            ("lab_order", lab_orders),
+            ("referral", referrals),
+            ("invoice", invoices),
+        )
+        statuses = sorted(
+            (
+                s
+                for kind, rows in tracked
+                for entity in {r["id"] for r in rows}
+                for s in self._status_history(clinic, entity)
+                if s.entity_type == kind and s.at <= as_of
+            ),
+            key=status_order,
+        )
         return EvidenceBundle(
             patient=_build(PatientEv, found) if found else None,
             appointments=tuple(_build(AppointmentEv, r) for r in appointments),
@@ -391,6 +425,7 @@ class MemoryRepository:
             care_team=tuple(_build(CareTeamEv, r) for r in care_team),
             break_glass=tuple(_build(BreakGlassEv, r) for r in break_glass),
             progress=self._progress(clinic, patient, at - PROGRESS_LOOKBACK, as_of),
+            statuses=tuple(statuses),
             clinic=self._clinic_context(clinic, query),
             user=self._user_context(clinic, query),
         )
@@ -414,27 +449,7 @@ class MemoryRepository:
             }
             hours = tuple(OpenHours(*h) for h in sorted(unique))
             self._hours[clinic] = hours
-        bookings = self._bookings.get(clinic)
-        if bookings is None:
-            made = sorted(
-                (r["created_at"], r["source"] == "reception")
-                for r in self._table("appointments")
-                if r["clinic_id"] == clinic and r["created_at"] is not None
-            )
-            prefix = [0]
-            for _, by_reception in made:
-                prefix.append(prefix[-1] + int(by_reception))
-            bookings = ([t for t, _ in made], prefix)
-            self._bookings[clinic] = bookings
-        times, prefix = bookings
-        lo = bisect_left(times, query.at - BOOKING_NORM_WINDOW)
-        hi = bisect_right(times, query.at)
-        total = hi - lo
-        by_reception = prefix[hi] - prefix[lo]
-        return ClinicContext(
-            hours=hours,
-            reception_booking_share=by_reception / total if total >= BOOKING_NORM_MIN else None,
-        )
+        return ClinicContext(hours=hours)
 
     def _user_context(self, clinic: uuid.UUID, query: EvidenceQuery) -> UserContext:
         if query.role is None:

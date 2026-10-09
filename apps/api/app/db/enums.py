@@ -177,3 +177,12 @@ class AnchorStatus(StrEnum):
     PENDING = "pending"
     CONFIRMED = "confirmed"
     FAILED = "failed"
+
+
+class StatusEntity(StrEnum):
+    """Records whose status history is kept in status_events."""
+
+    APPOINTMENT = "appointment"
+    LAB_ORDER = "lab_order"
+    REFERRAL = "referral"
+    INVOICE = "invoice"

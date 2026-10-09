@@ -22,6 +22,7 @@ from tests.e2d.graph import Graph, fetch_memory, fetch_sql
 # Thursday 8 Oct 2026, 12:00 in Asia/Kolkata.
 AT = datetime(2026, 10, 8, 6, 30, tzinfo=UTC)
 TODAY = date(2026, 10, 8)
+M = timedelta(minutes=1)
 H = timedelta(hours=1)
 D = timedelta(days=1)
 
@@ -94,11 +95,53 @@ def _break_glass(g: Graph) -> None:
 
 
 def _self_booked_off_path(g: Graph) -> None:
-    for i in range(25):
-        g.add_appointment(AT - (i + 2) * D, patient=g.add_patient(), created_at=AT - (i + 3) * D)
     g.add_appointment(
         AT, source="doctor", created_by="doctor", created_at=AT - 10 * timedelta(minutes=1)
     )
+
+
+def _doctor_followup_after_own_encounter(g: Graph) -> None:
+    g.add_encounter(AT - 10 * D)
+    g.add_appointment(AT, source="doctor", created_by="doctor", created_at=AT - 10 * D + 5 * M)
+
+
+def _doctor_booking_after_another_doctors_encounter(g: Graph) -> None:
+    g.add_encounter(AT - 10 * D, doctor="doctor2")
+    g.add_appointment(AT, source="doctor", created_by="doctor", created_at=AT - 10 * D + 5 * M)
+
+
+def _cancelled_before(g: Graph) -> None:
+    g.add_appointment(AT, status="cancelled", created_at=AT - D, updated_at=AT - 2 * H)
+
+
+def _cancelled_much_later(g: Graph) -> None:
+    g.add_appointment(AT, status="cancelled", created_at=AT - D, updated_at=AT + 30 * H)
+
+
+def _cancelled_without_history(g: Graph) -> None:
+    g.add_appointment(
+        AT, status="cancelled", created_at=AT - D, updated_at=AT + 2 * H, history=False
+    )
+
+
+def _lab_cancelled_after_access(g: Graph) -> None:
+    g.add_lab_order(AT - 3 * H, status="cancelled", updated_at=AT + H)
+
+
+def _stale_appointment_checked_in(g: Graph) -> None:
+    g.add_appointment(
+        AT - 3 * D, status="checked_in", created_at=AT - 3 * D - H, updated_at=AT - 3 * D + H
+    )
+
+
+def _completed_visit_then_followup_cancelled_later(g: Graph) -> None:
+    # The follow-up was booked when the access happened and cancelled a day later.
+    past = g.add_appointment(
+        AT - 30 * D, status="completed", created_at=AT - 32 * D, updated_at=AT - 30 * D + 15 * M
+    )
+    g.add_status("appointment", past, "checked_in", AT - 30 * D - 10 * M)
+    future = g.add_appointment(AT + 10 * D, created_at=AT - 30 * D)
+    g.add_status("appointment", future, "cancelled", AT + D)
 
 
 def _hours_and_late_booking(g: Graph) -> None:
@@ -260,7 +303,25 @@ CASES = [
         "doctor",
         "notes",
         "T_APPT",
-        flags={"self_created_recent": False, "off_path_creation": None},
+        flags={"self_created_recent": False, "off_path_creation": False},
+    ),
+    Case(
+        "doctor follow-up after a completed encounter is on path",
+        _doctor_followup_after_own_encounter,
+        "doctor",
+        "doctor",
+        "notes",
+        "T_APPT",
+        flags={"off_path_creation": False},
+    ),
+    Case(
+        "doctor booking after another doctor's encounter is off path",
+        _doctor_booking_after_another_doctors_encounter,
+        "doctor",
+        "doctor",
+        "notes",
+        "T_APPT",
+        flags={"off_path_creation": True},
     ),
     Case(
         "created_off_hours true",
@@ -341,6 +402,93 @@ CASES = [
         "T_FRONTDESK",
         flags={"cancelled_after_access": True},
         as_of=D,
+    ),
+    Case(
+        "cancelled_after_access unknown before 24 hours",
+        _cancelled_later,
+        "reception",
+        "reception",
+        "demographics",
+        "T_FRONTDESK",
+        flags={"cancelled_after_access": None},
+        as_of=3 * H,
+    ),
+    Case(
+        "cancelled_after_access false when cancelled before the access",
+        _cancelled_before,
+        "reception",
+        "reception",
+        "demographics",
+        "T_FRONTDESK",
+        flags={"cancelled_after_access": False},
+        as_of=D,
+    ),
+    Case(
+        "cancelled_after_access false when cancelled after 24 hours",
+        _cancelled_much_later,
+        "reception",
+        "reception",
+        "demographics",
+        "T_FRONTDESK",
+        flags={"cancelled_after_access": False},
+        as_of=2 * D,
+    ),
+    Case(
+        "no_progress false when the appointment moved forward",
+        _stale_appointment_checked_in,
+        "doctor",
+        "doctor",
+        "notes",
+        "T_APPT",
+        flags={"no_progress": False},
+        at=-3 * D + 30 * M,
+        as_of=timedelta(0),
+    ),
+    # Status at the access time --------------------------------------------------------------------
+    Case(
+        "appointment cancelled after the access still explains it",
+        _cancelled_later,
+        "doctor",
+        "doctor",
+        "notes",
+        "T_APPT",
+        1.0,
+        as_of=D,
+    ),
+    Case(
+        "appointment cancelled before the access does not",
+        _cancelled_before,
+        "doctor",
+        "doctor",
+        "notes",
+        None,
+    ),
+    Case(
+        "a record without history keeps its stored status",
+        _cancelled_without_history,
+        "doctor",
+        "doctor",
+        "notes",
+        None,
+    ),
+    Case(
+        "lab order cancelled after the access still explains it",
+        _lab_cancelled_after_access,
+        "lab",
+        "lab_tech",
+        "lab",
+        "T_LAB",
+        1.0,
+        flags={"cancelled_after_access": True},
+        as_of=D,
+    ),
+    Case(
+        "follow-up cancelled after the access still explains it",
+        _completed_visit_then_followup_cancelled_later,
+        "doctor",
+        "doctor",
+        "notes",
+        "T_FOLLOWUP",
     ),
     Case(
         "self_creation_high",

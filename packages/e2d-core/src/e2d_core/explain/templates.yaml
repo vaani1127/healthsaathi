@@ -113,8 +113,7 @@ gate:
 # Forgery indicators (SPEC 5.3).
 forgery:
   self_created_recent: 60m
+  # no_progress looks for care (or the evidence moving forward) up to this long after the access.
   no_progress_after: 24h
-  # Off-path creation is flagged when at least this share of recent bookings came from reception.
-  reception_norm: 0.8
   # self_creation_rate is reported as (own + 1) / (role median + 1); it is "high" at or above this.
   self_creation_high: 3.0

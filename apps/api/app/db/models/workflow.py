@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime, time
 
-from sqlalchemy import CheckConstraint, Index, SmallInteger, Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, Index, SmallInteger, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import (
@@ -23,6 +23,7 @@ from app.db.enums import (
     ReferralStatus,
     Role,
     ShiftStatus,
+    StatusEntity,
 )
 
 
@@ -151,3 +152,19 @@ class CareTeamAssignment(ClinicScopedMixin, WorkflowMixin, Base):
     status: Mapped[RecordStatus] = mapped_column(
         str_enum(RecordStatus, "record_status"), server_default=RecordStatus.ACTIVE.value
     )
+
+
+class StatusEvent(ClinicScopedMixin, Base):
+    """Append-only status history: one row per status an appointment, lab order, referral or
+    invoice takes, creation included (written by app.db.status_history). The explanation engine
+    reads a record's status at the access time from here."""
+
+    __tablename__ = "status_events"
+    __table_args__ = scoped_args(
+        Index("ix_status_events_entity", "clinic_id", "entity_id", "at"),
+    )
+
+    entity_type: Mapped[StatusEntity] = mapped_column(str_enum(StatusEntity, "status_entity"))
+    entity_id: Mapped[uuid.UUID]
+    status: Mapped[str] = mapped_column(String(32))
+    at: Mapped[datetime] = mapped_column(server_default=func.now())

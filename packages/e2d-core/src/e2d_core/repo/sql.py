@@ -4,7 +4,8 @@ Runs inside the caller's session, so it sees the same snapshot as the request an
 the same row level security policies.
 """
 
-from datetime import timedelta
+import uuid
+from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -27,14 +28,14 @@ from e2d_core.explain.model import (
     QueueTokenEv,
     ReferralEv,
     ShiftEv,
+    StatusEv,
     UserContext,
+    status_order,
 )
 from e2d_core.repo import (
     APPOINTMENT_LOOKAHEAD,
     APPOINTMENT_LOOKBACK,
     ASSIGNMENT_GRACE,
-    BOOKING_NORM_MIN,
-    BOOKING_NORM_WINDOW,
     CREATION_WINDOW,
     ENCOUNTER_LOOKBACK,
     INVOICE_LOOKBACK,
@@ -73,7 +74,8 @@ INVOICES_SQL = text(
     " AND created_at BETWEEN :start AND :end ORDER BY created_at, id"
 )
 ENCOUNTERS_SQL = text(
-    "SELECT id, patient_id, doctor_user_id, started_at, created_by, created_at FROM encounters"
+    "SELECT id, patient_id, doctor_user_id, started_at, ended_at, created_by, created_at"
+    " FROM encounters"
     " WHERE clinic_id = :clinic AND patient_id = :patient"
     " AND started_at BETWEEN :start AND :end ORDER BY started_at, id"
 )
@@ -120,9 +122,14 @@ HOURS_SQL = text(
     "SELECT DISTINCT weekday, start_time, end_time FROM schedules"
     " WHERE clinic_id = :clinic AND status = 'active' ORDER BY weekday, start_time, end_time"
 )
-BOOKING_NORM_SQL = text(
-    "SELECT count(*) AS total, count(*) FILTER (WHERE source = 'reception') AS by_reception"
-    " FROM appointments WHERE clinic_id = :clinic AND created_at BETWEEN :start AND :end"
+STATUSES_SQL = text(
+    "SELECT entity_type, entity_id, status, at FROM status_events"
+    " WHERE clinic_id = :clinic AND entity_id = ANY(:ids) AND at <= :end"
+)
+STATUS_AT_SQL = text(
+    "SELECT status FROM status_events"
+    " WHERE clinic_id = :clinic AND entity_type = :entity_type AND entity_id = :entity_id"
+    ' AND at <= :at ORDER BY at DESC, status COLLATE "C" DESC LIMIT 1'
 )
 CREATION_COUNTS_SQL = text(
     "SELECT m.user_id, coalesce(sum(c.n), 0) AS n FROM memberships m"
@@ -195,6 +202,16 @@ class SqlRepository:
         progress = await self._all(
             PROGRESS_SQL, {**base, "start": at - PROGRESS_LOOKBACK, "end": as_of}
         )
+        tracked = (
+            ("appointment", appointments),
+            ("lab_order", lab_orders),
+            ("referral", referrals),
+            ("invoice", invoices),
+        )
+        kinds = {r.id: kind for kind, rows in tracked for r in rows}
+        statuses = await self._all(
+            STATUSES_SQL, {"clinic": query.clinic_id, "ids": list(kinds), "end": as_of}
+        )
         return EvidenceBundle(
             patient=PatientEv(*patient_row) if patient_row else None,
             appointments=tuple(AppointmentEv(*r) for r in appointments),
@@ -207,26 +224,30 @@ class SqlRepository:
             care_team=tuple(CareTeamEv(*r) for r in care_team),
             break_glass=tuple(BreakGlassEv(*r) for r in break_glass),
             progress=tuple(ProgressEv(*r) for r in progress),
+            statuses=tuple(
+                sorted(
+                    (StatusEv(*r) for r in statuses if kinds.get(r.entity_id) == r.entity_type),
+                    key=status_order,
+                )
+            ),
             clinic=await self._clinic_context(query),
             user=await self._user_context(query),
         )
 
     async def _clinic_context(self, query: EvidenceQuery) -> ClinicContext:
         hours = await self._all(HOURS_SQL, {"clinic": query.clinic_id})
-        norm = (
+        return ClinicContext(hours=tuple(OpenHours(*h) for h in hours))
+
+    async def status_at(
+        self, clinic_id: uuid.UUID, entity_type: str, entity_id: uuid.UUID, at: datetime
+    ) -> str | None:
+        row = (
             await self.session.execute(
-                BOOKING_NORM_SQL,
-                {
-                    "clinic": query.clinic_id,
-                    "start": query.at - BOOKING_NORM_WINDOW,
-                    "end": query.at,
-                },
+                STATUS_AT_SQL,
+                {"clinic": clinic_id, "entity_type": entity_type, "entity_id": entity_id, "at": at},
             )
-        ).one()
-        share = norm.by_reception / norm.total if norm.total >= BOOKING_NORM_MIN else None
-        return ClinicContext(
-            hours=tuple(OpenHours(*h) for h in hours), reception_booking_share=share
-        )
+        ).first()
+        return None if row is None else str(row.status)
 
     async def _user_context(self, query: EvidenceQuery) -> UserContext:
         if query.role is None:

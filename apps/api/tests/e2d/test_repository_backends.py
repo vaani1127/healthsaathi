@@ -21,8 +21,9 @@ from e2d_core.repo import EvidenceRepository
 from e2d_core.repo.memory import COLUMNS, MemoryRepository, frames_from_rows
 from e2d_core.repo.sql import SqlRepository
 
-BASIC = ("patients", "appointments", "queue_tokens", "shifts", "invoices")
+BASIC = ("patients", "appointments", "queue_tokens", "shifts", "invoices", "status_events")
 AT = datetime(2026, 10, 8, 6, 30, tzinfo=UTC)  # 12:00 in Asia/Kolkata
+D = timedelta(days=1)
 EARLIER = AT - timedelta(days=3)
 
 
@@ -77,6 +78,31 @@ class Scenario:
         self.appt_old = appointment(AT - timedelta(days=200))  # outside the lookback
         self.appt_other_patient = appointment(AT, patient_id=self.other_patient)
         self.appt_cancelled = appointment(AT + timedelta(hours=2), status="cancelled")
+        self.appt_today_status = appointment(AT, status="completed")
+
+        def status(entity: uuid.UUID, value: str, at: datetime) -> None:
+            self.rows["status_events"].append(
+                {
+                    "id": uuid.uuid4(),
+                    "clinic_id": self.clinic,
+                    "entity_type": "appointment",
+                    "entity_id": entity,
+                    "status": value,
+                    "at": at,
+                }
+            )
+
+        # Several transitions, one of them after the access.
+        self.transitions = (
+            ("booked", EARLIER),
+            ("checked_in", AT - timedelta(minutes=20)),
+            ("in_consult", AT - timedelta(minutes=5)),
+            ("completed", AT + timedelta(minutes=10)),
+        )
+        for value, at in self.transitions:
+            status(self.appt_today_status, value, at)
+        status(self.appt_cancelled, "booked", EARLIER)
+        status(self.appt_cancelled, "cancelled", AT + timedelta(hours=1))
 
         self.token_today = uuid.uuid4()
         self.token_old = uuid.uuid4()
@@ -155,6 +181,8 @@ async def _write_sql(engine: AsyncEngine, sc: Scenario) -> None:
             await s.execute(insert(m.Shift).values(**row, created_by=sc.reception))
         for row in sc.rows["invoices"]:
             await s.execute(insert(m.Invoice).values(**row))
+        for row in sc.rows["status_events"]:
+            await s.execute(insert(m.StatusEvent).values(**row))
 
 
 def _frames(sc: Scenario) -> dict[str, pl.DataFrame]:
@@ -226,6 +254,45 @@ async def test_shifts_for_the_user(fetch: Runner, scenario: Scenario) -> None:
 async def test_invoices(fetch: Runner, scenario: Scenario) -> None:
     bundle = await fetch(scenario.query(scenario.reception))
     assert [i.id for i in bundle.invoices] == [scenario.invoice]
+
+
+StatusAt = Callable[[uuid.UUID, str, uuid.UUID, datetime], Any]
+
+
+@pytest.fixture(params=["sql", "memory"])
+async def status_at(request: pytest.FixtureRequest, scenario: Scenario) -> AsyncIterator[StatusAt]:
+    if request.param == "memory":
+        yield MemoryRepository(_frames(scenario)).status_at
+        return
+
+    async def run_sql(clinic: uuid.UUID, kind: str, entity: uuid.UUID, at: datetime) -> Any:
+        async with tenant_session(TenantContext(clinic_id=clinic, role="system")) as db:
+            return await SqlRepository(db).status_at(clinic, kind, entity, at)
+
+    yield run_sql
+
+
+async def test_status_at_follows_every_transition(status_at: StatusAt, scenario: Scenario) -> None:
+    appt, clinic = scenario.appt_today_status, scenario.clinic
+    second = timedelta(seconds=1)
+    assert await status_at(clinic, "appointment", appt, EARLIER - second) is None
+    for value, at in scenario.transitions:
+        assert await status_at(clinic, "appointment", appt, at) == value
+        assert await status_at(clinic, "appointment", appt, at + second) == value
+    assert await status_at(clinic, "invoice", appt, AT) is None
+    assert await status_at(scenario.other_clinic, "appointment", appt, AT) is None
+
+
+async def test_bundle_holds_statuses_up_to_as_of(fetch: Runner, scenario: Scenario) -> None:
+    at_access = await fetch(scenario.query(scenario.doctor))
+    statuses = [s.status for s in at_access.statuses if s.entity_id == scenario.appt_today_status]
+    assert statuses == ["booked", "checked_in", "in_consult"]
+    appt = next(a for a in at_access.appointments if a.id == scenario.appt_cancelled)
+    assert at_access.status_at("appointment", appt, AT) == "booked"
+    later = EvidenceQuery(scenario.clinic, scenario.doctor, scenario.patient, AT, as_of=AT + D)
+    after = await fetch(later)
+    assert after.status_at("appointment", appt, AT + D) == "cancelled"
+    assert after.status_at("appointment", appt, AT) == "booked"
 
 
 async def test_other_clinic_sees_nothing(fetch: Runner, scenario: Scenario) -> None:

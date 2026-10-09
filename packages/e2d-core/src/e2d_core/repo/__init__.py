@@ -5,7 +5,8 @@ Two backends implement the same protocol: `SqlRepository` reads the product data
 experiments). Both must pass the same test suite.
 """
 
-from datetime import timedelta
+import uuid
+from datetime import datetime, timedelta
 from typing import Protocol
 
 from e2d_core.explain.model import EvidenceBundle, EvidenceQuery
@@ -20,13 +21,19 @@ WINDOW_MARGIN = timedelta(days=1)
 ASSIGNMENT_GRACE = timedelta(days=30)
 PROGRESS_LOOKBACK = timedelta(days=7)
 CREATION_WINDOW = timedelta(days=7)
-BOOKING_NORM_WINDOW = timedelta(days=30)
-# Fewer recent bookings than this and the clinic's booking norm is treated as unknown.
-BOOKING_NORM_MIN = 20
+# Records whose status history is kept (status_events.entity_type).
+STATUS_ENTITIES = ("appointment", "lab_order", "referral", "invoice")
 
 
 class EvidenceRepository(Protocol):
     async def evidence_for(self, query: EvidenceQuery) -> EvidenceBundle: ...
+
+    async def status_at(
+        self, clinic_id: uuid.UUID, entity_type: str, entity_id: uuid.UUID, at: datetime
+    ) -> str | None:
+        """The status the record had at `at` (the last one taken at or before it), or None if
+        it had none yet."""
+        ...
 
 
 def median(values: list[int]) -> float:
@@ -43,13 +50,12 @@ __all__ = [
     "APPOINTMENT_LOOKAHEAD",
     "APPOINTMENT_LOOKBACK",
     "ASSIGNMENT_GRACE",
-    "BOOKING_NORM_MIN",
-    "BOOKING_NORM_WINDOW",
     "CREATION_WINDOW",
     "ENCOUNTER_LOOKBACK",
     "INVOICE_LOOKBACK",
     "LAB_LOOKBACK",
     "PROGRESS_LOOKBACK",
+    "STATUS_ENTITIES",
     "WINDOW_MARGIN",
     "EvidenceRepository",
     "median",

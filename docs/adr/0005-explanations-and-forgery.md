@@ -19,9 +19,30 @@ has decayed to almost nothing does not count as an explanation.
 
 **Flags can be undecided.** Each flag is True, False or None. `no_progress` and
 `cancelled_after_access` depend on what happens after the access, so at access time they are None;
-`explain(..., as_of=...)` decides them later (nightly rescoring, P14). `off_path_creation` is None
-until the clinic has at least 20 bookings in the last 30 days, and `created_off_hours` is None for a
-clinic with no schedule. `any_flag()` only counts flags that are True.
+`explain(..., as_of=...)` decides them later (nightly rescoring, P14), once 24 hours have passed
+after the access. `created_off_hours` is None for a clinic with no schedule. `any_flag()` only counts
+flags that are True.
+
+**Status at the access time.** Appointments, lab orders, referrals and invoices keep a status
+history (`status_events`, one row per status taken, creation included), written by a flush listener
+in the product (`app.db.status_history`) and by the simulator. Templates use each record's status
+at the access time, so an appointment cancelled after the access still explains it. Flags about
+what happened next use the status 24 hours after the access: `cancelled_after_access` is True when
+the evidence was not cancelled, voided or a no-show at the access and was 24 hours later;
+`no_progress` is True when, within 24 hours after the access, the evidence did not move forward
+(checked in or completed; collected or resulted) and the patient had no vitals, note, prescription,
+lab result or invoice since the evidence was created. A record with no history at all (written
+before the history existed) keeps its stored status. Statuses are never rebuilt from `updated_at`.
+Both repository backends expose `status_at(clinic, entity_type, entity_id, at)`. Decided by the
+authors in P15.
+
+**Off-path creation.** `off_path_creation` is True for an appointment booked by a clinician (source
+`doctor`, not reception or the patient) for a patient who had no completed encounter with that
+clinician begun before the booking (encounters in the evidence lookback, 120 days). It is False for
+other evidence. This replaced a clinic-level rule (clinician booking where at least 80% of recent
+bookings came from reception), which never applied in SaathiBench because clinicians book most
+follow-ups. The change was made after seeing the forgery flag table of the pre-registration audit,
+by the authors' decision.
 
 **Flags describe the chosen evidence.** They are computed for the evidence behind the strongest
 explanation, and only for evidence a user can create (appointments, lab orders, referrals, care team

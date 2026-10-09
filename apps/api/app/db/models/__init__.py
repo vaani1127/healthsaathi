@@ -45,6 +45,7 @@ from app.db.models.workflow import (
     Referral,
     Schedule,
     Shift,
+    StatusEvent,
 )
 
 __all__ = [
@@ -89,7 +90,11 @@ __all__ = [
     "Service",
     "Shift",
     "StaffProfile",
+    "StatusEvent",
     "User",
     "UserSession",
     "Vital",
 ]
+
+# Registers the flush listener that writes status_events (imported last: it uses the models).
+from app.db import status_history  # noqa: F401

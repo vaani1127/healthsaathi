@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Explanations at access time; off_path_creation redefined
+
+- `status_events` table (migration 0004): append-only status history of appointments, lab orders,
+  referrals and invoices, with RLS and tests. A flush listener (`app.db.status_history`) writes a
+  row whenever one of these records is created or changes status.
+- e2d-core: both repositories load the status history and expose `status_at`. Templates use a
+  record's status at the access time; `cancelled_after_access` and `no_progress` use the status 24
+  hours after the access, never the final status.
+- `off_path_creation`: an appointment booked by a clinician for a patient with no completed
+  encounter with that clinician before the booking. The clinic booking norm (`reception_norm`) is
+  removed. Changed after seeing the forgery flag table of the pre-registration audit.
+- Encounters carry `ended_at` in the evidence bundle.
+
 ### Simulator fix: status history, lab order resolution, antenatal registration
 
 - `status_events`: one row per status an appointment, lab order, referral or invoice takes,

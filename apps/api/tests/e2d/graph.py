@@ -31,6 +31,7 @@ MODELS: dict[str, Any] = {
     "prescriptions": m.Prescription,
     "schedules": m.Schedule,
     "memberships": m.Membership,
+    "status_events": m.StatusEvent,
 }
 INSERT_ORDER = list(MODELS)
 
@@ -72,6 +73,27 @@ class Graph:
         self.rows[table].append(row)
         return row["id"]  # type: ignore[no-any-return]
 
+    def add_status(self, kind: str, entity: uuid.UUID, status: str, at: datetime) -> None:
+        self._add("status_events", entity_type=kind, entity_id=entity, status=status, at=at)
+
+    def _history(
+        self,
+        kind: str,
+        entity: uuid.UUID,
+        first: str,
+        created: datetime,
+        status: str,
+        changed: datetime,
+        history: bool,
+    ) -> None:
+        """The usual history: the first status at creation, then the stored one at its last
+        update. `history=False` writes none, as for rows written before histories were kept."""
+        if not history:
+            return
+        self.add_status(kind, entity, first, created)
+        if status != first:
+            self.add_status(kind, entity, status, changed)
+
     def add_patient(
         self, user_id: uuid.UUID | None = None, created_at: datetime | None = None
     ) -> uuid.UUID:
@@ -97,9 +119,10 @@ class Graph:
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
         patient: uuid.UUID | None = None,
+        history: bool = True,
     ) -> uuid.UUID:
         created = created_at or start - timedelta(days=2)
-        return self._add(
+        appt = self._add(
             "appointments",
             patient_id=patient or self.patient,
             doctor_user_id=self.users[doctor],
@@ -112,6 +135,10 @@ class Graph:
             created_at=created,
             updated_at=updated_at or created,
         )
+        self._history(
+            "appointment", appt, "booked", created, status, updated_at or created, history
+        )
+        return appt
 
     def add_token(
         self, appointment: uuid.UUID, day: date, nurse: str | None = "nurse"
@@ -146,7 +173,7 @@ class Graph:
     def add_invoice(
         self, created_at: datetime, status: str = "issued", updated_at: datetime | None = None
     ) -> uuid.UUID:
-        return self._add(
+        invoice = self._add(
             "invoices",
             patient_id=self.patient,
             status=status,
@@ -155,6 +182,10 @@ class Graph:
             created_at=created_at,
             updated_at=updated_at or created_at,
         )
+        self._history(
+            "invoice", invoice, "issued", created_at, status, updated_at or created_at, True
+        )
+        return invoice
 
     def add_encounter(self, started_at: datetime, doctor: str = "doctor") -> uuid.UUID:
         return self._add(
@@ -163,6 +194,7 @@ class Graph:
             patient_id=self.patient,
             doctor_user_id=self.users[doctor],
             started_at=started_at,
+            ended_at=started_at + timedelta(minutes=15),
             status="closed",
             created_by=self.users[doctor],
             created_at=started_at,
@@ -175,6 +207,7 @@ class Graph:
         status: str = "ordered",
         released_at: datetime | None = None,
         ordered_by: str = "doctor",
+        updated_at: datetime | None = None,
     ) -> uuid.UUID:
         order = self._add(
             "lab_orders",
@@ -184,7 +217,16 @@ class Graph:
             tests=[],
             status=status,
             created_at=created_at,
-            updated_at=created_at,
+            updated_at=updated_at or released_at or created_at,
+        )
+        self._history(
+            "lab_order",
+            order,
+            "ordered",
+            created_at,
+            status,
+            updated_at or released_at or created_at,
+            True,
         )
         if released_at is not None:
             self._add(
@@ -204,8 +246,9 @@ class Graph:
         valid_until: datetime,
         to: str = "doctor2",
         status: str = "active",
+        updated_at: datetime | None = None,
     ) -> uuid.UUID:
-        return self._add(
+        referral = self._add(
             "referrals",
             patient_id=self.patient,
             from_user_id=self.users["doctor"],
@@ -215,8 +258,12 @@ class Graph:
             status=status,
             created_by=self.users["doctor"],
             created_at=created_at,
-            updated_at=created_at,
+            updated_at=updated_at or created_at,
         )
+        self._history(
+            "referral", referral, "active", created_at, status, updated_at or created_at, True
+        )
+        return referral
 
     def add_care_team(
         self, user: str, role: str, starts_at: datetime, ends_at: datetime | None = None
