@@ -2,6 +2,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from httpx import AsyncClient
@@ -34,6 +35,14 @@ def soon(minutes: int = 0) -> str:
     return (datetime.now(UTC) + timedelta(minutes=minutes)).isoformat()
 
 
+def later_today(minutes: int) -> str:
+    """Like soon(), but never past the end of the clinic's local day (Asia/Kolkata)."""
+    now = datetime.now(UTC)
+    local = now.astimezone(ZoneInfo("Asia/Kolkata"))
+    last = local.replace(hour=23, minute=59, second=0, microsecond=0).astimezone(UTC)
+    return max(min(now + timedelta(minutes=minutes), last), now).isoformat()
+
+
 async def new_patient(client: AsyncClient, reception: Actor, name: str = "Meena Demo") -> str:
     resp = await client.post(
         "/api/v1/patients", json={"name": name, "sex": "female"}, headers=reception.headers
@@ -43,14 +52,19 @@ async def new_patient(client: AsyncClient, reception: Actor, name: str = "Meena 
 
 
 async def book(
-    client: AsyncClient, actor: Actor, patient_id: str, doctor: Actor, minutes: int = 0
+    client: AsyncClient,
+    actor: Actor,
+    patient_id: str,
+    doctor: Actor,
+    minutes: int = 0,
+    slot: str | None = None,
 ) -> dict[str, Any]:
     resp = await client.post(
         "/api/v1/appointments",
         json={
             "patient_id": patient_id,
             "doctor_user_id": str(doctor.user_id),
-            "slot_start": soon(minutes),
+            "slot_start": slot or soon(minutes),
         },
         headers=actor.headers,
     )
@@ -248,7 +262,8 @@ async def _setup_flow(client: AsyncClient, staff: dict[Role, Actor]) -> dict[str
     reception, doctor = staff[Role.RECEPTION], staff[Role.DOCTOR]
     p1 = await new_patient(client, reception, "Asha Demo")
     p2 = await new_patient(client, reception, "Asha Demo Two")
-    appt = await book(client, reception, p1, doctor, minutes=60)
+    # On the clinic's local day, so "today's appointments" lists it whatever the time of day.
+    appt = await book(client, reception, p1, doctor, slot=later_today(60))
     token = await client.post(
         "/api/v1/queue/tokens", json={"appointment_id": appt["id"]}, headers=reception.headers
     )
