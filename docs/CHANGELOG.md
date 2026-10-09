@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Simulator fix: status history, lab order resolution, antenatal registration
+
+- `status_events`: one row per status an appointment, lab order, referral or invoice takes,
+  creation included, so the status at any past time can be read without `updated_at`.
+- Lab orders: `lab_uncollected_rate` (0.05 in every profile) of real orders are never collected
+  and are cancelled at closing time. Forged lab orders (attack type 10) are made by lab
+  technicians, since a lab order only explains a lab technician's access, and are cancelled by
+  the forger with probability m, otherwise at closing time.
+- Antenatal patients registered during the run plan 2 to 7 visits, like those registered before.
+- A walk-in is checked in no earlier than its appointment is created.
+- `saathibench.realism` reports the share of consultation lab orders that were never collected.
+  Outputs made before this change were regenerated.
+
 ### Simulator fix: forged appointments resolved like real ones
 
 - Fixed: an appointment forged by attack type 10 could stay booked after its slot, which no real

@@ -17,6 +17,7 @@ chronic_share: 0.22
 anc_share: 0.03
 portal_share: 0.12
 lab_order_rate: 0.18
+lab_uncollected_rate: 0.05
 referral_rate: 0.0
 acute_followup_rate: 0.25
 health_camp_every_days: 60

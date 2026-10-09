@@ -172,6 +172,38 @@ class ClinicSim:
             prod *= self.rng.random()
         return k
 
+    # Status history -------------------------------------------------------------------------
+
+    def status_event(self, entity: str, row: Row, at: datetime) -> None:
+        """Record the status `row` has from `at` on (the product writes the same history)."""
+        self.rec.add(
+            "status_events",
+            {
+                "clinic_id": self.clinic_id,
+                "entity_type": entity,
+                "entity_id": row["id"],
+                "status": row["status"],
+                "at": at,
+            },
+        )
+
+    def set_status(self, entity: str, row: Row, status: str, at: datetime) -> None:
+        row["status"] = status
+        row["updated_at"] = at
+        self.status_event(entity, row, at)
+
+    def close_of_day(self, after: float) -> float:
+        """When the last session of the day `after` falls in ends (`after` itself if later)."""
+        day = self.local_day(after)
+        ends = [self.minutes(day, s.end) for s in self.p.sessions_on(day.weekday())]
+        return max([after, *ends])
+
+    def cancel_at_close(self, order: Row) -> Generator[simpy.Event, Any, None]:
+        """A lab order whose sample was never collected is cancelled when the clinic closes."""
+        close = self.close_of_day(self.env.now)
+        yield self.env.timeout(close - self.env.now)
+        self.set_status("lab_order", order, "cancelled", self.utc(close))
+
     # Access events --------------------------------------------------------------------------
 
     def _session(self, user_id: str, device_id: str, at: datetime) -> str:
@@ -556,6 +588,9 @@ class ClinicSim:
             patient.next_due = self.cfg.start_date + timedelta(days=self.rng.randint(0, gap))
             patient.anc_left = self.rng.randint(2, 7) if kind == "anc" else 0
             self._care_team(patient, doctor, at + timedelta(hours=1))
+        elif kind == "anc":
+            # Antenatal patients registered during the run plan their visits the same way.
+            patient.anc_left = self.rng.randint(2, 7)
         if self.rng.random() < 0.08:
             self.rec.add(
                 "allergies",
@@ -747,8 +782,7 @@ class ClinicSim:
             if self.rng.random() < self.p.cancel_rate:
                 cancelled = self._m(appt) - self.rng.uniform(60, 2000)
                 cancelled = max(cancelled, self._m_created(appt) + 5)
-                appt["status"] = "cancelled"
-                appt["updated_at"] = self.utc(cancelled)
+                self.set_status("appointment", appt, "cancelled", self.utc(cancelled))
                 clerk = self.rng.choice(reception)
                 self.staff_access(clerk, patient, [("demographics", "edit")], self.utc(cancelled))
                 continue
@@ -799,7 +833,7 @@ class ClinicSim:
         created: float,
     ) -> Row:
         at = self.utc(created)
-        return self.rec.add(
+        appt = self.rec.add(
             "appointments",
             {
                 "id": self.ids.new(at),
@@ -816,14 +850,16 @@ class ClinicSim:
                 "updated_at": at,
             },
         )
+        self.status_event("appointment", appt, at)
+        return appt
 
     # Visit ----------------------------------------------------------------------------------
 
     def visit(self, v: Visit, day: date) -> Generator[simpy.Event, Any, None]:
         yield self.env.timeout(max(0.0, v.arrival - self.env.now))
         if v.appointment is not None and self.rng.random() < self.p.no_show_rate:
-            v.appointment["status"] = "no_show"
-            v.appointment["updated_at"] = self.utc(self._m(v.appointment) + NO_SHOW_MARKED_AFTER)
+            marked = self.utc(self._m(v.appointment) + NO_SHOW_MARKED_AFTER)
+            self.set_status("appointment", v.appointment, "no_show", marked)
             return
         with self.reception_desk.request() as turn:
             yield turn
@@ -859,8 +895,9 @@ class ClinicSim:
                     "updated_at": t + timedelta(seconds=30),
                 },
             )
-            appointment["status"] = "checked_in"
-            appointment["updated_at"] = t
+            # A walk-in's appointment is created at the desk, so check-in cannot come earlier.
+            checked_in = max(t, appointment["created_at"])
+            self.set_status("appointment", appointment, "checked_in", checked_in)
             yield self.env.timeout(self.rng.uniform(1, 3))
         seen = Seen(appointment, patient, v.doctor, v.cover)
 
@@ -914,8 +951,7 @@ class ClinicSim:
         scenario = "cover_doctor" if v.cover else None
         t = self.utc(self.env.now)
         encounter_id = self.ids.new(t)
-        v.appointment["status"] = "in_consult"
-        v.appointment["updated_at"] = t
+        self.set_status("appointment", v.appointment, "in_consult", t)
         token["status"] = "with_doctor"
         token["updated_at"] = t
         reads = [("demographics", "view"), ("vitals", "view"), ("allergies", "view")]
@@ -998,7 +1034,11 @@ class ClinicSim:
                     "updated_at": done,
                 },
             )
-            self.env.process(self.lab_work(order, patient, doctor))
+            self.status_event("lab_order", order, done)
+            if self.rng.random() < self.p.lab_uncollected_rate:
+                self.env.process(self.cancel_at_close(order))
+            else:
+                self.env.process(self.lab_work(order, patient, doctor))
         others = [d for d in self.staff["doctor"] if d is not doctor]
         if others and self.rng.random() < self.p.referral_rate:
             self.env.process(self.referral(patient, doctor, self.rng.choice(others), end))
@@ -1006,8 +1046,7 @@ class ClinicSim:
         if patient.kind in ("chronic", "anc"):
             patient.primary_doctor = patient.primary_doctor or doctor.user_id
             self._care_team(patient, doctor, end)
-        v.appointment["status"] = "completed"
-        v.appointment["updated_at"] = end
+        self.set_status("appointment", v.appointment, "completed", end)
         token["status"] = "done"
         token["updated_at"] = end
         patient.visits += 1
@@ -1066,10 +1105,10 @@ class ClinicSim:
                 "updated_at": t,
             },
         )
+        self.status_event("invoice", invoice, t)
         t = self.staff_access(clerk, v.patient, [("billing", "create")], t + timedelta(seconds=5))
         if self.rng.random() < 0.92:
-            invoice["status"] = "paid"
-            invoice["updated_at"] = t
+            self.set_status("invoice", invoice, "paid", t)
             self._payment(invoice, clerk, t)
             self.staff_access(clerk, v.patient, [("billing", "print")], t)
         local = t.astimezone(self.tz)
@@ -1131,8 +1170,7 @@ class ClinicSim:
             tech = self.rng.choice(self.staff["lab_tech"])
             t = self.utc(self.env.now)
             t = self.staff_access(tech, patient, [("demographics", "view"), ("lab", "view")], t)
-            order["status"] = "collected"
-            order["updated_at"] = t
+            self.set_status("lab_order", order, "collected", t)
         ready = self._next_open(self.env.now + self.rng.uniform(120, 1800))
         yield self.env.timeout(ready - self.env.now)
         tech = self.rng.choice(self.staff["lab_tech"])
@@ -1152,8 +1190,7 @@ class ClinicSim:
         yield self.env.timeout(self.rng.uniform(5, 90))
         t = self.staff_access(tech, patient, [("lab", "edit")], self.utc(self.env.now))
         result["released_at"] = t
-        order["status"] = "resulted"
-        order["updated_at"] = t
+        self.set_status("lab_order", order, "resulted", t)
         patient.has_results = True
         # Nurses sometimes look up yesterday's lab patients the next morning (hard negative).
         hn = self.p.hard_negatives
@@ -1177,7 +1214,7 @@ class ClinicSim:
     def referral(
         self, patient: Patient, src: Staff, dst: Staff, at: datetime
     ) -> Generator[simpy.Event, Any, None]:
-        self.rec.add(
+        referral = self.rec.add(
             "referrals",
             {
                 "id": self.ids.new(at),
@@ -1193,6 +1230,7 @@ class ClinicSim:
                 "updated_at": at,
             },
         )
+        self.status_event("referral", referral, at)
         now = (at - self.epoch.astimezone(UTC)).total_seconds() / 60
         seen = self._next_open(now + self.rng.uniform(30, 3 * 1440))
         yield self.env.timeout(max(0.0, seen - self.env.now))
@@ -1332,8 +1370,7 @@ class ClinicSim:
                     clerk, patient, [("billing", "view")], t, scenario="month_end_billing"
                 )
                 if invoice["status"] == "issued":
-                    invoice["status"] = "paid"
-                    invoice["updated_at"] = t
+                    self.set_status("invoice", invoice, "paid", t)
                     self._payment(invoice, clerk, t)
             reviewed += mine
         admin = self.staff["clinic_admin"]

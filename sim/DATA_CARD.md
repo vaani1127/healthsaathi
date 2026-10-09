@@ -30,18 +30,25 @@ patient, no real staff member and no real clinic in it.
 ### Workflow
 
 1. A population is registered before the first day; chronic and antenatal patients already have a
-   doctor, a care-team assignment and a due date.
+   doctor, a care-team assignment and a due date. Antenatal patients registered during the run
+   plan the same number of visits (2 to 7).
 2. Each session, appointments are booked ahead by reception or by patients through the portal;
    doctors book follow-ups at the end of a consultation. Walk-ins arrive during the session.
 3. A visit goes through reception check-in (queue token), the nurse (vitals), the doctor
    (encounter, note, prescription, sometimes a lab order or a referral) and billing (invoice and
    usually a payment). Queues use SimPy resources, so waiting times depend on load.
 4. Lab technicians collect samples, enter results and release them; the ordering doctor reviews
-   the result in a later session. Referred doctors open the chart within a few days.
+   the result in a later session. A share of orders (`lab_uncollected_rate`, 0.05 in every
+   profile) is never collected because the patient skips the test; those orders are cancelled
+   when the clinic closes that day. Referred doctors open the chart within a few days.
 5. Patients with portal accounts sometimes look at their own record after a visit.
 
 Every look at or change to a record writes an `access_events` row with user, role, patient,
 resource, action, time, session, device, network hash and decision.
+
+Every status an appointment, lab order, referral or invoice takes, creation included, writes a
+`status_events` row (`entity_type`, `entity_id`, `status`, `at`), as the product does. The status
+of a record at any past time comes from this history, never from `updated_at`.
 
 ### Benign hard negatives
 
@@ -83,7 +90,7 @@ spreads over more days. Code: `sim/src/saathibench/attacks.py`.
 | 7 | `credential_sharing` | Someone else uses the account from a device and network never seen before. |
 | 8 | `break_glass_abuse` | Declares emergencies that are not, then opens the emergency view. |
 | 9 | `edit_after_sign` | Edits signed notes (a new version) and sometimes prescriptions, days later. |
-| 10 | `explanation_forgery` | Creates an appointment, lab order or care-team entry first, then opens the record. Careful attackers (high m) create it hours earlier. |
+| 10 | `explanation_forgery` | Creates an appointment, lab order or care-team entry first, then opens the record. Careful attackers (high m) create it hours earlier. Doctors and receptionists forge appointments, doctors and nurses forge care-team entries, and lab technicians forge lab orders (a lab order only explains a lab technician's access). No forged evidence stays open: a forged appointment ends as a no-show or is cancelled by the forger, and a forged lab order is cancelled by the forger (probability m) or at closing time like an uncollected order. |
 
 A campaign that needs history (types 4 and 9) waits until it exists.
 
@@ -137,7 +144,7 @@ the resulting shares from the tables and labels only.
 Tables: clinics, users, memberships, staff_profiles, patients, devices, sessions, services,
 schedules, shifts, appointments, queue_tokens, encounters, referrals, care_team_assignments,
 vitals, allergies, conditions, clinical_notes, prescriptions, lab_orders, lab_results, invoices,
-payments, consents, break_glass_events, access_events. Ids are UUIDv7 strings and times are UTC.
+payments, consents, break_glass_events, access_events, status_events. Ids are UUIDv7 strings and times are UTC.
 Row counts for a run are in its `manifest.json`.
 
 Feature and detector code must never read `labels/`. Only `saathibench.labels` reads it, and an
@@ -166,6 +173,15 @@ output.
   appointment does, so its status alone gave it away. Forged appointments are now resolved like
   real ones (a no-show at the usual time, or cancelled by the forger before the slot), and the
   outputs were regenerated.
+
+- Statuses were kept only as the final value, so the status of a record at the time of an access
+  could not be known (an appointment cancelled after the access looked cancelled at the access).
+  The simulator now writes `status_events`. In the same change: a forged lab order was made by a
+  doctor, whose access a lab order never explains, so it is now made by a lab technician; forged
+  lab orders that were not cancelled stayed `ordered` forever and are now cancelled at closing
+  time; real lab orders now include uncollected ones; antenatal patients registered during the
+  run had no planned visits; and a walk-in's check-in was recorded 30 seconds before its
+  appointment was created. The outputs were regenerated.
 
 ## Known limits
 

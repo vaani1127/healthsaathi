@@ -2,7 +2,6 @@
 and forged appointments like real ones), and appointments after the run stay booked and are kept
 out of in-run counts."""
 
-from dataclasses import replace
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -10,9 +9,8 @@ from zoneinfo import ZoneInfo
 import polars as pl
 import pytest
 
-from saathibench.config import NO_SHOW_MARKED_AFTER, AttackConfig, load_config
+from saathibench.config import NO_SHOW_MARKED_AFTER
 from saathibench.realism import measure
-from saathibench.run import simulate
 
 SMALL = Path(__file__).resolve().parents[1] / "configs" / "small.yaml"
 RESOLVED = ("completed", "no_show", "cancelled")
@@ -22,18 +20,10 @@ def table(run: Path, name: str) -> pl.DataFrame:
     return pl.concat([pl.read_parquet(f) for f in (run / "tables" / name).glob("*.parquet")])
 
 
-@pytest.fixture(scope="module")
-def run(tmp_path_factory: pytest.TempPathFactory) -> Path:
+@pytest.fixture
+def run(forgery_run: Path) -> Path:
     # Attacks on, many of them forgery, so forged appointments are checked too.
-    cfg = replace(
-        load_config(SMALL),
-        days=42,
-        start_date=date(2026, 1, 5),
-        attacks=AttackConfig(campaigns_per_clinic_month=12, first_day=3, types=(10, 1, 6)),
-    )
-    out = tmp_path_factory.mktemp("followups") / "run"
-    simulate(cfg, out, workers=1)
-    return out
+    return forgery_run
 
 
 def run_end(run: Path) -> datetime:

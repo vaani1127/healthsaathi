@@ -45,6 +45,8 @@ class Profile:
     anc_share: float
     portal_share: float
     lab_order_rate: float
+    # Share of lab orders whose sample is never collected (the patient skips the test).
+    lab_uncollected_rate: float
     referral_rate: float
     acute_followup_rate: float
     health_camp_every_days: int | None
@@ -156,6 +158,7 @@ def parse_profile(data: dict[str, Any]) -> Profile:
         anc_share=float(data["anc_share"]),
         portal_share=float(data["portal_share"]),
         lab_order_rate=float(data["lab_order_rate"]),
+        lab_uncollected_rate=float(data.get("lab_uncollected_rate", 0.0)),
         referral_rate=float(data.get("referral_rate", 0.0)),
         acute_followup_rate=float(data["acute_followup_rate"]),
         health_camp_every_days=int(camp) if camp else None,

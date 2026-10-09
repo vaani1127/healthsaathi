@@ -9,6 +9,8 @@ engine), for the pre-registration's realism table.
   included) that a doctor or nurse created (source "doctor").
 - incidental_snooping_share: share of snooping accesses (types 1, 2 and 6) whose patient has a
   booked, non-cancelled appointment on the same local day.
+- lab_uncollected_share: share of lab orders placed during a consultation inside the run that were
+  cancelled because no sample was collected.
 
 Appointments with a slot after the last day are still booked by design and are counted apart.
 
@@ -151,6 +153,16 @@ def measure(run: Path) -> dict[str, Any]:
         pl.col("at").dt.convert_time_zone(tz).dt.date().alias("day")
     )
     incidental = snooping.join(booked_days, on=["patient_id", "day"], how="semi").height
+    orders = (
+        _scan(run, "lab_orders")
+        .filter(
+            pl.col("encounter_id").is_not_null()
+            & pl.col("created_at").is_between(start.astimezone(UTC), end, closed="left")
+        )
+        .select(pl.len().alias("orders"), (pl.col("status") == "cancelled").sum().alias("lost"))
+        .collect()
+    )
+    lab_orders = int(orders["orders"][0])
     total, booked_total = int(counts["in_run"][0]), int(counts["booked"][0])
     return {
         "run": run.name,
@@ -164,6 +176,8 @@ def measure(run: Path) -> dict[str, Any]:
         "appointments_after_run": int(counts["after_run"][0]),
         "incidental_snooping_share": incidental / snooping.height if snooping.height else None,
         "snooping_accesses": snooping.height,
+        "lab_uncollected_share": int(orders["lost"][0]) / lab_orders if lab_orders else None,
+        "consultation_lab_orders_in_run": lab_orders,
         "followups": followup_chains(run, start.astimezone(UTC), end),
     }
 

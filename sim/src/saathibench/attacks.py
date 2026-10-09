@@ -499,12 +499,17 @@ def plan_edit_after_sign(c: Campaign) -> Callable[[], Gen] | None:
 def plan_forgery(c: Campaign) -> Callable[[], Gen] | None:
     sim = c.sim
     c.actor = c.rng.choice(c.staff_of("doctor", "doctor", "reception", "nurse"))
-    actor = c.actor
     c.variant = {
         "doctor": c.rng.choice(("appointment", "lab_order", "care_team")),
         "reception": "appointment",
         "nurse": "care_team",
-    }[actor.role]
+    }[c.actor.role]
+    if c.variant == "lab_order":
+        # A lab order only explains a lab technician's access (T_LAB), so the forger is one.
+        if not sim.staff["lab_tech"]:
+            return None
+        c.actor = c.rng.choice(sim.staff["lab_tech"])
+    actor = c.actor
 
     def forge(patient: "Patient") -> None:
         """Create the evidence that makes the coming access look expected."""
@@ -529,11 +534,10 @@ def plan_forgery(c: Campaign) -> Callable[[], Gen] | None:
             # no-show at the usual time. With probability m the forger cancels it instead, after
             # the access and before the slot.
             if c.rng.random() < c.m:
-                appt["status"] = "cancelled"
-                appt["updated_at"] = sim.utc(c.rng.uniform(now + 9, slot - 1))
+                when = sim.utc(c.rng.uniform(now + 9, slot - 1))
+                sim.set_status("appointment", appt, "cancelled", when)
             else:
-                appt["status"] = "no_show"
-                appt["updated_at"] = sim.utc(slot + NO_SHOW_MARKED_AFTER)
+                sim.set_status("appointment", appt, "no_show", sim.utc(slot + NO_SHOW_MARKED_AFTER))
         elif c.variant == "lab_order":
             order = sim.rec.add(
                 "lab_orders",
@@ -549,9 +553,15 @@ def plan_forgery(c: Campaign) -> Callable[[], Gen] | None:
                     "updated_at": at,
                 },
             )
-            if c.rng.random() < 1 - c.m:
-                order["status"] = "cancelled"
-                order["updated_at"] = sim.utc(now + c.rng.uniform(60, 600))
+            sim.status_event("lab_order", order, at)
+            # No sample is ever taken. With probability m the forger cancels the order soon
+            # after the access; otherwise it is cancelled at closing time like any order whose
+            # sample was never collected.
+            if c.rng.random() < c.m:
+                sim.set_status("lab_order", order, "cancelled", sim.utc(now + c.rng.uniform(9, 30)))
+            else:
+                close = sim.close_of_day(now)
+                sim.set_status("lab_order", order, "cancelled", sim.utc(close))
         else:
             sim.rec.add(
                 "care_team_assignments",

@@ -128,6 +128,10 @@ TABLES: dict[str, dict[str, pl.DataType]] = {
         "action": S, "at": UTC_TS, "session_id": S, "device_id": S, "ip_hash": S,
         "request_id": S, "policy_version": S, "decision": S, "break_glass_id": S,
     },
+    # One row per status an appointment, lab order, referral or invoice takes, creation included.
+    "status_events": {
+        "clinic_id": S, "entity_type": S, "entity_id": S, "status": S, "at": UTC_TS,
+    },
 }  # fmt: skip
 
 # Kept apart from the tables: what the simulator knows about why an access happened. Feature and
