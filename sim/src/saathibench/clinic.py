@@ -21,7 +21,7 @@ import simpy
 import yaml
 
 from saathibench.attacks import AttackTag, plan_campaigns
-from saathibench.config import ClinicSpec, RunConfig, Session
+from saathibench.config import NO_SHOW_MARKED_AFTER, ClinicSpec, RunConfig, Session
 from saathibench.ids import Ids
 from saathibench.policy import Policy
 from saathibench.recorder import Recorder, Row
@@ -823,7 +823,7 @@ class ClinicSim:
         yield self.env.timeout(max(0.0, v.arrival - self.env.now))
         if v.appointment is not None and self.rng.random() < self.p.no_show_rate:
             v.appointment["status"] = "no_show"
-            v.appointment["updated_at"] = self.utc(self._m(v.appointment) + 120)
+            v.appointment["updated_at"] = self.utc(self._m(v.appointment) + NO_SHOW_MARKED_AFTER)
             return
         with self.reception_desk.request() as turn:
             yield turn

@@ -162,6 +162,11 @@ output.
   before the fix, including the earlier v1 audit files, had this bug and was regenerated. A test
   now checks that no appointment inside the run stays booked.
 
+- A forged appointment (attack type 10) could stay booked after its slot, which no real
+  appointment does, so its status alone gave it away. Forged appointments are now resolved like
+  real ones (a no-show at the usual time, or cancelled by the forger before the slot), and the
+  outputs were regenerated.
+
 ## Known limits
 
 - The tables are a snapshot at the end of the run. A row that changed during the run (an

@@ -1,5 +1,6 @@
-"""Follow-up appointments booked by doctors are visited in whichever session they fall in, and
-appointments after the run stay booked and are kept out of in-run counts."""
+"""Every appointment inside the run is resolved (follow-ups in whichever session they fall in,
+and forged appointments like real ones), and appointments after the run stay booked and are kept
+out of in-run counts."""
 
 from dataclasses import replace
 from datetime import UTC, date, datetime, time, timedelta
@@ -9,7 +10,7 @@ from zoneinfo import ZoneInfo
 import polars as pl
 import pytest
 
-from saathibench.config import AttackConfig, load_config
+from saathibench.config import NO_SHOW_MARKED_AFTER, AttackConfig, load_config
 from saathibench.realism import measure
 from saathibench.run import simulate
 
@@ -23,12 +24,12 @@ def table(run: Path, name: str) -> pl.DataFrame:
 
 @pytest.fixture(scope="module")
 def run(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    # No attacks: forged appointments of attack type 10 stay booked on purpose.
+    # Attacks on, many of them forgery, so forged appointments are checked too.
     cfg = replace(
         load_config(SMALL),
         days=42,
         start_date=date(2026, 1, 5),
-        attacks=AttackConfig(campaigns_per_clinic_month=0),
+        attacks=AttackConfig(campaigns_per_clinic_month=12, first_day=3, types=(10, 1, 6)),
     )
     out = tmp_path_factory.mktemp("followups") / "run"
     simulate(cfg, out, workers=1)
@@ -41,12 +42,29 @@ def run_end(run: Path) -> datetime:
 
 
 def test_no_appointment_inside_the_run_stays_booked(run: Path) -> None:
-    appointments = table(run, "appointments").filter(
-        (pl.col("kind") != "walkin") & (pl.col("slot_end") < run_end(run))
-    )
+    appointments = table(run, "appointments").filter(pl.col("slot_end") < run_end(run))
     assert appointments.height > 0
     stuck = appointments.filter(~pl.col("status").is_in(RESOLVED))
     assert stuck.is_empty(), stuck.group_by("kind", "source").len()
+
+
+def test_forged_appointments_are_resolved_like_real_ones(run: Path) -> None:
+    forgers = pl.concat(
+        [pl.read_parquet(f) for f in (run / "labels" / "campaigns").glob("*.parquet")]
+    ).filter((pl.col("attack_type") == 10) & (pl.col("variant") == "appointment"))
+    assert forgers.height > 0, "the run has appointment forgeries"
+    forged = (
+        table(run, "appointments")
+        .join(
+            forgers.select(pl.col("actor_user_id").alias("created_by")), on="created_by", how="semi"
+        )
+        .filter((pl.col("source") != "patient") & (pl.col("slot_end") < run_end(run)))
+    )
+    assert forged.height > 0
+    assert forged["status"].is_in(["no_show", "cancelled", "completed"]).all()
+    for status, slot, updated in forged.select("status", "slot_start", "updated_at").iter_rows():
+        if status == "no_show":
+            assert (updated - slot).total_seconds() == pytest.approx(NO_SHOW_MARKED_AFTER * 60)
 
 
 def test_evening_followups_are_seen_in_the_evening(run: Path) -> None:

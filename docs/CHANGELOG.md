@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Simulator fix: forged appointments resolved like real ones
+
+- Fixed: an appointment forged by attack type 10 could stay booked after its slot, which no real
+  appointment does once follow-ups are fixed, so the status alone would have marked it as forged.
+  Forged appointments are now resolved like any other: a no-show at the usual time (120 minutes
+  after the slot), or, with probability equal to the campaign's mimicry, cancelled by the forger
+  after the access and before the slot. Outputs made before this fix were regenerated.
+
 ### Simulator fix: follow-ups in later sessions
 
 - Fixed: a follow-up a doctor booked into a later session of the same day (usually the evening)

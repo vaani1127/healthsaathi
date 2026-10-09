@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING, Any
 
 import simpy
 
+from saathibench.config import NO_SHOW_MARKED_AFTER
+
 if TYPE_CHECKING:
     from saathibench.clinic import ClinicSim, Patient, Staff
 
@@ -512,7 +514,8 @@ def plan_forgery(c: Campaign) -> Callable[[], Gen] | None:
         at = sim.utc(created)
         if c.variant == "appointment":
             doctor = actor if actor.role == "doctor" else c.rng.choice(sim.staff["doctor"])
-            slot = now + c.rng.uniform(-10, 30)
+            # The slot is soon after the access, so the appointment explains it.
+            slot = now + c.rng.uniform(15, 30)
             appt = sim._appointment(
                 patient,
                 doctor,
@@ -522,10 +525,15 @@ def plan_forgery(c: Campaign) -> Callable[[], Gen] | None:
                 actor.user_id,
                 created,
             )
-            # Nobody comes: the slot ends as a no-show or stays booked.
-            if c.rng.random() < 1 - c.m:
+            # Resolved like any other appointment: the patient never comes, so reception marks a
+            # no-show at the usual time. With probability m the forger cancels it instead, after
+            # the access and before the slot.
+            if c.rng.random() < c.m:
+                appt["status"] = "cancelled"
+                appt["updated_at"] = sim.utc(c.rng.uniform(now + 9, slot - 1))
+            else:
                 appt["status"] = "no_show"
-                appt["updated_at"] = sim.utc(slot + 120)
+                appt["updated_at"] = sim.utc(slot + NO_SHOW_MARKED_AFTER)
         elif c.variant == "lab_order":
             order = sim.rec.add(
                 "lab_orders",

@@ -8,6 +8,8 @@ from typing import Any
 import yaml
 
 ROLES = ("doctor", "nurse", "reception", "lab_tech", "clinic_admin")
+# Reception marks a patient who never came as a no-show this many minutes after the slot.
+NO_SHOW_MARKED_AFTER = 120
 
 
 @dataclass(frozen=True)
