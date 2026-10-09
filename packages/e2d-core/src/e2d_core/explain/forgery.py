@@ -86,8 +86,12 @@ def forgery_flags(
 
     created_at = best.created_at
     age = event.at - created_at
+    # Registering a patient and then opening their record is the normal front-desk path, so a
+    # registration never counts as self-created evidence. Its other flags still apply.
     flags["self_created_recent"] = (
-        best.created_by == event.user_id and -CLOCK_SKEW <= age <= config.self_created_recent
+        ref.kind != "registration"
+        and best.created_by == event.user_id
+        and -CLOCK_SKEW <= age <= config.self_created_recent
     )
     flags["created_off_hours"] = _off_hours(created_at, bundle, tz)
 

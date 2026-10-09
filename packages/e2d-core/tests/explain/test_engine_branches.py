@@ -125,3 +125,14 @@ def test_void_invoice_still_counts_for_frontdesk_window() -> None:
         event("reception", "billing"), EvidenceBundle(invoices=(invoice(status="void"),))
     )
     assert result.template_code == "T_FRONTDESK"
+
+
+def test_own_registration_is_not_self_created_evidence() -> None:
+    """Reception registers a patient and opens the record: explained by the registration, and
+    the registration does not raise self_created_recent (other flags are still computed)."""
+    registered = AT - timedelta(minutes=5)
+    bundle = EvidenceBundle(patient=PatientEv(PATIENT, None, USER, registered))
+    result = explain(event("reception", "demographics"), bundle)
+    assert result.template_code == "T_FRONTDESK"
+    assert result.forgery_flags["self_created_recent"] is False
+    assert "created_off_hours" in result.forgery_flags

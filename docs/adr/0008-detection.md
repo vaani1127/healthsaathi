@@ -48,9 +48,9 @@ own access, and every review is written to the audit log with the model version.
 
 ## Consequences
 
-- The rules baseline flags new registrations: when reception registers a patient and then opens the
-  record, the registration counts as evidence the same user created within the hour
-  (`self_created_recent`, SPEC 5.3). Fitted models learn that this is common; the rules baseline
-  does not.
+- New registrations used to fill the alert list: when reception registers a patient and then
+  opens the record, the registration counted as evidence the same user created within the hour
+  (`self_created_recent`). The authors decided that a registration never counts for this one flag;
+  every other indicator still applies to it (SPEC 5.3).
 - Scoring reloads one clinic's last week of accesses each minute. This suits small clinics; a larger
   deployment would score incrementally.

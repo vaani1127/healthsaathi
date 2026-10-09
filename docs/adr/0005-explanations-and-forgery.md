@@ -26,6 +26,9 @@ clinic with no schedule. `any_flag()` only counts flags that are True.
 **Flags describe the chosen evidence.** They are computed for the evidence behind the strongest
 explanation, and only for evidence a user can create (appointments, lab orders, referrals, care team
 assignments, invoices, registrations). Shifts, reasons, break-glass and self access are not flagged.
+A registration never sets `self_created_recent` (registering and then opening the record is the
+normal front-desk path); its other flags are computed as usual. Added in P15 by the authors'
+decision.
 
 **Typed reasons.** A doctor whose best explanation is below theta (0.5) gets HTTP 428 from
 `GET /patients/{id}/chart`; the attempt is logged as a denial. `POST /patients/{id}/chart` with a
