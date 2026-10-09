@@ -155,6 +155,13 @@ Explanation coverage per role and per scenario is printed by
 `make sim-coverage RUN=sim/output/<name>`. Coverage figures are only reported from that script's
 output.
 
+## Corrections
+
+- A bug dropped follow-ups that a doctor booked into a later session of the same day (usually
+  the evening): the visit never happened and the appointment stayed booked. Every output made
+  before the fix, including the earlier v1 audit files, had this bug and was regenerated. A test
+  now checks that no appointment inside the run stays booked.
+
 ## Known limits
 
 - The tables are a snapshot at the end of the run. A row that changed during the run (an

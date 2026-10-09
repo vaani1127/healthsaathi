@@ -701,16 +701,11 @@ class ClinicSim:
         seen_by = cover if doctor is absent and cover is not None else doctor
         reception = self.staff["reception"]
 
-        followups = [
-            (a, p)
-            for a, p in self.future.pop((day, doctor.user_id), [])
-            if start <= self._m(a) < end
-        ]
-        leftover = [
-            (a, p)
-            for a, p in self.future.get((day, doctor.user_id), [])
-            if not start <= self._m(a) < end
-        ]
+        # Split the day's follow-ups in one pass: those for this session are seen now, the rest
+        # (a later session the same day) go back for that session.
+        due = self.future.pop((day, doctor.user_id), [])
+        followups = [(a, p) for a, p in due if start <= self._m(a) < end]
+        leftover = [(a, p) for a, p in due if not start <= self._m(a) < end]
         if leftover:
             self.future[(day, doctor.user_id)] = leftover
         booked = max(0, self.poisson(mean * (1 - self.p.walkin_share)) - len(followups))

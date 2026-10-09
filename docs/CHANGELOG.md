@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Simulator fix: follow-ups in later sessions
+
+- Fixed: a follow-up a doctor booked into a later session of the same day (usually the evening)
+  was dropped, so the visit never happened and the appointment stayed booked. All SaathiBench
+  outputs made before this fix, including the earlier `experiments/audit/v1/` files, had this bug
+  and were regenerated.
+- `saathibench.realism` counts appointments with a slot inside the run separately from those
+  after the last day, which stay booked by design.
+
 ### Pre-registration alignment
 
 - e2d-core: a patient registration never sets `self_created_recent` (registering and then
