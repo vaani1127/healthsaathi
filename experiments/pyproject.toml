@@ -10,6 +10,7 @@ dependencies = [
     "matplotlib>=3.11.2",
     "mlflow>=3.17.0",
     "numpy>=2.5.3",
+    "opentimestamps>=0.4.5",
     "polars>=2.0.0",
     "saathibench",
     "scikit-learn>=1.9.1",

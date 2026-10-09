@@ -185,7 +185,34 @@ class Campaign:
 
     # Shared shapes ----------------------------------------------------------------------------
 
-    def snoop(self, targets: list["Patient"], days: int, within: int) -> Gen:
+    def visiting(
+        self, day: date, fits: Callable[["Patient"], bool] | None = None
+    ) -> list["Patient"]:
+        """Patients with a benign appointment on `day` (a sample)."""
+        return [
+            p
+            for p in self.sim._sample(300)
+            if day in p.busy_days and not p.staff_user and (fits is None or fits(p))
+        ]
+
+    def incidental(
+        self, patient: "Patient", day: date, fits: Callable[["Patient"], bool] | None = None
+    ) -> "Patient":
+        """With probability incidental_share, someone visiting today (who also fits) instead."""
+        if self.rng.random() >= self.sim.cfg.attacks.incidental_share:
+            return patient
+        found = self.visiting(day, fits)
+        return self.rng.choice(found) if found else patient
+
+    def snoop(
+        self,
+        targets: list["Patient"],
+        days: int,
+        within: int,
+        swap: Callable[["Patient"], bool] | None = None,
+    ) -> Gen:
+        """`swap` marks campaigns whose targets are not specific people: such a target may be
+        replaced, for one day, by a fitting patient who is visiting that day (incidental_share)."""
         assert self.actor is not None
         for day in self.open_days(days, within):
             ok = yield from self.wait_until(self.when(self.actor, day))
@@ -193,6 +220,8 @@ class Campaign:
                 return
             for patient in targets:
                 if self.rng.random() < 0.8:
+                    if swap is not None:
+                        patient = self.incidental(patient, day, swap)
                     self.hit(patient, self.views(self.actor.role))
                     yield self.sim.env.timeout(self.rng.uniform(0.5, lerp(3, 25, self.m)))
 
@@ -212,6 +241,7 @@ def plan_relative(c: Campaign) -> Callable[[], Gen] | None:
         c.actor = c.rng.choice(c.staff_of("doctor", "nurse", "reception", "lab_tech"))
         targets = c.visited(c.rng.randint(1, 2))
         c.variant = "vip"
+        return lambda: c.snoop(targets, c.n(2, 4), 21, swap=lambda p: True)
     return lambda: c.snoop(targets, c.n(2, 4), 21)
 
 
@@ -231,6 +261,10 @@ def plan_colleague(c: Campaign) -> Callable[[], Gen] | None:
     elif neighbours:
         c.variant = "neighbour"
         targets = neighbours[: c.rng.randint(1, 3)]
+        ward, surname = actor.ward, actor.surname
+        return lambda: c.snoop(
+            targets, c.n(2, 4), 21, swap=lambda p: p.ward == ward and p.surname != surname
+        )
     else:
         return None
     return lambda: c.snoop(targets, c.n(2, 4), 21)
@@ -321,6 +355,7 @@ def plan_low_and_slow(c: Campaign) -> Callable[[], Gen] | None:
             if not ok:
                 return
             for patient in c.visited(c.sim.poisson(lerp(3, 1, c.m)) or 1):
+                patient = c.incidental(patient, day)
                 items = c.views(actor.role, 2)
                 if actor.role == "doctor" and c.rng.random() < 0.3 * (1 - c.m):
                     items.append(("notes", "print"))

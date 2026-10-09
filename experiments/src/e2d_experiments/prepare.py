@@ -8,6 +8,7 @@ cached under `<run>/derived/`.
 
 import json
 import multiprocessing
+import shutil
 import uuid
 from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor
@@ -23,7 +24,7 @@ from e2d_core.features import build_features, explanation_rows
 from e2d_core.repo.memory import COLUMNS, MemoryRepository
 from saathibench.config import load_config
 from saathibench.coverage import clinic_keys, read
-from saathibench.run import simulate
+from saathibench.run import config_digest, simulate
 from saathibench.splits import make_splits
 
 RESCORE_AFTER = timedelta(hours=24)
@@ -42,8 +43,15 @@ def run_dir(root: Path, name: str, seed: int) -> Path:
 def simulate_run(sim_config: Path, root: Path, name: str, seed: int, **overrides: Any) -> Path:
     """Simulate once per seed (reused if it already exists) and write its splits."""
     out = run_dir(root, name, seed)
-    if not (out / "manifest.json").exists():
-        cfg = replace(load_config(sim_config), seed=seed, name=f"{name}-s{seed}", **overrides)
+    cfg = replace(load_config(sim_config), seed=seed, name=f"{name}-s{seed}", **overrides)
+    manifest = out / "manifest.json"
+    stale = not manifest.exists() or json.loads(manifest.read_text(encoding="utf-8")).get(
+        "config_digest"
+    ) != config_digest(cfg)
+    if stale:
+        # A run made with other generator settings is never reused.
+        if out.exists():
+            shutil.rmtree(out)
         simulate(cfg, out)
     if not (out / "splits.json").exists():
         make_splits(out, seed)

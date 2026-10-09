@@ -49,7 +49,10 @@ def _tabular(header: list[str], rows: list[list[str]], caption: str, label: str)
     return "\n".join(lines) + "\n"
 
 
-def main_table(summary: pl.DataFrame, budget: int = 5, metric: str = "recall") -> str:
+def main_table(
+    summary: pl.DataFrame, budget: int = 5, metric: str = "recall", cluster: bool = False
+) -> str:
+    """Mean with the seed-bootstrap interval, or with the clinic cluster interval."""
     cells = summary.filter(
         (pl.col("metric") == metric)
         & (pl.col("budget") == budget)
@@ -57,6 +60,7 @@ def main_table(summary: pl.DataFrame, budget: int = 5, metric: str = "recall") -
         & pl.col("group").is_null()
     )
     present = [s for s in SPLITS if s in set(cells["split"])]
+    low, high = ("cluster_low", "cluster_high") if cluster else ("ci_low", "ci_high")
     rows = []
     for method in METHOD_NAMES:
         mine = cells.filter(pl.col("method") == method)
@@ -65,37 +69,43 @@ def main_table(summary: pl.DataFrame, budget: int = 5, metric: str = "recall") -
         row = [METHOD_NAMES[method]]
         for split in present:
             hit = mine.filter(pl.col("split") == split)
-            row.append(
-                _cell(*hit.select("mean", "ci_low", "ci_high").row(0)) if hit.height else "--"
-            )
+            if hit.height and hit[low][0] is not None:
+                row.append(_cell(*hit.select("mean", low, high).row(0)))
+            else:
+                row.append("--")
         rows.append(row)
+    kind = "cluster bootstrap over test clinics" if cluster else "bootstrap over seeds"
     return _tabular(
         ["Method", *present],
         rows,
         f"{metric.replace('_', ' ').capitalize()} at B = {budget} alerts per clinic-day "
-        "(mean and 95\\% bootstrap interval over seeds).",
-        f"tab:{metric}-at-{budget}",
+        f"(mean and 95\\% {kind}).",
+        f"tab:{metric}-at-{budget}" + ("-cluster" if cluster else ""),
     )
 
 
 def tests_table(tests: pl.DataFrame) -> str:
     rows = [
         [
-            str(r["split"]),
+            str(r["split"]) + (" (primary)" if r["primary"] else ""),
             str(r["budget"]),
             METHOD_NAMES.get(r["best_baseline"], r["best_baseline"]),
             f"{r['e2d_mean']:.3f}",
             f"{r['baseline_mean']:.3f}",
-            f"{r['p_holm']:.4f}",
+            f"{r['p_adjusted']:.4f}",
             f"{r['effect']:.2f}",
+            str(r["zeros_dropped"]),
         ]
-        for r in tests.iter_rows(named=True)
+        for r in tests.sort(
+            ["primary", "split", "budget"], descending=[True, False, False]
+        ).iter_rows(named=True)
     ]
     return _tabular(
-        ["Split", "B", "Best baseline", "E2D", "Baseline", "p (Holm)", "r"],
+        ["Split", "B", "Best raw baseline", "E2D", "Baseline", "p", "r", "Zeros"],
         rows,
-        "E2D against the best baseline: one-sided paired Wilcoxon over seeds, Holm-corrected, "
-        "with the matched-pairs rank-biserial effect size r.",
+        "H2: E2D against the best raw-feature baseline, one-sided paired Wilcoxon over seeds. The "
+        "primary test (temporal, B = 5) is not corrected; the others are Holm-corrected together. "
+        "r is the matched-pairs rank-biserial effect size; Zeros counts dropped zero differences.",
         "tab:tests",
     )
 
@@ -131,9 +141,14 @@ def write_tables(summary: pl.DataFrame, tests: pl.DataFrame, out: Path) -> list[
     written = []
     budgets = sorted(summary.filter(pl.col("metric") == "recall")["budget"].unique().to_list())
     for b in budgets:
-        path = out / f"recall_at_{b}.tex"
-        path.write_text(main_table(summary, b), encoding="utf-8")
-        written.append(path)
+        for metric in ("recall", "precision", "alerts_raised"):
+            path = out / f"{metric}_at_{b}.tex"
+            path.write_text(main_table(summary, b, metric), encoding="utf-8")
+            written.append(path)
+        for metric in ("recall", "precision"):
+            path = out / f"{metric}_at_{b}_cluster.tex"
+            path.write_text(main_table(summary, b, metric, cluster=True), encoding="utf-8")
+            written.append(path)
     path = out / "pr_auc.tex"
     path.write_text(main_table(summary, budgets[0] if budgets else 5, "pr_auc"), encoding="utf-8")
     written.append(path)

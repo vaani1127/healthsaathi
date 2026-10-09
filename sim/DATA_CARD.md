@@ -112,6 +112,17 @@ features are the e2d-core behaviour features (SPEC 5.4) plus local hour, weekday
 explanation engine is not used, so the generator is never tuned against E2D. The run's
 `audit.json` holds the values; the gate must pass before any experiment uses the run.
 
+### Realism settings
+
+The run config's `realism` block holds the settings that decide how hard the explanation layer's
+job is: `hard_negative_scale` multiplies every benign hard-negative generator (covering days,
+after-hours break-glass, nurse lab follow-ups, pharmacy checks, month-end billing, staff
+self-views); `no_show_rate`, `cancel_rate` and `cover_days_per_month` replace the profile values
+when set. `attacks.incidental_share` moves that share of snooping accesses (types 1, 2 and 6, when
+the target is not one specific person) to a patient with an unrelated appointment that day. They
+are author choices, frozen by the pre-registration. `python -m saathibench.realism <run>` measures
+the resulting shares from the tables and labels only.
+
 ## Contents
 
 ```

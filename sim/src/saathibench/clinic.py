@@ -117,7 +117,7 @@ class Visit:
 class ClinicSim:
     def __init__(self, spec: ClinicSpec, cfg: RunConfig, out: Path, policy: Policy) -> None:
         self.spec = spec
-        self.p = spec.profile
+        self.p = cfg.realism.apply(spec.profile)
         self.cfg = cfg
         self.policy = policy
         self.rng = random.Random(f"{cfg.seed}:{spec.index}")

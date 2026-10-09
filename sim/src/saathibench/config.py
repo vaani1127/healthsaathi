@@ -1,6 +1,6 @@
 """Run configuration and clinic profiles (YAML). See sim/configs and sim/profiles."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, time
 from pathlib import Path
 from typing import Any
@@ -75,6 +75,44 @@ class AttackConfig:
     types: tuple[int, ...] = tuple(range(1, 11))
     # None draws mimicry uniformly from [0, 1]; a tuple draws from those values.
     mimicry: tuple[float, ...] | None = None
+    # Share of snooping accesses (types 1, 2 and 6) moved to a day when the patient has an
+    # unrelated appointment, where front-desk or queue evidence may explain them by chance.
+    incidental_share: float = 0.0
+
+
+@dataclass(frozen=True)
+class RealismConfig:
+    """Generator settings that decide how hard the explanation layer's job is (author chosen)."""
+
+    # Multiplies every benign hard-negative generator: covering days, after-hours break-glass,
+    # nurse lab follow-ups, pharmacy checks, month-end billing and staff self-views.
+    hard_negative_scale: float = 1.0
+    # When set, these replace the value in every clinic profile.
+    no_show_rate: float | None = None
+    cancel_rate: float | None = None
+    cover_days_per_month: float | None = None
+
+    def apply(self, profile: Profile) -> Profile:
+        s = self.hard_negative_scale
+        hn = profile.hard_negatives
+        return replace(
+            profile,
+            no_show_rate=profile.no_show_rate if self.no_show_rate is None else self.no_show_rate,
+            cancel_rate=profile.cancel_rate if self.cancel_rate is None else self.cancel_rate,
+            cover_days_per_month=(
+                profile.cover_days_per_month
+                if self.cover_days_per_month is None
+                else self.cover_days_per_month
+            )
+            * s,
+            hard_negatives=HardNegatives(
+                after_hours_emergencies_per_month=hn.after_hours_emergencies_per_month * s,
+                nurse_lab_followup_rate=min(1.0, hn.nurse_lab_followup_rate * s),
+                pharmacy_checks_per_day=hn.pharmacy_checks_per_day * s,
+                month_end_billing_share=min(1.0, hn.month_end_billing_share * s),
+                staff_self_view_per_month=hn.staff_self_view_per_month * s,
+            ),
+        )
 
 
 @dataclass(frozen=True)
@@ -86,6 +124,7 @@ class RunConfig:
     timezone: str
     clinics: tuple[ClinicSpec, ...]
     attacks: AttackConfig = field(default_factory=AttackConfig)
+    realism: RealismConfig = field(default_factory=RealismConfig)
 
 
 def _sessions(items: list[list[str]]) -> tuple[Session, ...]:
@@ -147,6 +186,23 @@ def load_config(path: Path, profiles_dir: Path | None = None) -> RunConfig:
         timezone=str(data.get("timezone", "Asia/Kolkata")),
         clinics=tuple(clinics),
         attacks=parse_attacks(data.get("attacks") or {}),
+        realism=parse_realism(data.get("realism") or {}),
+    )
+
+
+def parse_realism(data: dict[str, Any]) -> RealismConfig:
+    def optional(key: str) -> float | None:
+        value = data.get(key)
+        return None if value is None else float(value)
+
+    scale = float(data.get("hard_negative_scale", 1.0))
+    if scale < 0:
+        raise ValueError("hard_negative_scale must not be negative")
+    return RealismConfig(
+        hard_negative_scale=scale,
+        no_show_rate=optional("no_show_rate"),
+        cancel_rate=optional("cancel_rate"),
+        cover_days_per_month=optional("cover_days_per_month"),
     )
 
 
@@ -163,4 +219,5 @@ def parse_attacks(data: dict[str, Any]) -> AttackConfig:
         first_day=int(data.get("first_day", 14)),
         types=types,
         mimicry=levels,
+        incidental_share=float(data.get("incidental_share", 0.0)),
     )

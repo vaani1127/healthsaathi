@@ -1,4 +1,4 @@
-"""Pre-registered hypothesis report (H1 to H4) from finished experiment runs.
+"""Pre-registered hypothesis report (H1 to H5) from finished experiment runs.
 
     uv run python -m e2d_experiments.report experiments/outputs/v1 --export paper/tables
 
@@ -27,6 +27,7 @@ def report(root: Path) -> dict[str, Any]:
         "h1": stats.h1(main),
         "h2": h2.to_dicts(),
         "h3": {"baseline": baseline, **stats.h3(main, baseline)},
+        "h5": stats.h5(main),
     }
     no_forgery = root / "no_forgery" / "results.parquet"
     if no_forgery.exists():
@@ -44,8 +45,14 @@ def hypotheses_tex(result: dict[str, Any]) -> str:
         f"H1 coverage & {interval('coverage')}{ROW_END}",
         f"H1 false explanation rate & {interval('false_explanation_rate')}{ROW_END}",
         f"H3 gain difference vs {h3['baseline']} & "
-        f"{h3['mean_difference']:.3f} (p = {h3['p']:.4f}){ROW_END}",
+        f"{h3['mean_difference']:.3f} (p = {h3['p']:.4f}, seeds dropped "
+        f"{int(h3['seeds_dropped'])}){ROW_END}",
     ]
+    h5 = result["h5"]
+    rows.append(
+        f"H5 E2D vs B5, recall@5 temporal & {h5['e2d_mean']:.3f} vs {h5['baseline_mean']:.3f} "
+        f"(p = {h5['p']:.4f}){ROW_END}"
+    )
     for row in result.get("h4", []):
         rows.append(
             f"H4 type 10 recall, {row['split']} & {row['with_forgery']:.3f} vs "
@@ -56,7 +63,7 @@ def hypotheses_tex(result: dict[str, Any]) -> str:
         "\\begin{table}[t]",
         "\\centering",
         "\\small",
-        "\\caption{Pre-registered hypotheses H1, H3 and H4 (H2 is in Table~\\ref{tab:tests}).}",
+        "\\caption{Pre-registered hypotheses H1, H3, H4 and H5 (H2 is in Table~\\ref{tab:tests}).}",
         "\\label{tab:hypotheses}",
         "\\begin{tabular}{lr}",
         "\\toprule",

@@ -2,9 +2,28 @@
 
 ## Unreleased
 
+### Pre-registration alignment
+
+- e2d-core: a patient registration never sets `self_created_recent` (registering and then
+  opening the record is the normal front-desk path); its other forgery flags still apply.
+- `BEHAVIOUR_COLUMNS` in `e2d_core.features.columns`, shared by the separability audit and the
+  raw-feature baselines. Experiment configs moved to `experiments/configs/`.
+- Simulator realism settings in the run config (`realism`: hard-negative scale, no-show, cancel and
+  cover-day overrides; `attacks.incidental_share`), a config fingerprint in every manifest so an
+  old run is never reused, and `saathibench.realism` measures.
+- Metrics as registered: type 8 left out of the budgeted metrics and reported as review-queue
+  outcomes, alerts raised, alerts timed when their features are available (24 hours for the
+  forgery flags), mimicry high at m >= 1/2, explanation-signal ROC-AUCs, per-clinic counts for a
+  cluster bootstrap over clinics.
+- Statistics: H2 primary test (temporal, B = 5) uncorrected and the other cells Holm-corrected,
+  zero differences counted, H3 seed drops counted, H5 (E2D against explanation only).
+- Ablations `hard_neg_half` and `hard_neg_double`.
+- `make prereg-audit` (audits the 10 registered seeds into `experiments/audit/v1/`) and
+  `make prereg-stamp` (OpenTimestamps proof of the registration commit).
+
 ### P15 - Experiment pipeline
 
-- `experiments/`: Hydra configs (`experiments/conf`) for the data (smoke, v1), every ablation
+- `experiments/`: Hydra configs (`experiments/configs`) for the data (smoke, v1), every ablation
   (no forgery, no graph, role conditioning, learning curves, core templates, mimicry levels,
   behaviour windows) and the run settings (seeds, splits, budgets, methods).
 - Pipeline: simulate each seed, require the separability audit (v1), write the splits, explain

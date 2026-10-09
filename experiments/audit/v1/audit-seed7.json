@@ -1,0 +1,82 @@
+{
+  "run": "v1-s20261015",
+  "threshold": 0.9,
+  "attacks": 10534,
+  "benign_sampled": 400000,
+  "single_feature_auc": {
+    "accesses_1h": 0.5631,
+    "accesses_24h": 0.5121,
+    "accesses_7d": 0.5011,
+    "patients_1h": 0.5132,
+    "patients_24h": 0.5309,
+    "patients_7d": 0.5106,
+    "exports_1h": 0.5843,
+    "exports_24h": 0.5782,
+    "exports_7d": 0.567,
+    "off_shift": 0.7754,
+    "new_device": 0.5526,
+    "session_age_min": 0.5062,
+    "hour_local": 0.6056,
+    "weekday": 0.5422,
+    "refused": 0.5114
+  },
+  "max_single": {
+    "feature": "off_shift",
+    "auc": 0.7754
+  },
+  "depth2_tree_auc": 0.8,
+  "by_attack_type_info": {
+    "1": {
+      "attacks": 232,
+      "best_feature": "off_shift",
+      "best_auc": 0.7501
+    },
+    "2": {
+      "attacks": 288,
+      "best_feature": "accesses_1h",
+      "best_auc": 0.788
+    },
+    "3": {
+      "attacks": 1066,
+      "best_feature": "off_shift",
+      "best_auc": 0.7979
+    },
+    "4": {
+      "attacks": 1164,
+      "best_feature": "off_shift",
+      "best_auc": 0.7196
+    },
+    "5": {
+      "attacks": 2542,
+      "best_feature": "exports_1h",
+      "best_auc": 0.9659
+    },
+    "6": {
+      "attacks": 2751,
+      "best_feature": "off_shift",
+      "best_auc": 0.7377
+    },
+    "7": {
+      "attacks": 1721,
+      "best_feature": "session_age_min",
+      "best_auc": 0.911
+    },
+    "8": {
+      "attacks": 401,
+      "best_feature": "patients_1h",
+      "best_auc": 0.7318
+    },
+    "9": {
+      "attacks": 198,
+      "best_feature": "accesses_7d",
+      "best_auc": 0.8061
+    },
+    "10": {
+      "attacks": 171,
+      "best_feature": "accesses_1h",
+      "best_auc": 0.7937
+    }
+  },
+  "passed": true,
+  "failures": []
+}

@@ -11,6 +11,7 @@ Outputs go to `<out>/results.parquet`, `summary.parquet`, `tests.parquet`, `tabl
 import json
 import logging
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -22,27 +23,27 @@ from omegaconf import DictConfig, OmegaConf
 from e2d_experiments import evaluate, export, prepare, stats
 from e2d_experiments.methods import make_method
 from saathibench.audit import audit
-from saathibench.config import AttackConfig
+from saathibench.config import load_config
 from saathibench.splits import assign
 
 logger = logging.getLogger(__name__)
 
 
-def _attack_overrides(cfg: DictConfig) -> dict[str, Any]:
+def _data_overrides(cfg: DictConfig) -> dict[str, Any]:
+    """Ablations that need the data simulated again (mimicry level, hard-negative share)."""
+    base = load_config(Path(cfg.data.sim_config))
+    out: dict[str, Any] = {}
     levels = cfg.ablation.get("mimicry")
-    if levels is None:
-        return {}
-    from saathibench.config import load_config
-
-    base = load_config(Path(cfg.data.sim_config)).attacks
-    return {
-        "attacks": AttackConfig(
-            campaigns_per_clinic_month=base.campaigns_per_clinic_month,
-            first_day=base.first_day,
-            types=base.types,
-            mimicry=tuple(float(m) for m in levels),
+    if levels is not None:
+        out["attacks"] = replace(base.attacks, mimicry=tuple(float(m) for m in levels))
+    scale = cfg.ablation.get("hard_negative_scale")
+    if scale is not None:
+        out["realism"] = replace(
+            base.realism, hard_negative_scale=base.realism.hard_negative_scale * float(scale)
         )
-    }
+    if cfg.data.get("days"):
+        out["days"] = int(cfg.data.days)
+    return out
 
 
 def require_audit(run: Path, required: bool = True) -> None:
@@ -57,11 +58,12 @@ def require_audit(run: Path, required: bool = True) -> None:
         raise SystemExit(f"{run} failed the separability audit: {report['failures']}")
 
 
-def run_seed(cfg: DictConfig, seed: int, out: Path) -> list[dict[str, Any]]:
-    name = cfg.data.name + (f"-{cfg.ablation.name}" if cfg.ablation.get("mimicry") else "")
-    overrides = _attack_overrides(cfg)
-    if cfg.data.get("days"):
-        overrides["days"] = int(cfg.data.days)
+def run_seed(
+    cfg: DictConfig, seed: int, out: Path
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    overrides = _data_overrides(cfg)
+    resimulated = "attacks" in overrides or "realism" in overrides
+    name = cfg.data.name + (f"-{cfg.ablation.name}" if resimulated else "")
     run = prepare.simulate_run(
         Path(cfg.data.sim_config), out, name, int(cfg.data.base_seed) + seed, **overrides
     )
@@ -70,27 +72,34 @@ def run_seed(cfg: DictConfig, seed: int, out: Path) -> list[dict[str, Any]]:
     features = prepare.prepare(
         run, templates=list(templates) if templates else None, workers=cfg.workers
     )
-    data = evaluate.with_labels(features, run)
+    manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
+    positions = pl.DataFrame(
+        {
+            "clinic_id": [c["clinic_id"] for c in manifest["clinics"]],
+            "clinic_index": [int(c["clinic"]) for c in manifest["clinics"]],
+        }
+    )
+    data = evaluate.with_labels(features, run).join(
+        positions, on="clinic_id", how="left", maintain_order="left"
+    )
     definitions = json.loads((run / "splits.json").read_text(encoding="utf-8"))
     events = data.select(pl.col("access_event_id").alias("id"), "clinic_id", "user_id", "at")
     labels = data.select("access_event_id", "attack_type")
     budgets = tuple(int(b) for b in cfg.budgets)
     rows: list[dict[str, Any]] = []
+    clinic_rows: list[dict[str, Any]] = []
     for split in cfg.splits:
         part = data.with_columns(assign(events, labels, split, definitions).alias("_split"))
         train = part.filter((pl.col("_split") == "train") & (pl.col("role") != "patient"))
-        test = evaluate.evaluable(part.filter(pl.col("_split") == "test"))
+        test_all = part.filter((pl.col("_split") == "test") & (pl.col("role") != "patient"))
+        test = evaluate.evaluable(test_all)
         base = {"seed": seed, "split": split, "ablation": cfg.ablation.name}
-        for metric, value in evaluate.method_independent(test).items():
+        fixed = {"method": "-", "budget": 0}
+        for metric, value in evaluate.method_independent(test_all).items():
+            rows.append({**base, **fixed, "metric": metric, "group": None, "value": value})
+        for feature, value in evaluate.feature_auc(test).items():
             rows.append(
-                {
-                    **base,
-                    "method": "-",
-                    "budget": 0,
-                    "metric": metric,
-                    "group": None,
-                    "value": value,
-                }
+                {**base, **fixed, "metric": "feature_auc", "group": feature, "value": value}
             )
         y_train = train["is_attack"].to_numpy().astype(int)
         for method_name in cfg.methods:
@@ -105,14 +114,14 @@ def run_seed(cfg: DictConfig, seed: int, out: Path) -> list[dict[str, Any]]:
             )
             method.fit(train, y_train if method_name == "upper_lightgbm" else None)
             scores = np.asarray(method.score(test), dtype=float)
-            for row in evaluate.metrics(test, scores, budgets):
-                rows.append({**base, "method": method_name, "group": None, **row})
+            found, per_clinic = evaluate.metrics(test, scores, budgets, method.feature_delay_hours)
+            rows += [{**base, "method": method_name, "group": None, **r} for r in found]
+            clinic_rows += [{**base, "method": method_name, **r} for r in per_clinic]
             logger.info(
-                "scored",
-                extra={"seed": seed, "split": split, "method": method_name,
-                       "seconds": round(time.perf_counter() - started, 1)},
+                "scored %s %s seed %s in %.1f s",
+                method_name, split, seed, time.perf_counter() - started,
             )  # fmt: skip
-    return rows
+    return rows, clinic_rows
 
 
 def log_mlflow(cfg: DictConfig, results: pl.DataFrame) -> None:
@@ -141,20 +150,29 @@ def log_mlflow(cfg: DictConfig, results: pl.DataFrame) -> None:
             )
 
 
-@hydra.main(config_path="../../conf", config_name="config", version_base="1.3")
+@hydra.main(config_path="../../configs", config_name="config", version_base="1.3")
 def main(cfg: DictConfig) -> None:
     out = Path(cfg.out)
     out.mkdir(parents=True, exist_ok=True)
     (out / "config.yaml").write_text(OmegaConf.to_yaml(cfg), encoding="utf-8")
     rows: list[dict[str, Any]] = []
+    clinic_rows: list[dict[str, Any]] = []
     for seed in cfg.seeds:
-        rows += run_seed(cfg, int(seed), out)
+        found, per_clinic = run_seed(cfg, int(seed), out)
+        rows += found
+        clinic_rows += per_clinic
     results = pl.DataFrame(rows, schema={
         "seed": pl.Int64, "split": pl.String, "ablation": pl.String, "method": pl.String,
         "budget": pl.Int64, "metric": pl.String, "group": pl.String, "value": pl.Float64,
     })  # fmt: skip
     results.write_parquet(out / "results.parquet")
-    summary = stats.summarise(results)
+    clinics = pl.DataFrame(clinic_rows, schema={
+        "seed": pl.Int64, "split": pl.String, "ablation": pl.String, "method": pl.String,
+        "budget": pl.Int64, "clinic_index": pl.Int64, "attacks": pl.Int64, "hits": pl.Int64,
+        "alerts": pl.Int64,
+    })  # fmt: skip
+    clinics.write_parquet(out / "clinic_results.parquet")
+    summary = stats.summarise(results, clinics)
     summary.write_parquet(out / "summary.parquet")
     tests = stats.hypothesis_tests(results, ablation=cfg.ablation.name)
     if tests.height:

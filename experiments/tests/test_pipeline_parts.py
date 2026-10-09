@@ -31,10 +31,12 @@ def synthetic(n: int = 600, seed: int = 0) -> pl.DataFrame:
     columns["break_glass"] = np.zeros(n)
     columns["flags_any"] = np.zeros(n)
     columns["off_shift"] = attack.astype(float)
+    clinics = rng.choice(["c1", "c2"], n)
     return pl.DataFrame(
         {
             "access_event_id": [f"e{i}" for i in range(n)],
-            "clinic_id": rng.choice(["c1", "c2"], n),
+            "clinic_id": clinics,
+            "clinic_index": [int(c[1]) - 1 for c in clinics],
             "user_id": rng.choice(["u1", "u2", "u3", "u4"], n),
             "patient_id": rng.choice([f"p{i}" for i in range(50)], n),
             "role": rng.choice(["doctor", "nurse"], n),
@@ -103,16 +105,47 @@ def test_e2d_ranks_gated_accesses_first_and_ablations_drop_groups() -> None:
 def test_metrics_and_method_independent_values() -> None:
     data = synthetic()
     scores = (1 - data["sigma"]).to_numpy()
-    rows = evaluate.metrics(data, scores, (3, 5))
+    rows, clinic_rows = evaluate.metrics(data, scores, (3, 5))
     by = {(r["budget"], r["metric"], r.get("group")): r["value"] for r in rows}
     assert 0 < by[(5, "recall", None)] <= 1
     assert by[(5, "recall", None)] >= by[(3, "recall", None)]
     assert by[(5, "pr_auc", None)] == pytest.approx(1.0)
     assert by[(5, "campaign_detection", None)] == 1.0
+    assert by[(5, "alerts_raised", None)] >= by[(3, "alerts_raised", None)] > 0
     assert any(k[1] == "recall_by_type_mimicry" for k in by)
+    assert {k[2] for k in by if k[1] == "recall_by_type_mimicry"} <= {
+        f"type_{t}_{band}" for t in (1, 6, 10) for band in ("low", "high")
+    }
+    hits = sum(r["hits"] for r in clinic_rows if r["budget"] == 5)
+    attacks = sum(r["attacks"] for r in clinic_rows if r["budget"] == 5)
+    assert hits / attacks == pytest.approx(by[(5, "recall", None)])
+
+    # Alerts that use the forgery flags can only be raised a day later.
+    later, _ = evaluate.metrics(data, scores, (5,), feature_delay_hours=24)
+    now = by[(5, "hours_to_first_alert", None)]
+    delayed = next(r["value"] for r in later if r["metric"] == "hours_to_first_alert")
+    assert delayed == pytest.approx(now + 24)
+
     fixed = evaluate.method_independent(data)
     assert fixed["coverage"] == 1.0 and fixed["false_explanation_rate"] == 0.0
     assert evaluate.evaluable(data.with_columns(pl.lit(1).alias("break_glass"))).is_empty()
+    aucs = evaluate.feature_auc(data)
+    assert aucs["sigma"] == 1.0 and set(aucs) >= {"sigma", "flags_any"}
+
+
+def test_type_8_goes_to_the_review_queue_not_the_budget() -> None:
+    data = synthetic().with_columns(
+        pl.when(pl.col("is_attack"))
+        .then(pl.lit(8, dtype=pl.Int64))
+        .otherwise(pl.col("attack_type"))
+        .alias("attack_type"),
+        pl.when(pl.col("is_attack")).then(1.0).otherwise(0.0).alias("break_glass"),
+    )
+    assert evaluate.evaluable(data).filter(pl.col("is_attack")).is_empty()
+    fixed = evaluate.method_independent(data)
+    assert fixed["type8_in_review_queue"] == 1.0
+    assert fixed["review_queue_attack_share"] == 1.0
+    assert fixed["review_queue_accesses"] == data["is_attack"].sum()
 
 
 def test_statistics() -> None:
@@ -154,11 +187,32 @@ def test_hypothesis_tests_and_export(tmp_path: Path) -> None:
     results = results_frame()
     tests = stats.hypothesis_tests(results)
     assert set(tests["best_baseline"]) == {"b1_iforest"}, "B5 is not a raw-feature baseline"
-    assert (tests["p_holm"] < 0.05).all() and (tests["effect"] == 1.0).all()
-    summary = stats.summarise(results)
+    assert (tests["p_adjusted"] < 0.05).all() and (tests["effect"] == 1.0).all()
+    primary = tests.filter(pl.col("primary"))
+    assert primary.height == 1 and primary["split"][0] == "temporal"
+    assert primary["p_adjusted"][0] == primary["p"][0], "the primary test is not corrected"
+    assert (tests["zeros_dropped"] == 0).all()
+    clinics = pl.DataFrame(
+        [
+            {"seed": seed, "split": "temporal", "ablation": "none", "method": "e2d",
+             "budget": 5, "clinic_index": c, "attacks": 10, "hits": 8 if c else 6, "alerts": 50}
+            for seed in range(3)
+            for c in range(4)
+        ]
+    )  # fmt: skip
+    summary = stats.summarise(results, clinics)
+    cell = summary.filter(
+        (pl.col("method") == "e2d")
+        & (pl.col("metric") == "recall")
+        & (pl.col("split") == "temporal")
+    )
+    assert cell["cluster_low"][0] <= 0.75 <= cell["cluster_high"][0]
     written = export.write_tables(summary, tests, tmp_path / "tables")
     names = {p.name for p in written}
-    assert {"recall_at_5.tex", "tests.tex", "coverage.tex", "pr_auc.tex"} <= names
+    assert {
+        "recall_at_5.tex", "recall_at_5_cluster.tex", "precision_at_5.tex",
+        "alerts_raised_at_5.tex", "tests.tex", "coverage.tex", "pr_auc.tex",
+    } <= names  # fmt: skip
     table = (tmp_path / "tables" / "recall_at_5.tex").read_text(encoding="utf-8")
     assert "E2D" in table and "\\toprule" in table and "Generated by" in table
     figures = export.write_figures(summary, tmp_path / "figures")
@@ -197,6 +251,11 @@ def test_h1_h3_h4_and_report(tmp_path: Path) -> None:
     assert h1["coverage_mean"] == pytest.approx(0.95)
     h3 = stats.h3(main, "b1_iforest")
     assert h3["seeds"] == 10 and h3["mean_difference"] == pytest.approx(0.3) and h3["p"] < 0.01
+    assert h3["seeds_dropped"] == 0
+    others = pl.col("group").str.contains("type_[345679]_high").fill_null(False)
+    assert stats.h3(main.filter(~others), "b1_iforest")["seeds_dropped"] == 10
+    h5 = stats.h5(main)
+    assert h5["e2d_mean"] < h5["baseline_mean"] and h5["p"] > 0.5, "B5 is higher in this data"
     weaker = typed_results({"e2d": 0.2}, ablation="no_forgery")
     h4 = stats.h4(main, weaker)
     assert set(h4["split"]) == {"temporal", "attack"} and (h4["p_holm"] < 0.05).all()
@@ -208,3 +267,4 @@ def test_h1_h3_h4_and_report(tmp_path: Path) -> None:
     assert report.main([str(tmp_path), "--export", str(tmp_path / "tables")]) == 0
     tex = (tmp_path / "tables" / "hypotheses.tex").read_text(encoding="utf-8")
     assert "H4 type 10 recall, temporal" in tex and r"\begin{table}" in tex
+    assert "H5 E2D vs B5" in tex

@@ -1,0 +1,4 @@
+# Benign hard negatives (unexplained benign accesses) at double their v1 rate; the data are
+# simulated again.
+name: hard_neg_double
+hard_negative_scale: 2.0

@@ -1,22 +1,29 @@
-"""Statistics over seeds (SPEC 8): mean with a 95% bootstrap interval, paired one-sided Wilcoxon
-signed-rank tests of E2D against the best baseline with Holm correction, and the matched-pairs
-rank-biserial effect size."""
+"""Statistics as registered in experiments/PREREGISTRATION.md section 5.
+
+- Intervals: 95% bootstrap (10,000 resamples) over seeds, and a cluster bootstrap over test
+  clinics pooled across seeds (a clinic is identified by its position in the run config).
+- Tests: one-sided Wilcoxon signed-rank; zero differences are dropped (Wilcoxon's method) and the
+  number dropped is reported. Effect size: matched-pairs rank-biserial r.
+"""
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import polars as pl
 from scipy.stats import wilcoxon
 
-# H2 compares E2D with the best raw-feature baseline. B5 uses explanations, so it is reported
-# but is not a raw-feature baseline.
 RAW_BASELINES = ("b0_rules", "b1_iforest", "b2_iforest_role", "b3_vae", "b4_coaccess")
 BASELINES = (*RAW_BASELINES, "b5_explanation_only")
 KEYS = ("split", "ablation", "method", "budget", "metric", "group")
+RESAMPLES = 10_000
+PRIMARY = ("temporal", 5)
+SNOOPING_TYPES = (1, 2, 6)
+OTHER_TYPES = (3, 4, 5, 7, 9)
 
 
 def bootstrap_ci(
-    values: Sequence[float], n: int = 10_000, seed: int = 0, alpha: float = 0.05
+    values: Sequence[float], n: int = RESAMPLES, seed: int = 0, alpha: float = 0.05
 ) -> tuple[float, float, float]:
     data = np.asarray([v for v in values if not np.isnan(v)], dtype=float)
     if len(data) == 0:
@@ -27,6 +34,26 @@ def bootstrap_ci(
     return float(data.mean()), float(low), float(high)
 
 
+def cluster_ci(
+    numerators: Sequence[float],
+    denominators: Sequence[float],
+    n: int = RESAMPLES,
+    seed: int = 0,
+    alpha: float = 0.05,
+) -> tuple[float, float, float]:
+    """Pooled ratio sum(num) / sum(den) with a bootstrap over clusters (clinics)."""
+    num = np.asarray(numerators, dtype=float)
+    den = np.asarray(denominators, dtype=float)
+    if len(num) == 0 or den.sum() == 0:
+        return float("nan"), float("nan"), float("nan")
+    rng = np.random.default_rng(seed)
+    picks = rng.integers(0, len(num), size=(n, len(num)))
+    totals = den[picks].sum(axis=1)
+    ratios = np.where(totals > 0, num[picks].sum(axis=1) / np.where(totals > 0, totals, 1), np.nan)
+    low, high = np.nanquantile(ratios, [alpha / 2, 1 - alpha / 2])
+    return float(num.sum() / den.sum()), float(low), float(high)
+
+
 def wilcoxon_greater(a: Sequence[float], b: Sequence[float]) -> float:
     """p-value that a is larger than b, paired by position. 1.0 when they never differ."""
     diff = np.asarray(a, dtype=float) - np.asarray(b, dtype=float)
@@ -34,6 +61,11 @@ def wilcoxon_greater(a: Sequence[float], b: Sequence[float]) -> float:
     if len(diff) == 0 or np.all(diff == 0):
         return 1.0
     return float(wilcoxon(diff, alternative="greater", zero_method="wilcox").pvalue)
+
+
+def zeros_dropped(a: Sequence[float], b: Sequence[float]) -> int:
+    diff = np.asarray(a, dtype=float) - np.asarray(b, dtype=float)
+    return int((diff[~np.isnan(diff)] == 0).sum())
 
 
 def rank_biserial(a: Sequence[float], b: Sequence[float]) -> float:
@@ -59,62 +91,87 @@ def holm(pvalues: Sequence[float]) -> list[float]:
     return [float(v) for v in adjusted]
 
 
-def summarise(results: pl.DataFrame) -> pl.DataFrame:
-    """Mean and 95% bootstrap interval over seeds for every result cell."""
+def summarise(results: pl.DataFrame, clinics: pl.DataFrame | None = None) -> pl.DataFrame:
+    """Mean and seed-bootstrap interval for every result cell, plus the clinic cluster interval
+    for recall and precision when per-clinic counts are given."""
     rows = []
     for key, group in results.group_by(list(KEYS), maintain_order=True):
+        cell = dict(zip(KEYS, key, strict=True))
         mean, low, high = bootstrap_ci(group["value"].to_list())
-        rows.append({**dict(zip(KEYS, key, strict=True)), "seeds": group.height,
-                     "mean": mean, "ci_low": low, "ci_high": high})  # fmt: skip
-    return pl.DataFrame(rows)
+        row: dict[str, Any] = {
+            **cell, "seeds": group.height, "mean": mean, "ci_low": low, "ci_high": high,
+            "cluster_low": None, "cluster_high": None,
+        }  # fmt: skip
+        pooled_metric = cell["metric"] in ("recall", "precision") and cell["group"] is None
+        if clinics is not None and pooled_metric:
+            part = clinics.filter(
+                (pl.col("split") == cell["split"])
+                & (pl.col("ablation") == cell["ablation"])
+                & (pl.col("method") == cell["method"])
+                & (pl.col("budget") == cell["budget"])
+            )
+            pooled = part.group_by("clinic_index").agg(pl.col("attacks", "hits", "alerts").sum())
+            den = "attacks" if cell["metric"] == "recall" else "alerts"
+            _, c_low, c_high = cluster_ci(pooled["hits"].to_list(), pooled[den].to_list())
+            row |= {"cluster_low": c_low, "cluster_high": c_high}
+        rows.append(row)
+    return pl.DataFrame(rows, infer_schema_length=None)
+
+
+def _paired(group: pl.DataFrame, a: str, b: str) -> tuple[list[float], list[float]]:
+    ours = group.filter(pl.col("method") == a).select("seed", "value")
+    theirs = group.filter(pl.col("method") == b).select("seed", pl.col("value").alias("other"))
+    paired = ours.join(theirs, on="seed").sort("seed")
+    return paired["value"].to_list(), paired["other"].to_list()
+
+
+def _test_row(group: pl.DataFrame, against: str, method: str = "e2d") -> dict[str, Any]:
+    a, b = _paired(group, method, against)
+    return {
+        "e2d_mean": float(np.nanmean(a)) if a else float("nan"),
+        "baseline_mean": float(np.nanmean(b)) if b else float("nan"),
+        "seeds": len(a),
+        "zeros_dropped": zeros_dropped(a, b),
+        "p": wilcoxon_greater(a, b) if a else float("nan"),
+        "effect": rank_biserial(a, b) if a else float("nan"),
+    }
+
+
+def best_baseline(group: pl.DataFrame, baselines: Sequence[str] = RAW_BASELINES) -> str | None:
+    means = {
+        name: float(group.filter(pl.col("method") == name)["value"].mean() or 0.0)  # type: ignore[arg-type]
+        for name in baselines
+        if group.filter(pl.col("method") == name).height
+    }
+    return max(means, key=lambda k: means[k]) if means else None
 
 
 def hypothesis_tests(
-    results: pl.DataFrame,
-    method: str = "e2d",
-    metric: str = "recall",
-    ablation: str = "none",
-    baselines: Sequence[str] = RAW_BASELINES,
+    results: pl.DataFrame, method: str = "e2d", metric: str = "recall", ablation: str = "none"
 ) -> pl.DataFrame:
-    """E2D against the raw-feature baseline with the highest mean, per split and budget (H2),
-    Holm-corrected over all the tests in the table."""
+    """H2: E2D against the best raw-feature baseline per split and budget. The primary test
+    (temporal, B = 5) is not corrected; the other cells are Holm-corrected together."""
     cells = results.filter(
         (pl.col("metric") == metric) & (pl.col("ablation") == ablation) & pl.col("group").is_null()
     )
     rows = []
     for (split, b), group in cells.group_by("split", "budget", maintain_order=True):
-        ours = group.filter(pl.col("method") == method).sort("seed")
-        means = {
-            name: group.filter(pl.col("method") == name)["value"].mean()
-            for name in baselines
-            if group.filter(pl.col("method") == name).height
-        }
-        if ours.is_empty() or not means:
+        best = best_baseline(group)
+        if best is None or group.filter(pl.col("method") == method).is_empty():
             continue
-        best = max(means, key=lambda k: float(means[k] or 0.0))  # type: ignore[arg-type]
-        theirs = group.filter(pl.col("method") == best).sort("seed")
-        paired = ours.join(theirs, on="seed", suffix="_base")
-        a, b_values = paired["value"].to_list(), paired["value_base"].to_list()
         rows.append(
-            {
-                "split": split,
-                "budget": b,
-                "best_baseline": best,
-                "e2d_mean": float(np.nanmean(a)),
-                "baseline_mean": float(np.nanmean(b_values)),
-                "seeds": len(a),
-                "p": wilcoxon_greater(a, b_values),
-                "effect": rank_biserial(a, b_values),
-            }
-        )
+            {"split": split, "budget": b, "best_baseline": best,
+             "primary": (split, b) == PRIMARY, **_test_row(group, best, method)}
+        )  # fmt: skip
     if not rows:
         return pl.DataFrame()
     table = pl.DataFrame(rows)
-    return table.with_columns(pl.Series("p_holm", holm(table["p"].to_list())))
-
-
-SNOOPING_TYPES = (1, 2, 6)
-OTHER_TYPES = (3, 4, 5, 7, 8, 9)
+    secondary = [i for i, r in enumerate(rows) if not r["primary"]]
+    adjusted = holm([rows[i]["p"] for i in secondary]) if secondary else []
+    p_adjusted = [r["p"] for r in rows]
+    for i, value in zip(secondary, adjusted, strict=True):
+        p_adjusted[i] = value
+    return table.with_columns(pl.Series("p_adjusted", p_adjusted))
 
 
 def h1(results: pl.DataFrame, split: str = "temporal") -> dict[str, float]:
@@ -146,8 +203,10 @@ def _type_recall(
 def h3(
     results: pl.DataFrame, baseline: str, split: str = "temporal", budget: int = 5
 ) -> dict[str, float]:
-    """H3: per seed, mean recall gain over types 1, 2 and 6 at high mimicry minus the mean gain over
-    the other non-forging types at high mimicry; one-sided Wilcoxon against 0."""
+    """H3: per seed, mean recall gain over types 1, 2 and 6 at high mimicry (m >= 1/2) minus the
+    mean gain over types 3, 4, 5, 7 and 9 at high mimicry, each over the types with a
+    high-mimicry campaign in that seed's test part; one-sided Wilcoxon against 0. Seeds where
+    either group is empty are dropped and counted."""
 
     def gain(seed: int, t: int) -> float | None:
         group = f"type_{t}_high"
@@ -155,16 +214,21 @@ def h3(
         theirs = _type_recall(results, baseline, split, budget, group).get(seed)
         return None if ours is None or theirs is None else ours - theirs
 
-    diffs = []
+    diffs, dropped = [], 0
     for seed in sorted(set(results["seed"].to_list())):
         snoop = [g for t in SNOOPING_TYPES if (g := gain(seed, t)) is not None]
         other = [g for t in OTHER_TYPES if (g := gain(seed, t)) is not None]
         if snoop and other:
             diffs.append(float(np.mean(snoop) - np.mean(other)))
+        else:
+            dropped += 1
+    zeros = [0.0] * len(diffs)
     return {
         "seeds": float(len(diffs)),
+        "seeds_dropped": float(dropped),
+        "zeros_dropped": float(zeros_dropped(diffs, zeros)),
         "mean_difference": float(np.mean(diffs)) if diffs else float("nan"),
-        "p": wilcoxon_greater(diffs, [0.0] * len(diffs)) if diffs else float("nan"),
+        "p": wilcoxon_greater(diffs, zeros) if diffs else float("nan"),
     }
 
 
@@ -181,6 +245,7 @@ def h4(main: pl.DataFrame, no_forgery: pl.DataFrame, budget: int = 5) -> pl.Data
             {
                 "split": split,
                 "seeds": len(seeds),
+                "zeros_dropped": zeros_dropped(a, b),
                 "with_forgery": float(np.mean(a)) if a else float("nan"),
                 "without_forgery": float(np.mean(b)) if b else float("nan"),
                 "p": wilcoxon_greater(a, b) if seeds else float("nan"),
@@ -189,3 +254,16 @@ def h4(main: pl.DataFrame, no_forgery: pl.DataFrame, budget: int = 5) -> pl.Data
         )
     table = pl.DataFrame(rows)
     return table.with_columns(pl.Series("p_holm", holm(table["p"].to_list())))
+
+
+def h5(results: pl.DataFrame) -> dict[str, Any]:
+    """H5: E2D recall@5 above B5 (explanation only) on the temporal split."""
+    split, b = PRIMARY
+    group = results.filter(
+        (pl.col("metric") == "recall")
+        & (pl.col("ablation") == "none")
+        & pl.col("group").is_null()
+        & (pl.col("split") == split)
+        & (pl.col("budget") == b)
+    )
+    return {"split": split, "budget": b, **_test_row(group, "b5_explanation_only")}

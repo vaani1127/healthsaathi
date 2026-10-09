@@ -8,6 +8,7 @@ run in parallel and the output does not depend on the number of workers. The out
 """
 
 import argparse
+import hashlib
 import json
 import multiprocessing
 import os
@@ -15,7 +16,7 @@ import shutil
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,13 @@ from saathibench import __version__
 from saathibench.clinic import ClinicSim
 from saathibench.config import ClinicSpec, RunConfig, load_config
 from saathibench.policy import load_policy
+
+
+def config_digest(cfg: RunConfig) -> str:
+    """Fingerprint of everything that shapes the data (the name is left out)."""
+    data = asdict(replace(cfg, name=""))
+    text = json.dumps(data, sort_keys=True, default=str)
+    return hashlib.sha256(f"{__version__}:{text}".encode()).hexdigest()
 
 
 def run_clinic(args: tuple[ClinicSpec, RunConfig, Path]) -> dict[str, Any]:
@@ -63,6 +71,7 @@ def simulate(
             totals[table] = totals.get(table, 0) + n
     manifest = {
         "name": cfg.name,
+        "config_digest": config_digest(cfg),
         "saathibench_version": __version__,
         "seed": cfg.seed,
         "start_date": cfg.start_date.isoformat(),

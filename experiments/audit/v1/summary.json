@@ -1,0 +1,196 @@
+{
+  "sim_config": "sim\\configs\\v1.yaml",
+  "runs": [
+    {
+      "seed_index": 0,
+      "simulation_seed": 20261008,
+      "config_digest": "0f74537a5c807c7f5d3403b497f3c450f15d1c6329ec7c90e4b1a59454e2a503",
+      "passed": true,
+      "max_single": {
+        "feature": "off_shift",
+        "auc": 0.7777
+      },
+      "depth2_tree_auc": 0.7915,
+      "realism": {
+        "run": "v1-s20261008",
+        "hard_negative_share": 0.026985406119032298,
+        "no_show_or_cancelled_share": 0.07824693836859908,
+        "clinician_booked_share": 0.4101414244587707,
+        "incidental_snooping_share": 0.019470228661987776,
+        "snooping_accesses": 4417
+      }
+    },
+    {
+      "seed_index": 1,
+      "simulation_seed": 20261009,
+      "config_digest": "15ccf7d4cda3be357c5f744c1841fffc2f83381825f5f1836dabfff16dfce317",
+      "passed": true,
+      "max_single": {
+        "feature": "off_shift",
+        "auc": 0.769
+      },
+      "depth2_tree_auc": 0.7926,
+      "realism": {
+        "run": "v1-s20261009",
+        "hard_negative_share": 0.02810391745748612,
+        "no_show_or_cancelled_share": 0.07849575604055728,
+        "clinician_booked_share": 0.41003365778222506,
+        "incidental_snooping_share": 0.023724345697608736,
+        "snooping_accesses": 5311
+      }
+    },
+    {
+      "seed_index": 2,
+      "simulation_seed": 20261010,
+      "config_digest": "4f54380089460d500f10eed9caad0d59ac04c16fa1c2fc4c032555643a274acf",
+      "passed": true,
+      "max_single": {
+        "feature": "off_shift",
+        "auc": 0.769
+      },
+      "depth2_tree_auc": 0.7967,
+      "realism": {
+        "run": "v1-s20261010",
+        "hard_negative_share": 0.02685029876918757,
+        "no_show_or_cancelled_share": 0.07863700750222968,
+        "clinician_booked_share": 0.4101341307731319,
+        "incidental_snooping_share": 0.024059222702035782,
+        "snooping_accesses": 3242
+      }
+    },
+    {
+      "seed_index": 3,
+      "simulation_seed": 20261011,
+      "config_digest": "e11941855de0b8f2d4dac9c56f7737a234a1fdb16e4218e625dccc42482e3309",
+      "passed": true,
+      "max_single": {
+        "feature": "off_shift",
+        "auc": 0.7679
+      },
+      "depth2_tree_auc": 0.7991,
+      "realism": {
+        "run": "v1-s20261011",
+        "hard_negative_share": 0.027030511991272307,
+        "no_show_or_cancelled_share": 0.07892559085489866,
+        "clinician_booked_share": 0.4102759660565257,
+        "incidental_snooping_share": 0.02449091909741332,
+        "snooping_accesses": 3634
+      }
+    },
+    {
+      "seed_index": 4,
+      "simulation_seed": 20261012,
+      "config_digest": "d8b52b40da50a865cdce1f65b7ffedc7741a36ce42e403716c3b2778a1f6d17e",
+      "passed": true,
+      "max_single": {
+        "feature": "off_shift",
+        "auc": 0.7677
+      },
+      "depth2_tree_auc": 0.803,
+      "realism": {
+        "run": "v1-s20261012",
+        "hard_negative_share": 0.027634239936799462,
+        "no_show_or_cancelled_share": 0.07828853150134282,
+        "clinician_booked_share": 0.4101127136359339,
+        "incidental_snooping_share": 0.02119460500963391,
+        "snooping_accesses": 3114
+      }
+    },
+    {
+      "seed_index": 5,
+      "simulation_seed": 20261013,
+      "config_digest": "90cf21c0a130f5db6f3c5c0f438b10e1b959b4dba707b350a5a2387ba08165ee",
+      "passed": true,
+      "max_single": {
+        "feature": "off_shift",
+        "auc": 0.7758
+      },
+      "depth2_tree_auc": 0.7979,
+      "realism": {
+        "run": "v1-s20261013",
+        "hard_negative_share": 0.027209783637963506,
+        "no_show_or_cancelled_share": 0.07839314389443552,
+        "clinician_booked_share": 0.41126858898275503,
+        "incidental_snooping_share": 0.025664739884393065,
+        "snooping_accesses": 4325
+      }
+    },
+    {
+      "seed_index": 6,
+      "simulation_seed": 20261014,
+      "config_digest": "99f2dbf761b34150e10caca6c6ca353bf5ffa903043385529fc14631ab8890a8",
+      "passed": true,
+      "max_single": {
+        "feature": "off_shift",
+        "auc": 0.7814
+      },
+      "depth2_tree_auc": 0.8031,
+      "realism": {
+        "run": "v1-s20261014",
+        "hard_negative_share": 0.027576299515157523,
+        "no_show_or_cancelled_share": 0.07856185461618176,
+        "clinician_booked_share": 0.4104750304506699,
+        "incidental_snooping_share": 0.024954032046230628,
+        "snooping_accesses": 3807
+      }
+    },
+    {
+      "seed_index": 7,
+      "simulation_seed": 20261015,
+      "config_digest": "b6eb01736924deff478ad2878088fff6f26797680294966abd61be96ffa38e18",
+      "passed": true,
+      "max_single": {
+        "feature": "off_shift",
+        "auc": 0.7754
+      },
+      "depth2_tree_auc": 0.8,
+      "realism": {
+        "run": "v1-s20261015",
+        "hard_negative_share": 0.02747395846050121,
+        "no_show_or_cancelled_share": 0.07802186270223,
+        "clinician_booked_share": 0.4098312199387844,
+        "incidental_snooping_share": 0.029043106083766434,
+        "snooping_accesses": 3271
+      }
+    },
+    {
+      "seed_index": 8,
+      "simulation_seed": 20261016,
+      "config_digest": "c206712e2031c5330cad6d8ba9d7967fea28af26765b8c5a27b161be56445dee",
+      "passed": true,
+      "max_single": {
+        "feature": "off_shift",
+        "auc": 0.7817
+      },
+      "depth2_tree_auc": 0.8081,
+      "realism": {
+        "run": "v1-s20261016",
+        "hard_negative_share": 0.0271958821839818,
+        "no_show_or_cancelled_share": 0.07851631339123352,
+        "clinician_booked_share": 0.41068532391577556,
+        "incidental_snooping_share": 0.017798594847775177,
+        "snooping_accesses": 4270
+      }
+    },
+    {
+      "seed_index": 9,
+      "simulation_seed": 20261017,
+      "config_digest": "9e9e539dcc511ef44b73ecd4ccb299040e032d46dd92530982b0786fe6fef137",
+      "passed": true,
+      "max_single": {
+        "feature": "off_shift",
+        "auc": 0.768
+      },
+      "depth2_tree_auc": 0.8032,
+      "realism": {
+        "run": "v1-s20261017",
+        "hard_negative_share": 0.026929390738222172,
+        "no_show_or_cancelled_share": 0.07854371307721886,
+        "clinician_booked_share": 0.40874436326773167,
+        "incidental_snooping_share": 0.02612393681652491,
+        "snooping_accesses": 3292
+      }
+    }
+  ],
+  "all_passed": true
+}

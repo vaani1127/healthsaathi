@@ -20,13 +20,13 @@ from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.tree import DecisionTreeClassifier
 
-from e2d_core.features import BEHAVIOUR_FEATURES, behaviour_features
+from e2d_core.features import behaviour_features
+from e2d_core.features.columns import BEHAVIOUR_COLUMNS
 from saathibench.coverage import clinic_keys, read
 from saathibench.labels import attack_labels
 
 THRESHOLD = 0.9
-EXTRA_FEATURES = ("hour_local", "weekday", "refused")
-FEATURES = (*BEHAVIOUR_FEATURES, *EXTRA_FEATURES)
+FEATURES = BEHAVIOUR_COLUMNS
 
 
 def table(run: Path, name: str, key: str) -> pl.DataFrame:

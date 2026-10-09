@@ -28,13 +28,20 @@ from e2d_core.features import (
     GRAPH_FEATURES,
     ROLE_FEATURES,
 )
+from e2d_core.features.columns import BEHAVIOUR_COLUMNS, CONTEXT_COLUMNS
 
-RAW_FEATURES = (*BEHAVIOUR_FEATURES, "hour_local", "weekday", "refused")
+RAW_FEATURES = BEHAVIOUR_COLUMNS
 WINDOWS = ("1h", "24h", "7d")
+
+
+# Forgery flags are computed 24 hours after the access (nightly rescoring), so a method that
+# uses them can raise its alert only then.
+FORGERY_DELAY_HOURS = 24.0
 
 
 class Method(Protocol):
     name: str
+    feature_delay_hours: float
 
     def fit(self, train: pl.DataFrame, labels: np.ndarray | None = None) -> None: ...
 
@@ -48,6 +55,7 @@ def _x(frame: pl.DataFrame, columns: Sequence[str]) -> np.ndarray:
 @dataclass
 class RulesB0:
     name: str = "b0_rules"
+    feature_delay_hours: float = 0.0
 
     def fit(self, train: pl.DataFrame, labels: np.ndarray | None = None) -> None:
         return None
@@ -73,6 +81,7 @@ class IForest:
     seed: int = 0
     max_rows: int = 200_000
     name: str = "b1_iforest"
+    feature_delay_hours: float = 0.0
     models: dict[str, ModelBundle] = field(default_factory=dict)
 
     def fit(self, train: pl.DataFrame, labels: np.ndarray | None = None) -> None:
@@ -96,6 +105,7 @@ class IForest:
 @dataclass
 class ExplanationOnlyB5:
     name: str = "b5_explanation_only"
+    feature_delay_hours: float = 0.0
 
     def fit(self, train: pl.DataFrame, labels: np.ndarray | None = None) -> None:
         return None
@@ -114,6 +124,7 @@ class CoAccessB4:
     training (users compared by the sets of patients they opened, within the clinic)."""
 
     name: str = "b4_coaccess"
+    feature_delay_hours: float = 0.0
     clinics: dict[str, Any] = field(default_factory=dict)
 
     def fit(self, train: pl.DataFrame, labels: np.ndarray | None = None) -> None:
@@ -157,6 +168,7 @@ class SequenceVAE:
     seed: int = 0
     max_rows: int = 100_000
     name: str = "b3_vae"
+    feature_delay_hours: float = 0.0
     model: Any = None
     mean: np.ndarray | None = None
     std: np.ndarray | None = None
@@ -256,6 +268,7 @@ class E2D:
     train_share: float = 1.0
     min_rows: int = 500
     name: str = "e2d"
+    feature_delay_hours: float = FORGERY_DELAY_HOURS
     models: dict[str, ModelBundle] = field(default_factory=dict)
     fallback: ModelBundle | None = None
 
@@ -295,9 +308,10 @@ class E2D:
 class UpperBoundLGBM:
     seed: int = 0
     name: str = "upper_lightgbm"
+    feature_delay_hours: float = FORGERY_DELAY_HOURS
     model: Any = None
     columns: tuple[str, ...] = field(
-        default_factory=lambda: (*e2d_columns(), *RAW_FEATURES[-3:], *ROLE_FEATURES)
+        default_factory=lambda: (*e2d_columns(), *CONTEXT_COLUMNS, *ROLE_FEATURES)
     )
 
     def fit(self, train: pl.DataFrame, labels: np.ndarray | None = None) -> None:

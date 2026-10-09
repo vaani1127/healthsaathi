@@ -13,3 +13,15 @@ attacks:
   campaigns_per_clinic_month: 2.0
   first_day: 14
   mimicry: uniform
+  # Share of snooping accesses (types 1, 2 and 6, where the target is not one specific person)
+  # moved to a patient with an unrelated appointment that day. Author chosen; see
+  # experiments/PREREGISTRATION.md section 1.
+  incidental_share: 0.0
+
+# Generator settings that decide how hard the explanation layer's job is. Author chosen and
+# frozen by the pre-registration. Null keeps each clinic profile's own value.
+realism:
+  hard_negative_scale: 1.0
+  no_show_rate: null
+  cancel_rate: null
+  cover_days_per_month: null
