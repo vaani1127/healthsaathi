@@ -90,7 +90,7 @@ spreads over more days. Code: `sim/src/saathibench/attacks.py`.
 | 7 | `credential_sharing` | Someone else uses the account from a device and network never seen before. |
 | 8 | `break_glass_abuse` | Declares emergencies that are not, then opens the emergency view. |
 | 9 | `edit_after_sign` | Edits signed notes (a new version) and sometimes prescriptions, days later. |
-| 10 | `explanation_forgery` | Creates an appointment, lab order or care-team entry first, then opens the record. Careful attackers (high m) create it hours earlier. Doctors and receptionists forge appointments, doctors and nurses forge care-team entries, and lab technicians forge lab orders (a lab order only explains a lab technician's access). No forged evidence stays open: a forged appointment ends as a no-show or is cancelled by the forger, and a forged lab order is cancelled by the forger (probability m) or at closing time like an uncollected order. |
+| 10 | `explanation_forgery` | Creates an appointment, lab order or care-team entry first, then opens the record. Careful attackers (high m) create it hours earlier. Doctors and receptionists forge appointments, doctors and nurses forge care-team entries, and lab technicians forge lab orders (a lab order only explains a lab technician's access). No forged evidence stays open. With probability m the forger covers their tracks: a doctor runs a fake visit at the slot (checks the patient in, opens the consultation, writes and signs a short note, completes the appointment), a receptionist cancels the appointment before the slot, and a lab technician cancels the order soon after the access. Otherwise a forged appointment becomes a no-show and a forged lab order is cancelled at closing time like an uncollected order. |
 
 A campaign that needs history (types 4 and 9) waits until it exists.
 
@@ -182,6 +182,12 @@ output.
   time; real lab orders now include uncollected ones; antenatal patients registered during the
   run had no planned visits; and a walk-in's check-in was recorded 30 seconds before its
   appointment was created. The outputs were regenerated.
+
+- A forging doctor never covered their tracks, so a forged appointment was always cancelled or a
+  no-show within hours, and the forgery flags caught almost all of them. With probability m the
+  forging doctor now runs a fake visit instead (check-in, consultation, a signed note, completed),
+  which the threat model allows. This makes forgery harder to detect, and the outputs were
+  regenerated.
 
 ## Known limits
 

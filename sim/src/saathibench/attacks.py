@@ -530,10 +530,14 @@ def plan_forgery(c: Campaign) -> Callable[[], Gen] | None:
                 actor.user_id,
                 created,
             )
-            # Resolved like any other appointment: the patient never comes, so reception marks a
-            # no-show at the usual time. With probability m the forger cancels it instead, after
-            # the access and before the slot.
-            if c.rng.random() < c.m:
+            # Resolved like any other appointment. With probability m the forger covers their
+            # tracks: a doctor runs a fake visit at the slot, a receptionist cancels the
+            # appointment after the access and before the slot. Otherwise the patient never
+            # comes and reception marks a no-show at the usual time.
+            careful = c.rng.random() < c.m
+            if careful and actor.role == "doctor":
+                sim.env.process(fake_visit(patient, appt, slot))
+            elif careful:
                 when = sim.utc(c.rng.uniform(now + 9, slot - 1))
                 sim.set_status("appointment", appt, "cancelled", when)
             else:
@@ -579,6 +583,72 @@ def plan_forgery(c: Campaign) -> Callable[[], Gen] | None:
                     "updated_at": at,
                 },
             )
+
+    def fake_visit(patient: "Patient", appt: dict[str, Any], slot: float) -> Gen:
+        """The forging doctor checks the patient in, opens the consultation, writes and signs a
+        short note and completes the appointment, as if the visit happened."""
+        ok = yield from c.wait_until(slot + c.rng.uniform(-5, 5))
+        if not ok:
+            return  # the slot is after the last day: it stays booked, like real ones
+        t = sim.utc(sim.env.now)
+        day = sim.local_day(sim.env.now)
+        sim.tokens[day] += 1
+        token = sim.rec.add(
+            "queue_tokens",
+            {
+                "id": sim.ids.new(t),
+                "clinic_id": sim.clinic_id,
+                "appointment_id": appt["id"],
+                "token_no": sim.tokens[day],
+                "day": day,
+                "status": "with_doctor",
+                "assigned_nurse_user_id": None,
+                "created_by": actor.user_id,
+                "created_at": t,
+                "updated_at": t,
+            },
+        )
+        sim.set_status("appointment", appt, "checked_in", t)
+        c.hit(patient, [("demographics", "view")])
+        yield sim.env.timeout(c.rng.uniform(2, 8))
+        started = sim.utc(sim.env.now)
+        sim.set_status("appointment", appt, "in_consult", started)
+        c.hit(patient, [("vitals", "view"), ("notes", "view")])
+        yield sim.env.timeout(c.rng.uniform(3, 8))
+        end = c.hit(patient, [("notes", "create")])
+        encounter_id = sim.ids.new(started)
+        common = {"clinic_id": sim.clinic_id, "patient_id": patient.id}
+        sim.rec.add(
+            "encounters",
+            {
+                "id": encounter_id,
+                **common,
+                "appointment_id": appt["id"],
+                "doctor_user_id": actor.user_id,
+                "started_at": started,
+                "ended_at": end,
+                "status": "closed",
+                "created_by": actor.user_id,
+                "created_at": started,
+                "updated_at": end,
+            },
+        )
+        sim.rec.add(
+            "clinical_notes",
+            {
+                "id": sim.ids.new(end),
+                **common,
+                "encounter_id": encounter_id,
+                "author_user_id": actor.user_id,
+                "version": 1,
+                "parent_id": None,
+                "signed_at": end,
+                "created_at": end,
+            },
+        )
+        sim.set_status("appointment", appt, "completed", end)
+        token["status"] = "done"
+        token["updated_at"] = end
 
     def go() -> Gen:
         targets = c.visited(c.n(4, 1))

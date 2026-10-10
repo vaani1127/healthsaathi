@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Simulator: careful forgers complete a fake visit
+
+- A doctor who forges an appointment (attack type 10) now, with probability m, runs a fake visit
+  at the slot: checks the patient in, opens the consultation, writes and signs a short note, and
+  the appointment ends completed. Otherwise it becomes a no-show as before. Doctors no longer
+  cancel their forged appointments; receptionists and lab technicians still do. Forgery becomes
+  harder to detect, never easier. Outputs made before this change were regenerated.
+
 ### Bounded memory in simulation and audit runs
 
 - The simulator writes append-only tables every 50,000 rows instead of 200,000. Peak memory of

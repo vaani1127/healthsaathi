@@ -110,3 +110,56 @@ def test_forgery_flag_auc_report(run: Path) -> None:
     assert all(0.0 <= report["auc"][f] <= 1.0 for f in FLAG_SIGNALS)
     assert set(report["fire_rate_type10"]) == set(report["fire_rate_benign"])
     assert all(0.0 <= v <= 1.0 for v in report["fire_rate_benign"].values())
+
+
+def forged_appointments(run: Path) -> pl.DataFrame:
+    """Appointments a type-10 forger made for a patient they then opened before the slot."""
+    labels = pl.concat(
+        [pl.read_parquet(f) for f in (run / "labels" / "access_labels").glob("*.parquet")]
+    )
+    campaigns = pl.concat(
+        [pl.read_parquet(f) for f in (run / "labels" / "campaigns").glob("*.parquet")]
+    ).filter((pl.col("attack_type") == 10) & (pl.col("variant") == "appointment"))
+    hits = (
+        table(run, "access_events")
+        .join(labels, left_on="id", right_on="access_event_id")
+        .join(campaigns.select("campaign_id", "actor_role"), on="campaign_id")
+        .select(pl.col("user_id").alias("created_by"), "patient_id", "at", "actor_role")
+    )
+    return (
+        table(run, "appointments")
+        .join(hits, on=["created_by", "patient_id"])
+        .filter((pl.col("created_at") <= pl.col("at")) & (pl.col("at") <= pl.col("slot_start")))
+        .unique("id")
+        .filter(pl.col("slot_end") < run_end(run))
+    )
+
+
+def test_careful_doctor_forgers_complete_a_fake_visit(run: Path) -> None:
+    forged = forged_appointments(run)
+    by_doctor = forged.filter(pl.col("actor_role") == "doctor")
+    by_reception = forged.filter(pl.col("actor_role") == "reception")
+    assert by_doctor.height > 0 and by_reception.height > 0
+    # Doctors either complete a fake visit or leave a no-show; only receptionists cancel.
+    assert set(by_doctor["status"]) <= {"completed", "no_show"}
+    assert "completed" in set(by_doctor["status"])
+    assert set(by_reception["status"]) <= {"cancelled", "no_show"}
+
+    done = by_doctor.filter(pl.col("status") == "completed")
+    encounters = table(run, "encounters").select(
+        pl.col("appointment_id").alias("id"), pl.col("id").alias("encounter_id"), "doctor_user_id"
+    )
+    visits = done.join(encounters, on="id")
+    assert visits.height == done.height, "every fake visit has an encounter"
+    assert (visits["doctor_user_id"] == visits["created_by"]).all()
+    notes = table(run, "clinical_notes").filter(pl.col("signed_at").is_not_null())
+    assert visits.join(notes, on="encounter_id", how="semi").height == done.height
+    history = (
+        table(run, "status_events")
+        .filter(pl.col("entity_id").is_in(done["id"].implode()))
+        .sort("at")
+        .group_by("entity_id")
+        .agg("status")
+    )
+    fake = ["booked", "checked_in", "in_consult", "completed"]
+    assert all(s == fake for s in history["status"].to_list())
