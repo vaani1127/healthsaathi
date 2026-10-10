@@ -33,7 +33,7 @@ from e2d_core.repo.memory import COLUMNS, MemoryRepository
 from e2d_experiments import prepare
 from saathibench.audit import audit
 from saathibench.coverage import clinic_keys, read
-from saathibench.labels import attack_labels
+from saathibench.labels import attack_labels, read_labels
 from saathibench.realism import measure
 from saathibench.run import default_workers
 
@@ -44,6 +44,8 @@ FORGERY_TYPE = 10
 BENIGN_PER_CLINIC = 1000
 # Every boolean flag, plus the self-creation rate that self_creation_high is derived from.
 FLAG_SIGNALS = (*FLAG_NAMES, "self_creation_rate")
+# Type-10 variants, reported separately against the same benign sample.
+VARIANTS = ("appointment", "lab_order", "care_team")
 
 
 def _clinic_flags(args: tuple[Path, str, str, list[str]]) -> list[dict[str, Any]]:
@@ -79,12 +81,30 @@ def _clinic_flags(args: tuple[Path, str, str, list[str]]) -> list[dict[str, Any]
     return rows
 
 
+def _flag_table(positive: pl.DataFrame, benign: pl.DataFrame) -> dict[str, Any]:
+    """Fire rate and ROC-AUC of each signal, `positive` accesses against `benign` ones."""
+    data = pl.concat([positive.select(FLAG_SIGNALS), benign.select(FLAG_SIGNALS)])
+    y = np.r_[np.ones(positive.height), np.zeros(benign.height)].astype(int)
+    out: dict[str, Any] = {"auc": {}, "fire_rate": {}}
+    for name in FLAG_SIGNALS:
+        x = data[name].cast(pl.Float64).fill_null(0.0).to_numpy()
+        if y.min(initial=1) == y.max(initial=0) or len(np.unique(x)) < 2:
+            out["auc"][name] = 0.5
+        else:
+            out["auc"][name] = round(float(roc_auc_score(y, x)), 4)
+        if name in FLAG_NAMES:
+            fired = x > 0
+            out["fire_rate"][name] = round(float(fired[y == 1].mean()), 4) if y.any() else None
+    return out
+
+
 def forgery_flag_auc(run: Path, seed: int) -> dict[str, Any]:
     """Fire rate and ROC-AUC of each forgery signal, type-10 accesses (positive) against a sample of
-    benign staff accesses. A flag that is undecided (None) counts as not fired. AUC 0.5 means no
-    separation; below 0.5 the flag fires more often for benign accesses."""
+    benign staff accesses, pooled and per type-10 variant. A flag that is undecided (None) counts as
+    not fired. AUC 0.5 means no separation; below 0.5 the flag fires more often for benign
+    accesses."""
     manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
-    labels = attack_labels(run).select("access_event_id", "is_attack", "attack_type")
+    labels = attack_labels(run).select("access_event_id", "is_attack", "attack_type", "campaign_id")
     rng = random.Random(f"flags:{seed}")
     jobs = []
     for key in clinic_keys(run):
@@ -104,30 +124,34 @@ def forgery_flag_auc(run: Path, seed: int) -> dict[str, Any]:
     workers = max(1, min(default_workers(), len(jobs)))
     with ProcessPoolExecutor(max_workers=workers, mp_context=context) as pool:
         rows = [r for part in pool.map(_clinic_flags, jobs) for r in part]
-    data = pl.DataFrame(rows, infer_schema_length=None).join(
-        labels, on="access_event_id", how="left"
+    variants = read_labels(run, "campaigns").select("campaign_id", "variant")
+    data = (
+        pl.DataFrame(rows, infer_schema_length=None)
+        .join(labels, on="access_event_id", how="left")
+        .join(variants, on="campaign_id", how="left")
     )
-    y = (data["attack_type"] == FORGERY_TYPE).fill_null(False).to_numpy().astype(int)
-    out: dict[str, Any] = {
-        "forged_accesses": int(y.sum()),
-        "benign_sampled": int((y == 0).sum()),
-        "auc": {},
-        "fire_rate_type10": {},
-        "fire_rate_benign": {},
+    is_forged = (pl.col("attack_type") == FORGERY_TYPE).fill_null(False)
+    positives = data.filter(is_forged)
+    negatives = data.filter(~is_forged)
+    pooled = _flag_table(positives, negatives)
+    benign_rates = _flag_table(negatives, positives)["fire_rate"]
+    by_variant = {}
+    for variant in VARIANTS:
+        part = positives.filter(pl.col("variant") == variant)
+        table = _flag_table(part, negatives)
+        by_variant[variant] = {
+            "forged_accesses": part.height,
+            "auc": table["auc"],
+            "fire_rate_type10": table["fire_rate"],
+        }
+    return {
+        "forged_accesses": positives.height,
+        "benign_sampled": negatives.height,
+        "auc": pooled["auc"],
+        "fire_rate_type10": pooled["fire_rate"],
+        "fire_rate_benign": benign_rates,
+        "by_variant": by_variant,
     }
-    for name in FLAG_SIGNALS:
-        x = data[name].cast(pl.Float64).fill_null(0.0).to_numpy()
-        if y.min(initial=1) == y.max(initial=0) or len(np.unique(x)) < 2:
-            out["auc"][name] = 0.5
-        else:
-            out["auc"][name] = round(float(roc_auc_score(y, x)), 4)
-        if name in FLAG_NAMES:
-            fired = x > 0
-            out["fire_rate_type10"][name] = (
-                round(float(fired[y == 1].mean()), 4) if y.any() else None
-            )
-            out["fire_rate_benign"][name] = round(float(fired[y == 0].mean()), 4)
-    return out
 
 
 def main(argv: list[str]) -> int:

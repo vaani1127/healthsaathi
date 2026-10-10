@@ -110,6 +110,10 @@ def test_forgery_flag_auc_report(run: Path) -> None:
     assert all(0.0 <= report["auc"][f] <= 1.0 for f in FLAG_SIGNALS)
     assert set(report["fire_rate_type10"]) == set(report["fire_rate_benign"])
     assert all(0.0 <= v <= 1.0 for v in report["fire_rate_benign"].values())
+    variants = report["by_variant"]
+    assert set(variants) == {"appointment", "lab_order", "care_team"}
+    assert sum(v["forged_accesses"] for v in variants.values()) == report["forged_accesses"]
+    assert all(set(v["auc"]) == set(FLAG_SIGNALS) for v in variants.values())
 
 
 def forged_appointments(run: Path) -> pl.DataFrame:

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Forgery flags per type-10 variant
+
+- `make prereg-audit` reports the forgery flag fire rates and ROC-AUCs for each type-10 variant
+  (appointment, lab order, care team) as well as pooled, in `experiments/audit/v1/summary.json`.
+
 ### off_path_creation uses the status at the access; status history checked in the audit
 
 - `off_path_creation`: an encounter with the booking clinician counts when it started before the
