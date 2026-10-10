@@ -1,10 +1,10 @@
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app import worker
@@ -50,6 +50,17 @@ async def open_with_reason(client: AsyncClient, doctor: Actor, patient: uuid.UUI
     assert r.status_code == 200, r.text
 
 
+async def score(engine: AsyncEngine, clinic: uuid.UUID, store: service.ModelStore) -> int:
+    """Score the clinic as of just after its latest access, so the scored day is the day of that
+    access whatever the real date (scoring after midnight would otherwise look at the next day)."""
+    async with AsyncSession(engine) as s:
+        latest = await s.scalar(
+            select(func.max(m.AccessEvent.at)).where(m.AccessEvent.clinic_id == clinic)
+        )
+    assert latest is not None
+    return await service.score_clinic(clinic, now=latest + timedelta(microseconds=1), store=store)
+
+
 async def alerts_of(engine: AsyncEngine, clinic: uuid.UUID) -> list[m.Alert]:
     async with AsyncSession(engine) as s:
         return list((await s.scalars(select(m.Alert).where(m.Alert.clinic_id == clinic))).all())
@@ -64,7 +75,7 @@ async def test_rules_baseline_raises_alerts_within_the_budget(
     store: service.ModelStore,
 ) -> None:
     await open_with_reason(client, staff[Role.DOCTOR], patient)
-    created = await service.score_clinic(clinic, store=store)
+    created = await score(admin_engine, clinic, store)
     budget = get_settings().alert_budget
     alerts = await alerts_of(admin_engine, clinic)
     assert 0 < created == len(alerts) <= budget
@@ -76,12 +87,12 @@ async def test_rules_baseline_raises_alerts_within_the_budget(
     assert len(first.policy_version) == 64
 
     # A second run raises nothing new for the same accesses.
-    assert await service.score_clinic(clinic, store=store) == 0
+    assert await score(admin_engine, clinic, store) == 0
 
     # More unexplained accesses never take the day past the budget.
     for _ in range(3):
         await open_with_reason(client, staff[Role.DOCTOR], patient)
-    await service.score_clinic(clinic, store=store)
+    await score(admin_engine, clinic, store)
     assert len(await alerts_of(admin_engine, clinic)) == budget
 
 
@@ -99,7 +110,7 @@ async def test_break_glass_is_not_in_the_budget(
         headers=staff[Role.DOCTOR].headers,
     )
     assert r.status_code == 201, r.text
-    assert await service.score_clinic(clinic, store=store) == 0
+    assert await score(admin_engine, clinic, store) == 0
     assert await alerts_of(admin_engine, clinic) == []
 
 
@@ -119,7 +130,7 @@ async def test_alert_queue_detail_and_review(
     store: service.ModelStore,
 ) -> None:
     await open_with_reason(client, staff[Role.DOCTOR], patient)
-    await service.score_clinic(clinic, store=store)
+    await score(admin_engine, clinic, store)
     admin = staff[Role.CLINIC_ADMIN]
 
     listed = await client.get("/api/v1/alerts", headers=admin.headers)
@@ -184,7 +195,7 @@ async def test_only_admins_of_the_clinic_see_alerts(
     store: service.ModelStore,
 ) -> None:
     await open_with_reason(client, staff[Role.DOCTOR], patient)
-    await service.score_clinic(clinic, store=store)
+    await score(admin_engine, clinic, store)
     alert_id = (await alerts_of(admin_engine, clinic))[0].id
     for role in (Role.DOCTOR, Role.RECEPTION):
         assert (await client.get("/api/v1/alerts", headers=staff[role].headers)).status_code == 403
@@ -259,7 +270,7 @@ async def test_fitted_model_is_versioned_and_used(
     bundle, version = loaded
     assert version == result["versions"][service.GLOBAL_KEY] and bundle.threshold is not None
 
-    await service.score_clinic(clinic, store=store)
+    await score(admin_engine, clinic, store)
     alerts = await alerts_of(admin_engine, clinic)
     assert alerts and {a.model_version for a in alerts} == {version}
     assert alerts[0].features["scorer"] == "iforest"
