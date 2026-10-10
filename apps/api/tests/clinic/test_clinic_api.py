@@ -383,14 +383,16 @@ async def test_each_endpoint_records_one_event_per_patient(
     staff: dict[Role, Actor],
 ) -> None:
     data = await _setup_flow(client, staff)
-    before_events = await count_rows(admin_engine, m.AccessEvent, clinic)
+    # New events are found by id: access times come from the database clock, which a container
+    # clock correction can move backwards, so time order need not match insertion order.
+    before_events = {e.id for e, _ in await access_events(admin_engine, clinic)}
     before_audit = await count_rows(admin_engine, m.AuditEvent, clinic)
 
     resp = await call(client, staff, data)
     assert resp.status_code < 300, resp.text
 
     events = await access_events(admin_engine, clinic)
-    new = events[before_events:]
+    new = [(e, x) for e, x in events if e.id not in before_events]
     assert len(new) == expected
     assert all(x is not None for _, x in new), "every access event has an explanation"
     assert len({e.patient_id for e, _ in new}) == expected, "one event per patient"
