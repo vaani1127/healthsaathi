@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Bounded memory in simulation and audit runs
+
+- The simulator writes append-only tables every 50,000 rows instead of 200,000. Peak memory of
+  the largest v1 clinic (nursing home, seed 20261009) fell from about 960 MB to about 770 MB
+  committed; the rows written are the same.
+- `SIM_WORKERS` sets how many clinics the simulator and `make prereg-audit` run in parallel
+  (default CPUs - 1). The output does not depend on it: v1 seed 20261008 gives byte-identical
+  Parquet files with 11 workers and with 1.
+
 ### Explanations at access time; off_path_creation redefined
 
 - `status_events` table (migration 0004): append-only status history of appointments, lab orders,

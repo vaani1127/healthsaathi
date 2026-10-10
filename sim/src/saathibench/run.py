@@ -3,7 +3,9 @@
     uv run python -m saathibench.run sim/configs/v1.yaml --out sim/output/v1
 
 Each clinic has its own seed derived from the run seed and the clinic's position, so clinics can
-run in parallel and the output does not depend on the number of workers. The output folder gets
+run in parallel and the output does not depend on the number of workers. The number of parallel
+clinics is `--workers`, else the SIM_WORKERS environment variable, else CPUs - 1; each clinic
+needs up to about 1 GB. The output folder gets
 `tables/` (product table shapes), `labels/` (kept apart from features) and `manifest.json`.
 """
 
@@ -47,6 +49,17 @@ def run_clinic(args: tuple[ClinicSpec, RunConfig, Path]) -> dict[str, Any]:
     }
 
 
+def default_workers() -> int:
+    """SIM_WORKERS if set, else CPUs - 1. Also used by the pre-registration audit."""
+    value = os.environ.get("SIM_WORKERS", "").strip()
+    if value:
+        workers = int(value)
+        if workers < 1:
+            raise ValueError("SIM_WORKERS must be at least 1")
+        return workers
+    return max(1, (os.cpu_count() or 2) - 1)
+
+
 def simulate(
     cfg: RunConfig, out: Path, workers: int | None = None, clinics: int | None = None
 ) -> dict[str, Any]:
@@ -56,7 +69,7 @@ def simulate(
         shutil.rmtree(out)
     out.mkdir(parents=True)
     jobs = [(spec, cfg, out) for spec in cfg.clinics]
-    workers = max(1, min(workers or (os.cpu_count() or 2) - 1, len(jobs)))
+    workers = max(1, min(workers or default_workers(), len(jobs)))
     started = time.perf_counter()
     if workers == 1:
         results = [run_clinic(job) for job in jobs]
@@ -91,7 +104,9 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Run the SaathiBench simulator.")
     parser.add_argument("config", type=Path)
     parser.add_argument("--out", type=Path, help="output folder (default: sim/output/<name>)")
-    parser.add_argument("--workers", type=int, help="parallel clinics (default: CPUs - 1)")
+    parser.add_argument(
+        "--workers", type=int, help="parallel clinics (default: SIM_WORKERS, else CPUs - 1)"
+    )
     parser.add_argument("--clinics", type=int, help="only the first N clinics, for quick tries")
     args = parser.parse_args(argv)
     cfg = load_config(args.config)

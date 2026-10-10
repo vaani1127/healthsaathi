@@ -2,8 +2,9 @@
 
 Tables whose rows change after they are created (an appointment that is later completed) stay in
 memory until the clinic is finished; they are small. Append-only tables such as access_events are
-written to `<out>/tables/<table>/<clinic>-<part>.parquet` every `flush_rows` rows, so a long run
-never keeps a whole clinic's accesses in memory. Labels go to `<out>/labels/`, never `tables/`.
+written to `<out>/tables/<table>/<clinic>-<part>.parquet` every `flush_rows` rows (50,000), so a
+long run never keeps a whole clinic's accesses in memory. Labels go to `<out>/labels/`, never
+`tables/`.
 """
 
 from pathlib import Path
@@ -22,7 +23,7 @@ Row = dict[str, Any]
 
 
 class Recorder:
-    def __init__(self, out: Path, clinic_key: str, flush_rows: int = 200_000) -> None:
+    def __init__(self, out: Path, clinic_key: str, flush_rows: int = 50_000) -> None:
         self.out = out
         self.clinic_key = clinic_key
         self.flush_rows = flush_rows

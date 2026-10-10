@@ -16,7 +16,7 @@ from saathibench.config import RunConfig, load_config
 from saathibench.coverage import coverage
 from saathibench.ids import Ids
 from saathibench.policy import load_policy
-from saathibench.run import simulate
+from saathibench.run import default_workers, simulate
 from saathibench.schema import LABEL_TABLES, TABLES
 
 SIM = Path(__file__).resolve().parents[1]
@@ -181,3 +181,13 @@ def test_coverage_report(run: Path) -> None:
     for row in report["by_role"].values():
         assert row["n"] > 0 and 0.0 <= row["coverage"] <= 1.0
     assert report["by_scenario"]
+
+
+def test_worker_count_comes_from_sim_workers(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SIM_WORKERS", "3")
+    assert default_workers() == 3
+    monkeypatch.setenv("SIM_WORKERS", "0")
+    with pytest.raises(ValueError, match="SIM_WORKERS"):
+        default_workers()
+    monkeypatch.delenv("SIM_WORKERS")
+    assert default_workers() >= 1

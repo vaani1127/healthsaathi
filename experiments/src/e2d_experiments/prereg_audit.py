@@ -7,6 +7,10 @@ type-10 (forgery) accesses against a sample of benign staff accesses. Those flag
 shared explanation engine, evaluated 24 hours after each access as in the experiments.
 
     uv run python -m e2d_experiments.prereg_audit            # seeds 0..9
+
+Seeds run one after another. Within a seed, clinics are simulated and scored in parallel with
+SIM_WORKERS processes (default CPUs - 1). Each needs up to about 1.2 GB (a nursing home), and the
+main process holds the run's labels, so on a machine with about 6 GB free use SIM_WORKERS=3.
 """
 
 import argparse
@@ -31,6 +35,7 @@ from saathibench.audit import audit
 from saathibench.coverage import clinic_keys, read
 from saathibench.labels import attack_labels
 from saathibench.realism import measure
+from saathibench.run import default_workers
 
 SIM_CONFIG = Path("sim/configs/v1.yaml")
 BASE_SEED = 20261008
@@ -96,7 +101,7 @@ def forgery_flag_auc(run: Path, seed: int) -> dict[str, Any]:
         sample = rng.sample(benign, min(BENIGN_PER_CLINIC, len(benign)))
         jobs.append((run, key, manifest["timezone"], forged + sample))
     context = multiprocessing.get_context("spawn")
-    workers = max(1, min(multiprocessing.cpu_count() - 1, len(jobs)))
+    workers = max(1, min(default_workers(), len(jobs)))
     with ProcessPoolExecutor(max_workers=workers, mp_context=context) as pool:
         rows = [r for part in pool.map(_clinic_flags, jobs) for r in part]
     data = pl.DataFrame(rows, infer_schema_length=None).join(
