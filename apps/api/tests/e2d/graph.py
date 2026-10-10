@@ -187,10 +187,12 @@ class Graph:
         )
         return invoice
 
-    def add_encounter(self, started_at: datetime, doctor: str = "doctor") -> uuid.UUID:
+    def add_encounter(
+        self, started_at: datetime, doctor: str = "doctor", appointment: uuid.UUID | None = None
+    ) -> uuid.UUID:
         return self._add(
             "encounters",
-            appointment_id=None,
+            appointment_id=appointment,
             patient_id=self.patient,
             doctor_user_id=self.users[doctor],
             started_at=started_at,

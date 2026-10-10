@@ -4,6 +4,7 @@ visits."""
 
 import json
 import random
+import shutil
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -11,6 +12,7 @@ from zoneinfo import ZoneInfo
 import polars as pl
 import pytest
 
+from saathibench.audit import STATUS_TABLES, status_history_gaps
 from saathibench.clinic import ClinicSim
 from saathibench.config import load_config
 from saathibench.policy import load_policy
@@ -117,3 +119,23 @@ def test_antenatal_patients_registered_during_the_run_plan_visits(tmp_path: Path
     antenatal = [p for p in (sim.new_patient(at, clerk) for _ in range(400)) if p.kind == "anc"]
     assert antenatal, "some new patients are antenatal"
     assert all(2 <= p.anc_left <= 7 for p in antenatal)
+
+
+def test_audit_finds_no_gap_in_simulated_histories(forgery_run: Path) -> None:
+    gaps = status_history_gaps(forgery_run)
+    assert all(row["rows"] > 0 for row in gaps.values())
+    assert all(row["incomplete"] == 0 for row in gaps.values()), gaps
+
+
+def test_audit_reports_a_record_without_history(forgery_run: Path, tmp_path: Path) -> None:
+    # A copy of the run where one appointment lost its status history.
+    copy = tmp_path / "run"
+    for name in ("clinics", *STATUS_TABLES, "status_events"):
+        shutil.copytree(forgery_run / "tables" / name, copy / "tables" / name)
+    files = sorted((copy / "tables" / "status_events").glob("*.parquet"))
+    events = pl.read_parquet(files[0])
+    dropped = events.filter(pl.col("entity_type") == "appointment")["entity_id"][0]
+    events.filter(pl.col("entity_id") != dropped).write_parquet(files[0])
+    gaps = status_history_gaps(copy)
+    assert gaps["appointments"]["incomplete"] == 1
+    assert all(row["incomplete"] == 0 for name, row in gaps.items() if name != "appointments")

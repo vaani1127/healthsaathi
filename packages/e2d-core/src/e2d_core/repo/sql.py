@@ -74,7 +74,7 @@ INVOICES_SQL = text(
     " AND created_at BETWEEN :start AND :end ORDER BY created_at, id"
 )
 ENCOUNTERS_SQL = text(
-    "SELECT id, patient_id, doctor_user_id, started_at, ended_at, created_by, created_at"
+    "SELECT id, patient_id, doctor_user_id, started_at, appointment_id, created_by, created_at"
     " FROM encounters"
     " WHERE clinic_id = :clinic AND patient_id = :patient"
     " AND started_at BETWEEN :start AND :end ORDER BY started_at, id"

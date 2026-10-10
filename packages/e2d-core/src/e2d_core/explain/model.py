@@ -110,7 +110,7 @@ class EncounterEv:
     patient_id: uuid.UUID
     doctor_user_id: uuid.UUID
     started_at: datetime
-    ended_at: datetime | None
+    appointment_id: uuid.UUID | None
     created_by: uuid.UUID
     created_at: datetime
 

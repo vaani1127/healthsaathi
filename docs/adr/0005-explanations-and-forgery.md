@@ -32,14 +32,16 @@ the evidence was not cancelled, voided or a no-show at the access and was 24 hou
 `no_progress` is True when, within 24 hours after the access, the evidence did not move forward
 (checked in or completed; collected or resulted) and the patient had no vitals, note, prescription,
 lab result or invoice since the evidence was created. A record with no history at all (written
-before the history existed) keeps its stored status. Statuses are never rebuilt from `updated_at`.
+before the history existed) keeps its stored status; the SaathiBench audit fails a run in which any
+record lacks a full history, so this never happens on simulator data. Statuses are never rebuilt from `updated_at`.
 Both repository backends expose `status_at(clinic, entity_type, entity_id, at)`. Decided by the
 authors in P15.
 
 **Off-path creation.** `off_path_creation` is True for an appointment booked by a clinician (source
-`doctor`, not reception or the patient) for a patient who had no completed encounter with that
-clinician begun before the booking (encounters in the evidence lookback, 120 days). It is False for
-other evidence. This replaced a clinic-level rule (clinician booking where at least 80% of recent
+`doctor`, not reception or the patient) for a patient who had no encounter with that clinician
+begun before the booking (encounters in the evidence lookback, 120 days). An encounter whose
+appointment was cancelled or a no-show at the access time, from the status history, does not
+count. It is False for other evidence. This replaced a clinic-level rule (clinician booking where at least 80% of recent
 bookings came from reception), which never applied in SaathiBench because clinicians book most
 follow-ups. The change was made after seeing the forgery flag table of the pre-registration audit,
 by the authors' decision.

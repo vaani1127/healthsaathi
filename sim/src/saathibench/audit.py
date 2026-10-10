@@ -5,6 +5,10 @@ The features are the e2d-core behaviour features plus the access's local hour, w
 whether it was refused, on staff accesses only. Explanation results are deliberately not used:
 the generator is tuned only against this audit, never against E2D.
 
+It also checks that every appointment, lab order, referral and invoice has a full status history
+(its first status at creation, its last one equal to the stored status), so the explanation engine
+never falls back to a stored status on simulator data. A gap fails the run.
+
     uv run python -m saathibench.audit sim/output/saathibench-v1
 """
 
@@ -27,6 +31,12 @@ from saathibench.labels import attack_labels
 
 THRESHOLD = 0.9
 FEATURES = BEHAVIOUR_COLUMNS
+STATUS_TABLES = {
+    "appointments": "appointment",
+    "lab_orders": "lab_order",
+    "referrals": "referral",
+    "invoices": "invoice",
+}
 
 
 def table(run: Path, name: str, key: str) -> pl.DataFrame:
@@ -59,6 +69,41 @@ def auc(y: np.ndarray, score: np.ndarray) -> float:
         return 0.5
     value = float(roc_auc_score(y, score))
     return max(value, 1.0 - value)
+
+
+def status_history_gaps(run: Path) -> dict[str, dict[str, int]]:
+    """Per table: rows, and rows whose status history is missing or does not match the row."""
+    report = {t: {"rows": 0, "incomplete": 0} for t in STATUS_TABLES}
+    for key in clinic_keys(run):
+        events = read(run, "tables", "status_events", key)
+        if events is None:
+            events = pl.DataFrame(
+                schema={"entity_type": pl.String, "entity_id": pl.String, "status": pl.String,
+                        "at": pl.Datetime("us", "UTC")}
+            )  # fmt: skip
+        history = (
+            events.sort("at", maintain_order=True)
+            .group_by("entity_type", "entity_id")
+            .agg(pl.col("at").first().alias("first_at"), pl.col("status").last().alias("last"))
+        )
+        for table_name, kind in STATUS_TABLES.items():
+            rows = read(run, "tables", table_name, key)
+            if rows is None:
+                continue
+            joined = rows.select("id", "status", "created_at").join(
+                history.filter(pl.col("entity_type") == kind),
+                left_on="id",
+                right_on="entity_id",
+                how="left",
+            )
+            bad = joined.filter(
+                pl.col("first_at").is_null()
+                | (pl.col("first_at") != pl.col("created_at"))
+                | (pl.col("last") != pl.col("status"))
+            )
+            report[table_name]["rows"] += rows.height
+            report[table_name]["incomplete"] += bad.height
+    return report
 
 
 def audit(run: Path, max_benign: int = 400_000, seed: int = 0) -> dict[str, Any]:
@@ -100,6 +145,12 @@ def audit(run: Path, max_benign: int = 400_000, seed: int = 0) -> dict[str, Any]
     failures = [f"{n} {v}" for n, v in single.items() if v > THRESHOLD]
     if tree_auc > THRESHOLD:
         failures.append(f"depth-2 tree {tree_auc}")
+    history = status_history_gaps(run)
+    failures += [
+        f"{name} without a full status history: {row['incomplete']}"
+        for name, row in history.items()
+        if row["incomplete"]
+    ]
     return {
         "run": str(run),
         "threshold": THRESHOLD,
@@ -109,6 +160,7 @@ def audit(run: Path, max_benign: int = 400_000, seed: int = 0) -> dict[str, Any]
         "max_single": {"feature": worst, "auc": single[worst]},
         "depth2_tree_auc": tree_auc,
         "by_attack_type_info": by_type,
+        "status_history": history,
         "passed": not failures,
         "failures": failures,
     }

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### off_path_creation uses the status at the access; status history checked in the audit
+
+- `off_path_creation`: an encounter with the booking clinician counts when it started before the
+  booking and its appointment was not cancelled or a no-show at the access time (`status_at`),
+  never by its final status. Evidence bundles carry each encounter's `appointment_id`.
+- The SaathiBench audit fails a run in which any appointment, lab order, referral or invoice lacks
+  a full status history, so the stored-status fallback is never used on simulator data.
+
 ### Simulator: careful forgers complete a fake visit
 
 - A doctor who forges an appointment (attack type 10) now, with probability m, runs a fake visit

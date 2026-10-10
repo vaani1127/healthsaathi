@@ -110,6 +110,24 @@ def _doctor_booking_after_another_doctors_encounter(g: Graph) -> None:
     g.add_appointment(AT, source="doctor", created_by="doctor", created_at=AT - 10 * D + 5 * M)
 
 
+def _doctor_booking_after_encounter_of_a_lost_visit(g: Graph) -> None:
+    # The earlier visit's appointment was marked a no-show before the access.
+    visit = g.add_appointment(
+        AT - 10 * D, status="no_show", created_at=AT - 12 * D, updated_at=AT - 10 * D + 2 * H
+    )
+    g.add_encounter(AT - 10 * D, appointment=visit)
+    g.add_appointment(AT, source="doctor", created_by="doctor", created_at=AT - 10 * D + 5 * M)
+
+
+def _doctor_booking_after_encounter_cancelled_later(g: Graph) -> None:
+    # Cancelled only after the access, so at the access the visit still counts.
+    visit = g.add_appointment(
+        AT - 10 * D, status="cancelled", created_at=AT - 12 * D, updated_at=AT + 2 * H
+    )
+    g.add_encounter(AT - 10 * D, appointment=visit)
+    g.add_appointment(AT, source="doctor", created_by="doctor", created_at=AT - 10 * D + 5 * M)
+
+
 def _cancelled_before(g: Graph) -> None:
     g.add_appointment(AT, status="cancelled", created_at=AT - D, updated_at=AT - 2 * H)
 
@@ -313,6 +331,26 @@ CASES = [
         "notes",
         "T_APPT",
         flags={"off_path_creation": False},
+    ),
+    Case(
+        "an encounter whose visit was lost before the access does not count",
+        _doctor_booking_after_encounter_of_a_lost_visit,
+        "doctor",
+        "doctor",
+        "notes",
+        "T_APPT",
+        flags={"off_path_creation": True},
+        as_of=D,
+    ),
+    Case(
+        "an encounter whose visit was cancelled after the access still counts",
+        _doctor_booking_after_encounter_cancelled_later,
+        "doctor",
+        "doctor",
+        "notes",
+        "T_APPT",
+        flags={"off_path_creation": False},
+        as_of=D,
     ),
     Case(
         "doctor booking after another doctor's encounter is off path",

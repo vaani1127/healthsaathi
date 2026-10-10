@@ -14,7 +14,13 @@ from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from e2d_core.explain.model import AccessEvent, AppointmentEv, Candidate, EvidenceBundle
+from e2d_core.explain.model import (
+    AccessEvent,
+    AppointmentEv,
+    Candidate,
+    EncounterEv,
+    EvidenceBundle,
+)
 from e2d_core.explain.templates import ForgeryConfig
 
 FLAG_NAMES = (
@@ -35,6 +41,8 @@ FORWARD = {
     "lab_order": {"collected", "resulted"},
 }
 CANCELLED = {"cancelled", "no_show", "void"}
+# An appointment in one of these statuses never became a visit.
+LOST = {"cancelled", "no_show"}
 # cancelled_after_access looks at the evidence's status this long after the access.
 STATUS_HORIZON = timedelta(hours=24)
 CLOCK_SKEW = timedelta(seconds=5)
@@ -105,7 +113,7 @@ def forgery_flags(
 
     item = _find(bundle, ref.kind, ref.id)
     if ref.kind == "appointment" and item is not None:
-        flags["off_path_creation"] = _off_path(item, bundle, as_of)
+        flags["off_path_creation"] = _off_path(item, bundle, event.at)
     elif ref.kind in ("lab_order", "referral", "care_team", "invoice"):
         flags["off_path_creation"] = False
 
@@ -124,16 +132,22 @@ def forgery_flags(
     return flags
 
 
-def _off_path(appointment: AppointmentEv, bundle: EvidenceBundle, as_of: datetime) -> bool:
-    """Booked by a clinician (not reception or the patient) for a patient who had no completed
-    encounter with that clinician begun before the booking."""
+def _off_path(appointment: AppointmentEv, bundle: EvidenceBundle, at: datetime) -> bool:
+    """Booked by a clinician (not reception or the patient) for a patient who had no encounter
+    with that clinician begun before the booking. An encounter whose appointment was cancelled or
+    a no-show at the access time `at` (from the status history) does not count."""
     if appointment.source != "doctor":
         return False
+    visits = {a.id: a for a in bundle.appointments}
+
+    def counts(encounter: EncounterEv) -> bool:
+        visit = visits.get(encounter.appointment_id) if encounter.appointment_id else None
+        return visit is None or bundle.status_at("appointment", visit, at) not in LOST
+
     return not any(
         e.doctor_user_id == appointment.created_by
         and e.started_at < appointment.created_at
-        and e.ended_at is not None
-        and e.ended_at <= as_of
+        and counts(e)
         for e in bundle.encounters
     )
 
