@@ -3,7 +3,7 @@ import uuid
 
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from e2d_core.ledger import (
@@ -50,6 +50,9 @@ def test_chain_hash_layout() -> None:
         chain_hash(GENESIS, digest, -1, CLINIC)
 
 
+# No deadline: the work is tiny, but under a loaded machine one example can take over the
+# default 200 ms, and Hypothesis then fails the test (as the Merkle property tests already allow).
+@settings(deadline=None)
 @given(st.lists(st.dictionaries(st.text(max_size=5), st.integers(-100, 100)), max_size=20))
 def test_valid_chain_verifies(payloads: list[dict[str, object]]) -> None:
     check = verify_chain(build_chain(payloads))
