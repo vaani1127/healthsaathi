@@ -43,7 +43,9 @@ def _confirmed(timestamp: Timestamp) -> bool:
 
 
 def stamp_commit(commit: str) -> int:
-    COMMIT_FILE.write_text(commit + "\n", encoding="utf-8")
+    # Bytes, not text: on Windows text mode writes CRLF, but git stores LF, and the proof must
+    # match the committed file byte for byte.
+    COMMIT_FILE.write_bytes(f"{commit}\n".encode("ascii"))
     digest = hashlib.sha256(COMMIT_FILE.read_bytes()).digest()
     stamp = DetachedTimestampFile(OpSHA256(), Timestamp(digest))
     accepted = 0
