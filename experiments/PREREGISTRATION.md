@@ -214,6 +214,11 @@ None yet. Any change after registration is listed here with its reason and effec
 
 ## 10. Registration record
 
-- Commit hash: [fill after commit]
-- OpenTimestamps proof of the commit hash: `experiments/PREREGISTRATION.ots`
-- OSF Registries entry: [fill link]
+- Registration commit: 14f5feb4fd8e93829581cd532ca34b1d55679fe5 (tag `prereg-v1`). The plan is
+  the text of this file at that commit.
+- OpenTimestamps proof: `experiments/PREREGISTRATION.ots`, a proof of the file
+  `experiments/PREREGISTRATION.commit`, which holds the commit hash. Check it with
+  `ots verify experiments/PREREGISTRATION.ots`. The proof was made again in bac632e because the
+  first one covered the file with Windows line endings, which git does not store; the registered
+  text and the stamped commit hash did not change.
+- OSF Registries: not used. The registration is the timestamped commit above.
