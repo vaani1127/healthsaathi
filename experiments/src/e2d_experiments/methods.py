@@ -173,28 +173,36 @@ class SequenceVAE:
     mean: np.ndarray | None = None
     std: np.ndarray | None = None
 
-    def _sequences(self, frame: pl.DataFrame) -> np.ndarray:
+    def _sequences(self, frame: pl.DataFrame, rows: np.ndarray | None = None) -> np.ndarray:
+        """Each access's raw features with those of the same user's previous `length - 1`
+        accesses (zeros where there are fewer), flattened. One row per row of `frame`, or only
+        for the positions `rows`, in that order. Only the output array is allocated at full size,
+        so a sample of a large frame needs little memory."""
         ordered = frame.with_row_index("_row").sort("user_id", "at", "access_event_id")
         x = _x(ordered, RAW_FEATURES)
         users = ordered["user_id"].to_numpy()
-        seq = np.zeros((len(x), self.length, x.shape[1]))
+        # Where each row of `frame` sits in the per-user time order.
+        position = np.empty(len(x), dtype=np.int64)
+        position[ordered["_row"].to_numpy()] = np.arange(len(x))
+        wanted = position if rows is None else position[rows]
+        seq = np.zeros((len(wanted), self.length, x.shape[1]))
         for lag in range(self.length):
-            shifted = np.roll(x, lag, axis=0)
-            same = np.roll(users, lag) == users
-            same[:lag] = False
-            seq[:, self.length - 1 - lag] = np.where(same[:, None], shifted, 0.0)
-        flat = seq.reshape(len(x), -1)
-        back = np.empty_like(flat)
-        back[ordered["_row"].to_numpy()] = flat
-        return back
+            earlier = wanted - lag
+            same = earlier >= 0
+            same[same] = users[earlier[same]] == users[wanted[same]]
+            seq[same, self.length - 1 - lag] = x[earlier[same]]
+        return seq.reshape(len(wanted), -1)
 
     def fit(self, train: pl.DataFrame, labels: np.ndarray | None = None) -> None:
         import torch
 
         torch.manual_seed(self.seed)
-        x = self._sequences(train)
-        if len(x) > self.max_rows:
-            x = x[np.random.default_rng(self.seed).choice(len(x), self.max_rows, replace=False)]
+        rows = None
+        if train.height > self.max_rows:
+            rows = np.random.default_rng(self.seed).choice(
+                train.height, self.max_rows, replace=False
+            )
+        x = self._sequences(train, rows)
         self.mean, self.std = x.mean(axis=0), x.std(axis=0) + 1e-6
         data = torch.tensor((x - self.mean) / self.std, dtype=torch.float32)
         dim = data.shape[1]
@@ -224,7 +232,13 @@ class SequenceVAE:
 
         assert self.model is not None and self.mean is not None and self.std is not None
         encoder, decoder = self.model
-        data = torch.tensor((self._sequences(test) - self.mean) / self.std, dtype=torch.float32)
+        # Normalised in place: the same arithmetic as (seq - mean) / std without two more
+        # full-size copies of the test sequences.
+        seq = self._sequences(test)
+        seq -= self.mean
+        seq /= self.std
+        data = torch.tensor(seq, dtype=torch.float32)
+        del seq
         with torch.no_grad():
             recon = decoder(encoder(data)[:, :8])
         return np.asarray(((recon - data) ** 2).mean(dim=1).numpy(), dtype=float)

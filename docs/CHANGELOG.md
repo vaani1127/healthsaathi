@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Experiments: B3 without full-size sequence copies
+
+- The sequence VAE (B3) samples its 100,000 training accesses before building their sequences
+  and normalises test sequences in place. Results are unchanged (regression test against the old
+  implementation); the first v1 main run had stopped with an out-of-memory error in B3.
+
 ### Forgery flags per type-10 variant
 
 - `make prereg-audit` reports the forgery flag fire rates and ROC-AUCs for each type-10 variant

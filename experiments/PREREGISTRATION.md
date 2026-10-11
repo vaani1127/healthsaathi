@@ -216,6 +216,15 @@ Any change after registration is listed here with its reason and effect.
   seed's results under `<out>/seeds/` and reuses them when a stopped run is started again with the
   same settings. Reason: the final runs take many hours. Effect on results: none; a reused seed
   has exactly the rows it had when it was computed (test: `experiments/tests/test_resume.py`).
+- B3 memory fix (approved by the authors after the first main run stopped with an out-of-memory
+  error while fitting B3 on seed 0). B3 built the five-access sequence of every training access
+  (4.06 million on seed 0, several full-size float64 copies) and then kept a sample of 100,000.
+  It now draws the same 100,000 rows with the same generator call first and builds sequences only
+  for them, and normalises the test sequences in place. Effect: none on the method; the
+  sequences, the sampled rows, the normalisation and the scores are bit-for-bit those of the old
+  code (`experiments/tests/test_sequence_vae.py` compares against the old implementation). On
+  seed 0's temporal split B3 now fits in 16.5 s and scores 2.2 million accesses in 7.1 s on CPU,
+  adding about 1.3 GB of memory. B3 stays on the CPU, as registered.
 
 ## 10. Registration record
 
