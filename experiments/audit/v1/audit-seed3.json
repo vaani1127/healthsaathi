@@ -1,80 +1,98 @@
 {
   "run": "v1-s20261011",
   "threshold": 0.9,
-  "attacks": 10278,
+  "attacks": 9947,
   "benign_sampled": 400000,
   "single_feature_auc": {
-    "accesses_1h": 0.5932,
-    "accesses_24h": 0.5159,
-    "accesses_7d": 0.5297,
-    "patients_1h": 0.5427,
-    "patients_24h": 0.5101,
-    "patients_7d": 0.534,
-    "exports_1h": 0.5673,
-    "exports_24h": 0.5588,
-    "exports_7d": 0.5602,
-    "off_shift": 0.7679,
-    "new_device": 0.5397,
-    "session_age_min": 0.5075,
-    "hour_local": 0.5628,
-    "weekday": 0.5189,
-    "refused": 0.5076
+    "accesses_1h": 0.609,
+    "accesses_24h": 0.5369,
+    "accesses_7d": 0.5164,
+    "patients_1h": 0.5375,
+    "patients_24h": 0.5034,
+    "patients_7d": 0.5009,
+    "exports_1h": 0.5745,
+    "exports_24h": 0.5704,
+    "exports_7d": 0.566,
+    "off_shift": 0.7698,
+    "new_device": 0.5376,
+    "session_age_min": 0.5083,
+    "hour_local": 0.574,
+    "weekday": 0.5348,
+    "refused": 0.5083
   },
   "max_single": {
     "feature": "off_shift",
-    "auc": 0.7679
+    "auc": 0.7698
   },
-  "depth2_tree_auc": 0.7991,
+  "depth2_tree_auc": 0.7996,
   "by_attack_type_info": {
     "1": {
-      "attacks": 469,
+      "attacks": 445,
       "best_feature": "off_shift",
-      "best_auc": 0.776
+      "best_auc": 0.746
     },
     "2": {
-      "attacks": 262,
+      "attacks": 342,
       "best_feature": "off_shift",
-      "best_auc": 0.7044
+      "best_auc": 0.7583
     },
     "3": {
-      "attacks": 1004,
+      "attacks": 963,
       "best_feature": "off_shift",
-      "best_auc": 0.8286
+      "best_auc": 0.8042
     },
     "4": {
-      "attacks": 948,
+      "attacks": 949,
       "best_feature": "off_shift",
-      "best_auc": 0.7486
+      "best_auc": 0.7504
     },
     "5": {
-      "attacks": 2421,
+      "attacks": 2424,
       "best_feature": "exports_1h",
-      "best_auc": 0.971
+      "best_auc": 0.9633
     },
     "6": {
-      "attacks": 2903,
+      "attacks": 2718,
       "best_feature": "accesses_1h",
-      "best_auc": 0.8088
+      "best_auc": 0.8026
     },
     "7": {
-      "attacks": 1352,
+      "attacks": 1189,
       "best_feature": "session_age_min",
-      "best_auc": 0.9166
+      "best_auc": 0.9273
     },
     "8": {
-      "attacks": 479,
+      "attacks": 504,
       "best_feature": "off_shift",
-      "best_auc": 0.7522
+      "best_auc": 0.7731
     },
     "9": {
-      "attacks": 285,
+      "attacks": 266,
       "best_feature": "accesses_7d",
-      "best_auc": 0.8151
+      "best_auc": 0.8196
     },
     "10": {
-      "attacks": 155,
-      "best_feature": "off_shift",
-      "best_auc": 0.772
+      "attacks": 147,
+      "best_feature": "accesses_1h",
+      "best_auc": 0.8203
+    }
+  },
+  "status_history": {
+    "appointments": {
+      "rows": 517315,
+      "incomplete": 0
+    },
+    "lab_orders": {
+      "rows": 104714,
+      "incomplete": 0
+    },
+    "referrals": {
+      "rows": 14135,
+      "incomplete": 0
+    },
+    "invoices": {
+      "rows": 421282,
+      "incomplete": 0
     }
   },
   "passed": true,

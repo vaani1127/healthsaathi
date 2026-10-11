@@ -4,191 +4,1341 @@
     {
       "seed_index": 0,
       "simulation_seed": 20261008,
-      "config_digest": "0f74537a5c807c7f5d3403b497f3c450f15d1c6329ec7c90e4b1a59454e2a503",
+      "config_digest": "fba6f46fedd00a3c7df802f846e820a5d42ebd52374ffcb03f2afb18ee32ba56",
       "passed": true,
       "max_single": {
         "feature": "off_shift",
-        "auc": 0.7777
+        "auc": 0.7556
       },
-      "depth2_tree_auc": 0.7915,
+      "depth2_tree_auc": 0.7784,
       "realism": {
         "run": "v1-s20261008",
-        "hard_negative_share": 0.026985406119032298,
-        "no_show_or_cancelled_share": 0.07824693836859908,
-        "clinician_booked_share": 0.4101414244587707,
-        "incidental_snooping_share": 0.019470228661987776,
-        "snooping_accesses": 4417
+        "hard_negative_share": 0.026713800199228043,
+        "no_show_or_cancelled_share": 0.12997929470175035,
+        "clinician_booked_share": 0.4912489307100086,
+        "appointments_in_run": 467600,
+        "non_walk_in_appointments_in_run": 364158,
+        "appointments_after_run": 48670,
+        "incidental_snooping_share": 0.06335910652920962,
+        "snooping_accesses": 4656,
+        "lab_uncollected_share": 0.051024496336996336,
+        "consultation_lab_orders_in_run": 104832,
+        "followups": {
+          "visits": 420267,
+          "visits_per_patient": 2.596821532510705,
+          "visits_per_patient_seen": 3.3542468114993533,
+          "chains": 103363,
+          "chain_lengths": {
+            "1": 46762,
+            "2": 21209,
+            "3": 13211,
+            "4": 11189,
+            "5+": 10992
+          },
+          "longest_chain": 8,
+          "chain_ends": {
+            "missed": 29784,
+            "no_next_booking": 34880,
+            "run_end": 38699
+          }
+        }
+      },
+      "forgery_flag_auc_type10_vs_benign": {
+        "forged_accesses": 192,
+        "benign_sampled": 30000,
+        "auc": {
+          "self_created_recent": 0.537,
+          "no_progress": 0.6797,
+          "off_path_creation": 0.5651,
+          "created_off_hours": 0.7949,
+          "cancelled_after_access": 0.6923,
+          "self_creation_high": 0.5,
+          "self_creation_rate": 0.586
+        },
+        "fire_rate_type10": {
+          "self_created_recent": 0.224,
+          "no_progress": 0.375,
+          "off_path_creation": 0.1302,
+          "created_off_hours": 0.6979,
+          "cancelled_after_access": 0.3854,
+          "self_creation_high": 0.0
+        },
+        "fire_rate_benign": {
+          "self_created_recent": 0.15,
+          "no_progress": 0.0156,
+          "off_path_creation": 0.0,
+          "created_off_hours": 0.1081,
+          "cancelled_after_access": 0.0008,
+          "self_creation_high": 0.0
+        },
+        "by_variant": {
+          "appointment": {
+            "forged_accesses": 73,
+            "auc": {
+              "self_created_recent": 0.6168,
+              "no_progress": 0.8552,
+              "off_path_creation": 0.6712,
+              "created_off_hours": 0.8912,
+              "cancelled_after_access": 0.8626,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.612
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.3836,
+              "no_progress": 0.726,
+              "off_path_creation": 0.3425,
+              "created_off_hours": 0.8904,
+              "cancelled_after_access": 0.726,
+              "self_creation_high": 0.0
+            }
+          },
+          "lab_order": {
+            "forged_accesses": 27,
+            "auc": {
+              "self_created_recent": 0.4991,
+              "no_progress": 0.8441,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.7052,
+              "cancelled_after_access": 0.8885,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.5527
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.1481,
+              "no_progress": 0.7037,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.5185,
+              "cancelled_after_access": 0.7778,
+              "self_creation_high": 0.0
+            }
+          },
+          "care_team": {
+            "forged_accesses": 92,
+            "auc": {
+              "self_created_recent": 0.4848,
+              "no_progress": 0.4922,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.7449,
+              "cancelled_after_access": 0.4996,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.5752
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.1196,
+              "no_progress": 0.0,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.5978,
+              "cancelled_after_access": 0.0,
+              "self_creation_high": 0.0
+            }
+          }
+        }
       }
     },
     {
       "seed_index": 1,
       "simulation_seed": 20261009,
-      "config_digest": "15ccf7d4cda3be357c5f744c1841fffc2f83381825f5f1836dabfff16dfce317",
+      "config_digest": "5c113b79caebb2e2b90029ebf7419b7b7d0bf49f1023e4d79f49777efe02f85e",
       "passed": true,
       "max_single": {
         "feature": "off_shift",
-        "auc": 0.769
+        "auc": 0.7729
       },
-      "depth2_tree_auc": 0.7926,
+      "depth2_tree_auc": 0.7959,
       "realism": {
         "run": "v1-s20261009",
-        "hard_negative_share": 0.02810391745748612,
-        "no_show_or_cancelled_share": 0.07849575604055728,
-        "clinician_booked_share": 0.41003365778222506,
-        "incidental_snooping_share": 0.023724345697608736,
-        "snooping_accesses": 5311
+        "hard_negative_share": 0.027194159056770036,
+        "no_show_or_cancelled_share": 0.1286119445928727,
+        "clinician_booked_share": 0.494943958024507,
+        "appointments_in_run": 468845,
+        "non_walk_in_appointments_in_run": 364935,
+        "appointments_after_run": 49034,
+        "incidental_snooping_share": 0.06356388709329885,
+        "snooping_accesses": 4641,
+        "lab_uncollected_share": 0.05055508276040123,
+        "consultation_lab_orders_in_run": 104579,
+        "followups": {
+          "visits": 421910,
+          "visits_per_patient": 2.610651502682367,
+          "visits_per_patient_seen": 3.368381554576228,
+          "chains": 103861,
+          "chain_lengths": {
+            "1": 46672,
+            "2": 21063,
+            "3": 13706,
+            "4": 11187,
+            "5+": 11233
+          },
+          "longest_chain": 7,
+          "chain_ends": {
+            "missed": 29796,
+            "no_next_booking": 34751,
+            "run_end": 39314
+          }
+        }
+      },
+      "forgery_flag_auc_type10_vs_benign": {
+        "forged_accesses": 152,
+        "benign_sampled": 30000,
+        "auc": {
+          "self_created_recent": 0.4797,
+          "no_progress": 0.6564,
+          "off_path_creation": 0.5,
+          "created_off_hours": 0.7521,
+          "cancelled_after_access": 0.6707,
+          "self_creation_high": 0.5,
+          "self_creation_rate": 0.5544
+        },
+        "fire_rate_type10": {
+          "self_created_recent": 0.1118,
+          "no_progress": 0.3289,
+          "off_path_creation": 0.0,
+          "created_off_hours": 0.6118,
+          "cancelled_after_access": 0.3421,
+          "self_creation_high": 0.0
+        },
+        "fire_rate_benign": {
+          "self_created_recent": 0.1525,
+          "no_progress": 0.0161,
+          "off_path_creation": 0.0,
+          "created_off_hours": 0.1076,
+          "cancelled_after_access": 0.0008,
+          "self_creation_high": 0.0
+        },
+        "by_variant": {
+          "appointment": {
+            "forged_accesses": 33,
+            "auc": {
+              "self_created_recent": 0.4238,
+              "no_progress": 0.9616,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.7795,
+              "cancelled_after_access": 0.9996,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.4176
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.0,
+              "no_progress": 0.9394,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.6667,
+              "cancelled_after_access": 1.0,
+              "self_creation_high": 0.0
+            }
+          },
+          "lab_order": {
+            "forged_accesses": 30,
+            "auc": {
+              "self_created_recent": 0.5071,
+              "no_progress": 0.8086,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.6795,
+              "cancelled_after_access": 0.8163,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.6626
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.1667,
+              "no_progress": 0.6333,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.4667,
+              "cancelled_after_access": 0.6333,
+              "self_creation_high": 0.0
+            }
+          },
+          "care_team": {
+            "forged_accesses": 89,
+            "auc": {
+              "self_created_recent": 0.4912,
+              "no_progress": 0.4919,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.7664,
+              "cancelled_after_access": 0.4996,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.5687
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.1348,
+              "no_progress": 0.0,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.6404,
+              "cancelled_after_access": 0.0,
+              "self_creation_high": 0.0
+            }
+          }
+        }
       }
     },
     {
       "seed_index": 2,
       "simulation_seed": 20261010,
-      "config_digest": "4f54380089460d500f10eed9caad0d59ac04c16fa1c2fc4c032555643a274acf",
+      "config_digest": "55506c58b222b035c271c4921de115dd9f9333913ca08d62a9c5ef5164fe50ee",
       "passed": true,
       "max_single": {
         "feature": "off_shift",
-        "auc": 0.769
+        "auc": 0.7822
       },
-      "depth2_tree_auc": 0.7967,
+      "depth2_tree_auc": 0.8032,
       "realism": {
         "run": "v1-s20261010",
-        "hard_negative_share": 0.02685029876918757,
-        "no_show_or_cancelled_share": 0.07863700750222968,
-        "clinician_booked_share": 0.4101341307731319,
-        "incidental_snooping_share": 0.024059222702035782,
-        "snooping_accesses": 3242
+        "hard_negative_share": 0.02742034992626838,
+        "no_show_or_cancelled_share": 0.12853961620938031,
+        "clinician_booked_share": 0.49431182993742157,
+        "appointments_in_run": 466934,
+        "non_walk_in_appointments_in_run": 363740,
+        "appointments_after_run": 48947,
+        "incidental_snooping_share": 0.05513418903150525,
+        "snooping_accesses": 3428,
+        "lab_uncollected_share": 0.0495926319518243,
+        "consultation_lab_orders_in_run": 104451,
+        "followups": {
+          "visits": 420179,
+          "visits_per_patient": 2.59982798945662,
+          "visits_per_patient_seen": 3.3638270448559373,
+          "chains": 103343,
+          "chain_lengths": {
+            "1": 46615,
+            "2": 20917,
+            "3": 13461,
+            "4": 10977,
+            "5+": 11373
+          },
+          "longest_chain": 8,
+          "chain_ends": {
+            "missed": 29565,
+            "no_next_booking": 34537,
+            "run_end": 39241
+          }
+        }
+      },
+      "forgery_flag_auc_type10_vs_benign": {
+        "forged_accesses": 225,
+        "benign_sampled": 30000,
+        "auc": {
+          "self_created_recent": 0.5256,
+          "no_progress": 0.6413,
+          "off_path_creation": 0.5422,
+          "created_off_hours": 0.7969,
+          "cancelled_after_access": 0.6639,
+          "self_creation_high": 0.5,
+          "self_creation_rate": 0.5593
+        },
+        "fire_rate_type10": {
+          "self_created_recent": 0.2044,
+          "no_progress": 0.2978,
+          "off_path_creation": 0.0844,
+          "created_off_hours": 0.7022,
+          "cancelled_after_access": 0.3289,
+          "self_creation_high": 0.0
+        },
+        "fire_rate_benign": {
+          "self_created_recent": 0.1532,
+          "no_progress": 0.0152,
+          "off_path_creation": 0.0,
+          "created_off_hours": 0.1084,
+          "cancelled_after_access": 0.001,
+          "self_creation_high": 0.0
+        },
+        "by_variant": {
+          "appointment": {
+            "forged_accesses": 93,
+            "auc": {
+              "self_created_recent": 0.4771,
+              "no_progress": 0.7344,
+              "off_path_creation": 0.6022,
+              "created_off_hours": 0.8813,
+              "cancelled_after_access": 0.7737,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.5118
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.1075,
+              "no_progress": 0.4839,
+              "off_path_creation": 0.2043,
+              "created_off_hours": 0.871,
+              "cancelled_after_access": 0.5484,
+              "self_creation_high": 0.0
+            }
+          },
+          "lab_order": {
+            "forged_accesses": 30,
+            "auc": {
+              "self_created_recent": 0.5401,
+              "no_progress": 0.8591,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.7625,
+              "cancelled_after_access": 0.8828,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.5968
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.2333,
+              "no_progress": 0.7333,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.6333,
+              "cancelled_after_access": 0.7667,
+              "self_creation_high": 0.0
+            }
+          },
+          "care_team": {
+            "forged_accesses": 102,
+            "auc": {
+              "self_created_recent": 0.5655,
+              "no_progress": 0.4924,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.7301,
+              "cancelled_after_access": 0.4995,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.5915
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.2843,
+              "no_progress": 0.0,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.5686,
+              "cancelled_after_access": 0.0,
+              "self_creation_high": 0.0
+            }
+          }
+        }
       }
     },
     {
       "seed_index": 3,
       "simulation_seed": 20261011,
-      "config_digest": "e11941855de0b8f2d4dac9c56f7737a234a1fdb16e4218e625dccc42482e3309",
+      "config_digest": "e67c7955966e7be6660b8d033732a75cebf1480fbb5f6769732e15dcbc0f2345",
       "passed": true,
       "max_single": {
         "feature": "off_shift",
-        "auc": 0.7679
+        "auc": 0.7698
       },
-      "depth2_tree_auc": 0.7991,
+      "depth2_tree_auc": 0.7996,
       "realism": {
         "run": "v1-s20261011",
-        "hard_negative_share": 0.027030511991272307,
-        "no_show_or_cancelled_share": 0.07892559085489866,
-        "clinician_booked_share": 0.4102759660565257,
-        "incidental_snooping_share": 0.02449091909741332,
-        "snooping_accesses": 3634
+        "hard_negative_share": 0.02711796152629467,
+        "no_show_or_cancelled_share": 0.12860752286395502,
+        "clinician_booked_share": 0.49422020249044885,
+        "appointments_in_run": 468269,
+        "non_walk_in_appointments_in_run": 365313,
+        "appointments_after_run": 49046,
+        "incidental_snooping_share": 0.04850213980028531,
+        "snooping_accesses": 3505,
+        "lab_uncollected_share": 0.050926942950744514,
+        "consultation_lab_orders_in_run": 104699,
+        "followups": {
+          "visits": 421287,
+          "visits_per_patient": 2.6049751428359427,
+          "visits_per_patient_seen": 3.3687598455104473,
+          "chains": 103844,
+          "chain_lengths": {
+            "1": 46778,
+            "2": 21290,
+            "3": 13475,
+            "4": 11077,
+            "5+": 11224
+          },
+          "longest_chain": 8,
+          "chain_ends": {
+            "missed": 29685,
+            "no_next_booking": 35082,
+            "run_end": 39077
+          }
+        }
+      },
+      "forgery_flag_auc_type10_vs_benign": {
+        "forged_accesses": 147,
+        "benign_sampled": 30000,
+        "auc": {
+          "self_created_recent": 0.5282,
+          "no_progress": 0.7065,
+          "off_path_creation": 0.5442,
+          "created_off_hours": 0.7874,
+          "cancelled_after_access": 0.7138,
+          "self_creation_high": 0.5034,
+          "self_creation_rate": 0.6502
+        },
+        "fire_rate_type10": {
+          "self_created_recent": 0.2041,
+          "no_progress": 0.4286,
+          "off_path_creation": 0.0884,
+          "created_off_hours": 0.6871,
+          "cancelled_after_access": 0.4286,
+          "self_creation_high": 0.0068
+        },
+        "fire_rate_benign": {
+          "self_created_recent": 0.1477,
+          "no_progress": 0.0157,
+          "off_path_creation": 0.0,
+          "created_off_hours": 0.1123,
+          "cancelled_after_access": 0.001,
+          "self_creation_high": 0.0
+        },
+        "by_variant": {
+          "appointment": {
+            "forged_accesses": 74,
+            "auc": {
+              "self_created_recent": 0.568,
+              "no_progress": 0.776,
+              "off_path_creation": 0.5878,
+              "created_off_hours": 0.7614,
+              "cancelled_after_access": 0.7833,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.5604
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.2838,
+              "no_progress": 0.5676,
+              "off_path_creation": 0.1757,
+              "created_off_hours": 0.6351,
+              "cancelled_after_access": 0.5676,
+              "self_creation_high": 0.0
+            }
+          },
+          "lab_order": {
+            "forged_accesses": 24,
+            "auc": {
+              "self_created_recent": 0.4886,
+              "no_progress": 0.9297,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.8397,
+              "cancelled_after_access": 0.937,
+              "self_creation_high": 0.5208,
+              "self_creation_rate": 0.6415
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.125,
+              "no_progress": 0.875,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.7917,
+              "cancelled_after_access": 0.875,
+              "self_creation_high": 0.0417
+            }
+          },
+          "care_team": {
+            "forged_accesses": 49,
+            "auc": {
+              "self_created_recent": 0.4874,
+              "no_progress": 0.4922,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.801,
+              "cancelled_after_access": 0.4995,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.79
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.1224,
+              "no_progress": 0.0,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.7143,
+              "cancelled_after_access": 0.0,
+              "self_creation_high": 0.0
+            }
+          }
+        }
       }
     },
     {
       "seed_index": 4,
       "simulation_seed": 20261012,
-      "config_digest": "d8b52b40da50a865cdce1f65b7ffedc7741a36ce42e403716c3b2778a1f6d17e",
+      "config_digest": "12d658a8fb1063dcc7ca29a3a85354785865333e66158642534f975649d1c020",
       "passed": true,
       "max_single": {
         "feature": "off_shift",
-        "auc": 0.7677
+        "auc": 0.7769
       },
-      "depth2_tree_auc": 0.803,
+      "depth2_tree_auc": 0.8045,
       "realism": {
         "run": "v1-s20261012",
-        "hard_negative_share": 0.027634239936799462,
-        "no_show_or_cancelled_share": 0.07828853150134282,
-        "clinician_booked_share": 0.4101127136359339,
-        "incidental_snooping_share": 0.02119460500963391,
-        "snooping_accesses": 3114
+        "hard_negative_share": 0.028036739779806027,
+        "no_show_or_cancelled_share": 0.12963695934208502,
+        "clinician_booked_share": 0.49152255582733256,
+        "appointments_in_run": 466886,
+        "non_walk_in_appointments_in_run": 363816,
+        "appointments_after_run": 48837,
+        "incidental_snooping_share": 0.0764525993883792,
+        "snooping_accesses": 3270,
+        "lab_uncollected_share": 0.049444449807415705,
+        "consultation_lab_orders_in_run": 103591,
+        "followups": {
+          "visits": 419722,
+          "visits_per_patient": 2.596695063630233,
+          "visits_per_patient_seen": 3.3494960457748446,
+          "chains": 103139,
+          "chain_lengths": {
+            "1": 46618,
+            "2": 20987,
+            "3": 13500,
+            "4": 10901,
+            "5+": 11133
+          },
+          "longest_chain": 7,
+          "chain_ends": {
+            "missed": 29781,
+            "no_next_booking": 34458,
+            "run_end": 38900
+          }
+        }
+      },
+      "forgery_flag_auc_type10_vs_benign": {
+        "forged_accesses": 247,
+        "benign_sampled": 30000,
+        "auc": {
+          "self_created_recent": 0.512,
+          "no_progress": 0.6729,
+          "off_path_creation": 0.5324,
+          "created_off_hours": 0.7854,
+          "cancelled_after_access": 0.6818,
+          "self_creation_high": 0.5,
+          "self_creation_rate": 0.5443
+        },
+        "fire_rate_type10": {
+          "self_created_recent": 0.17,
+          "no_progress": 0.3603,
+          "off_path_creation": 0.0648,
+          "created_off_hours": 0.6802,
+          "cancelled_after_access": 0.3644,
+          "self_creation_high": 0.0
+        },
+        "fire_rate_benign": {
+          "self_created_recent": 0.1461,
+          "no_progress": 0.0146,
+          "off_path_creation": 0.0,
+          "created_off_hours": 0.1093,
+          "cancelled_after_access": 0.0008,
+          "self_creation_high": 0.0
+        },
+        "by_variant": {
+          "appointment": {
+            "forged_accesses": 79,
+            "auc": {
+              "self_created_recent": 0.5029,
+              "no_progress": 0.7649,
+              "off_path_creation": 0.6013,
+              "created_off_hours": 0.7618,
+              "cancelled_after_access": 0.7781,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.3589
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.1519,
+              "no_progress": 0.5443,
+              "off_path_creation": 0.2025,
+              "created_off_hours": 0.6329,
+              "cancelled_after_access": 0.557,
+              "self_creation_high": 0.0
+            }
+          },
+          "lab_order": {
+            "forged_accesses": 50,
+            "auc": {
+              "self_created_recent": 0.5169,
+              "no_progress": 0.9527,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.7454,
+              "cancelled_after_access": 0.9596,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.6249
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.18,
+              "no_progress": 0.92,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.6,
+              "cancelled_after_access": 0.92,
+              "self_creation_high": 0.0
+            }
+          },
+          "care_team": {
+            "forged_accesses": 118,
+            "auc": {
+              "self_created_recent": 0.5159,
+              "no_progress": 0.4927,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.8182,
+              "cancelled_after_access": 0.4996,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.6343
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.178,
+              "no_progress": 0.0,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.7458,
+              "cancelled_after_access": 0.0,
+              "self_creation_high": 0.0
+            }
+          }
+        }
       }
     },
     {
       "seed_index": 5,
       "simulation_seed": 20261013,
-      "config_digest": "90cf21c0a130f5db6f3c5c0f438b10e1b959b4dba707b350a5a2387ba08165ee",
+      "config_digest": "8d0b3fdc31c641dbcc86c5ed15d746f6cb4cdbd7e1de943ee53a9e8d9261c0a4",
       "passed": true,
       "max_single": {
         "feature": "off_shift",
-        "auc": 0.7758
+        "auc": 0.7686
       },
-      "depth2_tree_auc": 0.7979,
+      "depth2_tree_auc": 0.7905,
       "realism": {
         "run": "v1-s20261013",
-        "hard_negative_share": 0.027209783637963506,
-        "no_show_or_cancelled_share": 0.07839314389443552,
-        "clinician_booked_share": 0.41126858898275503,
-        "incidental_snooping_share": 0.025664739884393065,
-        "snooping_accesses": 4325
+        "hard_negative_share": 0.02713526827423961,
+        "no_show_or_cancelled_share": 0.12884452789581755,
+        "clinician_booked_share": 0.4943342078492263,
+        "appointments_in_run": 466925,
+        "non_walk_in_appointments_in_run": 364284,
+        "appointments_after_run": 49301,
+        "incidental_snooping_share": 0.05523101433882103,
+        "snooping_accesses": 3766,
+        "lab_uncollected_share": 0.0491549403487305,
+        "consultation_lab_orders_in_run": 104608,
+        "followups": {
+          "visits": 419989,
+          "visits_per_patient": 2.59802544894437,
+          "visits_per_patient_seen": 3.3603690101853854,
+          "chains": 103613,
+          "chain_lengths": {
+            "1": 46727,
+            "2": 21097,
+            "3": 13622,
+            "4": 10995,
+            "5+": 11172
+          },
+          "longest_chain": 7,
+          "chain_ends": {
+            "missed": 29725,
+            "no_next_booking": 34649,
+            "run_end": 39239
+          }
+        }
+      },
+      "forgery_flag_auc_type10_vs_benign": {
+        "forged_accesses": 248,
+        "benign_sampled": 30000,
+        "auc": {
+          "self_created_recent": 0.4982,
+          "no_progress": 0.6515,
+          "off_path_creation": 0.5746,
+          "created_off_hours": 0.7415,
+          "cancelled_after_access": 0.6608,
+          "self_creation_high": 0.504,
+          "self_creation_rate": 0.5768
+        },
+        "fire_rate_type10": {
+          "self_created_recent": 0.1452,
+          "no_progress": 0.3185,
+          "off_path_creation": 0.1492,
+          "created_off_hours": 0.5927,
+          "cancelled_after_access": 0.3226,
+          "self_creation_high": 0.0081
+        },
+        "fire_rate_benign": {
+          "self_created_recent": 0.1487,
+          "no_progress": 0.0156,
+          "off_path_creation": 0.0,
+          "created_off_hours": 0.1097,
+          "cancelled_after_access": 0.0009,
+          "self_creation_high": 0.0
+        },
+        "by_variant": {
+          "appointment": {
+            "forged_accesses": 127,
+            "auc": {
+              "self_created_recent": 0.4965,
+              "no_progress": 0.7245,
+              "off_path_creation": 0.6457,
+              "created_off_hours": 0.7326,
+              "cancelled_after_access": 0.7358,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.5697
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.1417,
+              "no_progress": 0.4646,
+              "off_path_creation": 0.2913,
+              "created_off_hours": 0.5748,
+              "cancelled_after_access": 0.4724,
+              "self_creation_high": 0.0
+            }
+          },
+          "lab_order": {
+            "forged_accesses": 25,
+            "auc": {
+              "self_created_recent": 0.5457,
+              "no_progress": 0.8922,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.7652,
+              "cancelled_after_access": 0.8995,
+              "self_creation_high": 0.54,
+              "self_creation_rate": 0.6979
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.24,
+              "no_progress": 0.8,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.64,
+              "cancelled_after_access": 0.8,
+              "self_creation_high": 0.08
+            }
+          },
+          "care_team": {
+            "forged_accesses": 96,
+            "auc": {
+              "self_created_recent": 0.4882,
+              "no_progress": 0.4922,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.7472,
+              "cancelled_after_access": 0.4995,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.5546
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.125,
+              "no_progress": 0.0,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.6042,
+              "cancelled_after_access": 0.0,
+              "self_creation_high": 0.0
+            }
+          }
+        }
       }
     },
     {
       "seed_index": 6,
       "simulation_seed": 20261014,
-      "config_digest": "99f2dbf761b34150e10caca6c6ca353bf5ffa903043385529fc14631ab8890a8",
+      "config_digest": "08eaa6ad8bdfc582b1f7d98fccd861ac5c856ad4b831f4970bfd7ea1cc2f6c5c",
       "passed": true,
       "max_single": {
         "feature": "off_shift",
-        "auc": 0.7814
+        "auc": 0.7675
       },
-      "depth2_tree_auc": 0.8031,
+      "depth2_tree_auc": 0.7893,
       "realism": {
         "run": "v1-s20261014",
-        "hard_negative_share": 0.027576299515157523,
-        "no_show_or_cancelled_share": 0.07856185461618176,
-        "clinician_booked_share": 0.4104750304506699,
-        "incidental_snooping_share": 0.024954032046230628,
-        "snooping_accesses": 3807
+        "hard_negative_share": 0.027707312098825626,
+        "no_show_or_cancelled_share": 0.12870434844588705,
+        "clinician_booked_share": 0.49470720624352843,
+        "appointments_in_run": 467428,
+        "non_walk_in_appointments_in_run": 364774,
+        "appointments_after_run": 48898,
+        "incidental_snooping_share": 0.058737509139653914,
+        "snooping_accesses": 4103,
+        "lab_uncollected_share": 0.049661291404371116,
+        "consultation_lab_orders_in_run": 104367,
+        "followups": {
+          "visits": 420480,
+          "visits_per_patient": 2.594722681608373,
+          "visits_per_patient_seen": 3.357366996430881,
+          "chains": 103474,
+          "chain_lengths": {
+            "1": 46364,
+            "2": 21184,
+            "3": 13614,
+            "4": 11105,
+            "5+": 11207
+          },
+          "longest_chain": 8,
+          "chain_ends": {
+            "missed": 29708,
+            "no_next_booking": 34592,
+            "run_end": 39174
+          }
+        }
+      },
+      "forgery_flag_auc_type10_vs_benign": {
+        "forged_accesses": 273,
+        "benign_sampled": 30000,
+        "auc": {
+          "self_created_recent": 0.4789,
+          "no_progress": 0.652,
+          "off_path_creation": 0.6209,
+          "created_off_hours": 0.7352,
+          "cancelled_after_access": 0.6661,
+          "self_creation_high": 0.5,
+          "self_creation_rate": 0.5112
+        },
+        "fire_rate_type10": {
+          "self_created_recent": 0.1062,
+          "no_progress": 0.3187,
+          "off_path_creation": 0.2418,
+          "created_off_hours": 0.5788,
+          "cancelled_after_access": 0.3333,
+          "self_creation_high": 0.0
+        },
+        "fire_rate_benign": {
+          "self_created_recent": 0.1484,
+          "no_progress": 0.0147,
+          "off_path_creation": 0.0,
+          "created_off_hours": 0.1083,
+          "cancelled_after_access": 0.0012,
+          "self_creation_high": 0.0
+        },
+        "by_variant": {
+          "appointment": {
+            "forged_accesses": 173,
+            "auc": {
+              "self_created_recent": 0.4431,
+              "no_progress": 0.6805,
+              "off_path_creation": 0.6908,
+              "created_off_hours": 0.7464,
+              "cancelled_after_access": 0.6988,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.5115
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.0347,
+              "no_progress": 0.3757,
+              "off_path_creation": 0.3815,
+              "created_off_hours": 0.6012,
+              "cancelled_after_access": 0.3988,
+              "self_creation_high": 0.0
+            }
+          },
+          "lab_order": {
+            "forged_accesses": 25,
+            "auc": {
+              "self_created_recent": 0.5058,
+              "no_progress": 0.9327,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.6859,
+              "cancelled_after_access": 0.9394,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.6575
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.16,
+              "no_progress": 0.88,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.48,
+              "cancelled_after_access": 0.88,
+              "self_creation_high": 0.0
+            }
+          },
+          "care_team": {
+            "forged_accesses": 75,
+            "auc": {
+              "self_created_recent": 0.5525,
+              "no_progress": 0.4927,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.7259,
+              "cancelled_after_access": 0.4994,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.4619
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.2533,
+              "no_progress": 0.0,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.56,
+              "cancelled_after_access": 0.0,
+              "self_creation_high": 0.0
+            }
+          }
+        }
       }
     },
     {
       "seed_index": 7,
       "simulation_seed": 20261015,
-      "config_digest": "b6eb01736924deff478ad2878088fff6f26797680294966abd61be96ffa38e18",
+      "config_digest": "a1b0213e083f7490e9f845d824be475ac6109ed7fc516aa3933f294adb9d7c92",
       "passed": true,
       "max_single": {
         "feature": "off_shift",
-        "auc": 0.7754
+        "auc": 0.7657
       },
-      "depth2_tree_auc": 0.8,
+      "depth2_tree_auc": 0.8062,
       "realism": {
         "run": "v1-s20261015",
-        "hard_negative_share": 0.02747395846050121,
-        "no_show_or_cancelled_share": 0.07802186270223,
-        "clinician_booked_share": 0.4098312199387844,
-        "incidental_snooping_share": 0.029043106083766434,
-        "snooping_accesses": 3271
+        "hard_negative_share": 0.027305724891740747,
+        "no_show_or_cancelled_share": 0.1291450716848334,
+        "clinician_booked_share": 0.49237698423715387,
+        "appointments_in_run": 468253,
+        "non_walk_in_appointments_in_run": 364861,
+        "appointments_after_run": 49063,
+        "incidental_snooping_share": 0.054978209855849815,
+        "snooping_accesses": 2983,
+        "lab_uncollected_share": 0.050069727013964505,
+        "consultation_lab_orders_in_run": 104694,
+        "followups": {
+          "visits": 421133,
+          "visits_per_patient": 2.5961569285018555,
+          "visits_per_patient_seen": 3.346840975919892,
+          "chains": 103478,
+          "chain_lengths": {
+            "1": 46682,
+            "2": 21042,
+            "3": 13585,
+            "4": 10962,
+            "5+": 11207
+          },
+          "longest_chain": 7,
+          "chain_ends": {
+            "missed": 29786,
+            "no_next_booking": 34586,
+            "run_end": 39106
+          }
+        }
+      },
+      "forgery_flag_auc_type10_vs_benign": {
+        "forged_accesses": 170,
+        "benign_sampled": 30000,
+        "auc": {
+          "self_created_recent": 0.4925,
+          "no_progress": 0.6627,
+          "off_path_creation": 0.5206,
+          "created_off_hours": 0.7449,
+          "cancelled_after_access": 0.6731,
+          "self_creation_high": 0.5,
+          "self_creation_rate": 0.4831
+        },
+        "fire_rate_type10": {
+          "self_created_recent": 0.1353,
+          "no_progress": 0.3412,
+          "off_path_creation": 0.0412,
+          "created_off_hours": 0.6,
+          "cancelled_after_access": 0.3471,
+          "self_creation_high": 0.0
+        },
+        "fire_rate_benign": {
+          "self_created_recent": 0.1502,
+          "no_progress": 0.0158,
+          "off_path_creation": 0.0,
+          "created_off_hours": 0.1102,
+          "cancelled_after_access": 0.0009,
+          "self_creation_high": 0.0
+        },
+        "by_variant": {
+          "appointment": {
+            "forged_accesses": 68,
+            "auc": {
+              "self_created_recent": 0.469,
+              "no_progress": 0.8009,
+              "off_path_creation": 0.5515,
+              "created_off_hours": 0.7758,
+              "cancelled_after_access": 0.8157,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.5555
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.0882,
+              "no_progress": 0.6176,
+              "off_path_creation": 0.1029,
+              "created_off_hours": 0.6618,
+              "cancelled_after_access": 0.6324,
+              "self_creation_high": 0.0
+            }
+          },
+          "lab_order": {
+            "forged_accesses": 22,
+            "auc": {
+              "self_created_recent": 0.4249,
+              "no_progress": 0.8557,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.6949,
+              "cancelled_after_access": 0.8632,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.497
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.0,
+              "no_progress": 0.7273,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.5,
+              "cancelled_after_access": 0.7273,
+              "self_creation_high": 0.0
+            }
+          },
+          "care_team": {
+            "forged_accesses": 80,
+            "auc": {
+              "self_created_recent": 0.5312,
+              "no_progress": 0.4921,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.7324,
+              "cancelled_after_access": 0.4995,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.4177
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.2125,
+              "no_progress": 0.0,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.575,
+              "cancelled_after_access": 0.0,
+              "self_creation_high": 0.0
+            }
+          }
+        }
       }
     },
     {
       "seed_index": 8,
       "simulation_seed": 20261016,
-      "config_digest": "c206712e2031c5330cad6d8ba9d7967fea28af26765b8c5a27b161be56445dee",
+      "config_digest": "2591a507af7a8ba7e3a11faa27c7f39eba4ab1073ffa1d684eb7bb5b09f08909",
       "passed": true,
       "max_single": {
         "feature": "off_shift",
-        "auc": 0.7817
+        "auc": 0.7893
       },
-      "depth2_tree_auc": 0.8081,
+      "depth2_tree_auc": 0.8089,
       "realism": {
         "run": "v1-s20261016",
-        "hard_negative_share": 0.0271958821839818,
-        "no_show_or_cancelled_share": 0.07851631339123352,
-        "clinician_booked_share": 0.41068532391577556,
-        "incidental_snooping_share": 0.017798594847775177,
-        "snooping_accesses": 4270
+        "hard_negative_share": 0.026364868531501415,
+        "no_show_or_cancelled_share": 0.12906320989139258,
+        "clinician_booked_share": 0.49450875124461907,
+        "appointments_in_run": 469019,
+        "non_walk_in_appointments_in_run": 365813,
+        "appointments_after_run": 49452,
+        "incidental_snooping_share": 0.0593200468933177,
+        "snooping_accesses": 4265,
+        "lab_uncollected_share": 0.050125456748428214,
+        "consultation_lab_orders_in_run": 104817,
+        "followups": {
+          "visits": 421806,
+          "visits_per_patient": 2.605252430422591,
+          "visits_per_patient_seen": 3.3656971873129864,
+          "chains": 103861,
+          "chain_lengths": {
+            "1": 46659,
+            "2": 21106,
+            "3": 13771,
+            "4": 11041,
+            "5+": 11284
+          },
+          "longest_chain": 7,
+          "chain_ends": {
+            "missed": 29845,
+            "no_next_booking": 34584,
+            "run_end": 39432
+          }
+        }
+      },
+      "forgery_flag_auc_type10_vs_benign": {
+        "forged_accesses": 166,
+        "benign_sampled": 30000,
+        "auc": {
+          "self_created_recent": 0.5689,
+          "no_progress": 0.7749,
+          "off_path_creation": 0.5271,
+          "created_off_hours": 0.7828,
+          "cancelled_after_access": 0.7857,
+          "self_creation_high": 0.503,
+          "self_creation_rate": 0.5989
+        },
+        "fire_rate_type10": {
+          "self_created_recent": 0.2892,
+          "no_progress": 0.5663,
+          "off_path_creation": 0.0542,
+          "created_off_hours": 0.6747,
+          "cancelled_after_access": 0.5723,
+          "self_creation_high": 0.006
+        },
+        "fire_rate_benign": {
+          "self_created_recent": 0.1513,
+          "no_progress": 0.0165,
+          "off_path_creation": 0.0,
+          "created_off_hours": 0.1091,
+          "cancelled_after_access": 0.0008,
+          "self_creation_high": 0.0
+        },
+        "by_variant": {
+          "appointment": {
+            "forged_accesses": 103,
+            "auc": {
+              "self_created_recent": 0.6379,
+              "no_progress": 0.8801,
+              "off_path_creation": 0.5437,
+              "created_off_hours": 0.8629,
+              "cancelled_after_access": 0.8879,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.5466
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.4272,
+              "no_progress": 0.7767,
+              "off_path_creation": 0.0874,
+              "created_off_hours": 0.835,
+              "cancelled_after_access": 0.7767,
+              "self_creation_high": 0.0
+            }
+          },
+          "lab_order": {
+            "forged_accesses": 17,
+            "auc": {
+              "self_created_recent": 0.542,
+              "no_progress": 0.9035,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.8278,
+              "cancelled_after_access": 0.9408,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.6733
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.2353,
+              "no_progress": 0.8235,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.7647,
+              "cancelled_after_access": 0.8824,
+              "self_creation_high": 0.0
+            }
+          },
+          "care_team": {
+            "forged_accesses": 46,
+            "auc": {
+              "self_created_recent": 0.4244,
+              "no_progress": 0.4917,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.5868,
+              "cancelled_after_access": 0.4996,
+              "self_creation_high": 0.5109,
+              "self_creation_rate": 0.6884
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.0,
+              "no_progress": 0.0,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.2826,
+              "cancelled_after_access": 0.0,
+              "self_creation_high": 0.0217
+            }
+          }
+        }
       }
     },
     {
       "seed_index": 9,
       "simulation_seed": 20261017,
-      "config_digest": "9e9e539dcc511ef44b73ecd4ccb299040e032d46dd92530982b0786fe6fef137",
+      "config_digest": "5ca15d803ead2db26318b18862f8c056df813a952a3bcee40d5dd554c371a0f5",
       "passed": true,
       "max_single": {
         "feature": "off_shift",
-        "auc": 0.768
+        "auc": 0.7775
       },
-      "depth2_tree_auc": 0.8032,
+      "depth2_tree_auc": 0.8041,
       "realism": {
         "run": "v1-s20261017",
-        "hard_negative_share": 0.026929390738222172,
-        "no_show_or_cancelled_share": 0.07854371307721886,
-        "clinician_booked_share": 0.40874436326773167,
-        "incidental_snooping_share": 0.02612393681652491,
-        "snooping_accesses": 3292
+        "hard_negative_share": 0.02761794306880945,
+        "no_show_or_cancelled_share": 0.1286406637823223,
+        "clinician_booked_share": 0.4959479457846891,
+        "appointments_in_run": 468281,
+        "non_walk_in_appointments_in_run": 365421,
+        "appointments_after_run": 48892,
+        "incidental_snooping_share": 0.06010230179028133,
+        "snooping_accesses": 3128,
+        "lab_uncollected_share": 0.04823424784600231,
+        "consultation_lab_orders_in_run": 104573,
+        "followups": {
+          "visits": 421273,
+          "visits_per_patient": 2.6070971055839887,
+          "visits_per_patient_seen": 3.3723153032716677,
+          "chains": 103967,
+          "chain_lengths": {
+            "1": 46586,
+            "2": 21242,
+            "3": 13717,
+            "4": 11192,
+            "5+": 11230
+          },
+          "longest_chain": 8,
+          "chain_ends": {
+            "missed": 29845,
+            "no_next_booking": 34826,
+            "run_end": 39296
+          }
+        }
+      },
+      "forgery_flag_auc_type10_vs_benign": {
+        "forged_accesses": 188,
+        "benign_sampled": 30000,
+        "auc": {
+          "self_created_recent": 0.5429,
+          "no_progress": 0.7052,
+          "off_path_creation": 0.5878,
+          "created_off_hours": 0.7641,
+          "cancelled_after_access": 0.7124,
+          "self_creation_high": 0.5027,
+          "self_creation_rate": 0.586
+        },
+        "fire_rate_type10": {
+          "self_created_recent": 0.234,
+          "no_progress": 0.4255,
+          "off_path_creation": 0.1755,
+          "created_off_hours": 0.6383,
+          "cancelled_after_access": 0.4255,
+          "self_creation_high": 0.0053
+        },
+        "fire_rate_benign": {
+          "self_created_recent": 0.1483,
+          "no_progress": 0.0151,
+          "off_path_creation": 0.0,
+          "created_off_hours": 0.1101,
+          "cancelled_after_access": 0.0007,
+          "self_creation_high": 0.0
+        },
+        "by_variant": {
+          "appointment": {
+            "forged_accesses": 104,
+            "auc": {
+              "self_created_recent": 0.5893,
+              "no_progress": 0.8146,
+              "off_path_creation": 0.6587,
+              "created_off_hours": 0.7911,
+              "cancelled_after_access": 0.8218,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.5555
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.3269,
+              "no_progress": 0.6442,
+              "off_path_creation": 0.3173,
+              "created_off_hours": 0.6923,
+              "cancelled_after_access": 0.6442,
+              "self_creation_high": 0.0
+            }
+          },
+          "lab_order": {
+            "forged_accesses": 13,
+            "auc": {
+              "self_created_recent": 0.4259,
+              "no_progress": 0.9925,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.8296,
+              "cancelled_after_access": 0.9996,
+              "self_creation_high": 0.5385,
+              "self_creation_rate": 0.7667
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.0,
+              "no_progress": 1.0,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.7692,
+              "cancelled_after_access": 1.0,
+              "self_creation_high": 0.0769
+            }
+          },
+          "care_team": {
+            "forged_accesses": 71,
+            "auc": {
+              "self_created_recent": 0.4963,
+              "no_progress": 0.4925,
+              "off_path_creation": 0.5,
+              "created_off_hours": 0.7126,
+              "cancelled_after_access": 0.4996,
+              "self_creation_high": 0.5,
+              "self_creation_rate": 0.5976
+            },
+            "fire_rate_type10": {
+              "self_created_recent": 0.1408,
+              "no_progress": 0.0,
+              "off_path_creation": 0.0,
+              "created_off_hours": 0.5352,
+              "cancelled_after_access": 0.0,
+              "self_creation_high": 0.0
+            }
+          }
+        }
       }
     }
   ],

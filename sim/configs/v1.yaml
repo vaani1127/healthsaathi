@@ -16,7 +16,7 @@ attacks:
   # Share of snooping accesses (types 1, 2 and 6, where the target is not one specific person)
   # moved to a patient with an unrelated appointment that day. Author chosen; see
   # experiments/PREREGISTRATION.md section 1.
-  incidental_share: 0.0
+  incidental_share: 0.05
 
 # Generator settings that decide how hard the explanation layer's job is. Author chosen and
 # frozen by the pre-registration. Null keeps each clinic profile's own value.
