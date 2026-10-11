@@ -210,7 +210,12 @@ v1 before this commit.
 
 ## 9. Deviations
 
-None yet. Any change after registration is listed here with its reason and effect.
+Any change after registration is listed here with its reason and effect.
+
+- Resumable runs (asked for by the authors before the final runs). The runner saves each finished
+  seed's results under `<out>/seeds/` and reuses them when a stopped run is started again with the
+  same settings. Reason: the final runs take many hours. Effect on results: none; a reused seed
+  has exactly the rows it had when it was computed (test: `experiments/tests/test_resume.py`).
 
 ## 10. Registration record
 

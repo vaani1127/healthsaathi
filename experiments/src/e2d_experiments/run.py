@@ -8,6 +8,7 @@ Outputs go to `<out>/results.parquet`, `summary.parquet`, `tests.parquet`, `tabl
 `figures/`. Only a run of the pre-registered final config should export into paper/.
 """
 
+import hashlib
 import json
 import logging
 import time
@@ -150,6 +151,49 @@ def log_mlflow(cfg: DictConfig, results: pl.DataFrame) -> None:
             )
 
 
+RESULT_SCHEMA: dict[str, Any] = {
+    "seed": pl.Int64, "split": pl.String, "ablation": pl.String, "method": pl.String,
+    "budget": pl.Int64, "metric": pl.String, "group": pl.String, "value": pl.Float64,
+}  # fmt: skip
+CLINIC_SCHEMA: dict[str, Any] = {
+    "seed": pl.Int64, "split": pl.String, "ablation": pl.String, "method": pl.String,
+    "budget": pl.Int64, "clinic_index": pl.Int64, "attacks": pl.Int64, "hits": pl.Int64,
+    "alerts": pl.Int64,
+}  # fmt: skip
+# Settings that do not change a seed's results; a finished seed is reused across them.
+NOT_RESULT_SETTINGS = ("seeds", "out", "export", "mlflow", "workers")
+
+
+def fingerprint(cfg: DictConfig) -> str:
+    """Hash of every setting that shapes a seed's results."""
+    settings = OmegaConf.to_container(cfg, resolve=True)
+    assert isinstance(settings, dict)
+    kept = {k: v for k, v in settings.items() if k not in NOT_RESULT_SETTINGS}
+    return hashlib.sha256(json.dumps(kept, sort_keys=True).encode()).hexdigest()
+
+
+def seed_results(
+    cfg: DictConfig, seed: int, out: Path
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """A seed's result rows. Each finished seed is saved under `<out>/seeds/`, so a run that
+    stops part way continues from the next seed; a saved seed is used only if it was made with
+    the same settings."""
+    folder = out / "seeds"
+    rows_file, clinics_file = folder / f"{seed}-results.parquet", folder / f"{seed}-clinics.parquet"
+    marker = folder / f"{seed}.json"
+    digest = fingerprint(cfg)
+    if marker.exists() and json.loads(marker.read_text(encoding="utf-8"))["fingerprint"] == digest:
+        logger.info("seed %s already finished; reusing its results", seed)
+        return pl.read_parquet(rows_file).to_dicts(), pl.read_parquet(clinics_file).to_dicts()
+    found, per_clinic = run_seed(cfg, seed, out)
+    folder.mkdir(parents=True, exist_ok=True)
+    pl.DataFrame(found, schema=RESULT_SCHEMA).write_parquet(rows_file)
+    pl.DataFrame(per_clinic, schema=CLINIC_SCHEMA).write_parquet(clinics_file)
+    # Written last: a seed counts as finished only once both files are complete.
+    marker.write_text(json.dumps({"seed": seed, "fingerprint": digest}), encoding="utf-8")
+    return found, per_clinic
+
+
 @hydra.main(config_path="../../configs", config_name="config", version_base="1.3")
 def main(cfg: DictConfig) -> None:
     out = Path(cfg.out)
@@ -158,19 +202,12 @@ def main(cfg: DictConfig) -> None:
     rows: list[dict[str, Any]] = []
     clinic_rows: list[dict[str, Any]] = []
     for seed in cfg.seeds:
-        found, per_clinic = run_seed(cfg, int(seed), out)
+        found, per_clinic = seed_results(cfg, int(seed), out)
         rows += found
         clinic_rows += per_clinic
-    results = pl.DataFrame(rows, schema={
-        "seed": pl.Int64, "split": pl.String, "ablation": pl.String, "method": pl.String,
-        "budget": pl.Int64, "metric": pl.String, "group": pl.String, "value": pl.Float64,
-    })  # fmt: skip
+    results = pl.DataFrame(rows, schema=RESULT_SCHEMA)
     results.write_parquet(out / "results.parquet")
-    clinics = pl.DataFrame(clinic_rows, schema={
-        "seed": pl.Int64, "split": pl.String, "ablation": pl.String, "method": pl.String,
-        "budget": pl.Int64, "clinic_index": pl.Int64, "attacks": pl.Int64, "hits": pl.Int64,
-        "alerts": pl.Int64,
-    })  # fmt: skip
+    clinics = pl.DataFrame(clinic_rows, schema=CLINIC_SCHEMA)
     clinics.write_parquet(out / "clinic_results.parquet")
     summary = stats.summarise(results, clinics)
     summary.write_parquet(out / "summary.parquet")
