@@ -61,6 +61,11 @@ const inviteRoute = createRoute({
   }),
   component: lazyRouteComponent(() => import("@/features/auth/InvitePage"), "InvitePage"),
 });
+const devMailboxRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dev/mailbox",
+  component: lazyRouteComponent(() => import("@/features/dev/DevMailboxPage"), "DevMailboxPage"),
+});
 const patientLoginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/patient/login",
@@ -210,6 +215,7 @@ const routeTree = rootRoute.addChildren([
   verifyRoute,
   patientLoginRoute,
   inviteRoute,
+  devMailboxRoute,
   appRoute.addChildren([
     receptionRoute,
     receptionPatientRoute,

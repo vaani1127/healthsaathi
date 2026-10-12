@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-import { API_URL } from "@/lib/config";
+import { wsUrl } from "@/lib/config";
 import { useAuth } from "@/stores/auth";
 
 const QUERY_KEYS: Record<string, string[][]> = {
@@ -27,7 +27,7 @@ export function useRealtime(): void {
     let delay = 1000;
 
     const connect = () => {
-      socket = new WebSocket(`${API_URL.replace(/^http/, "ws")}/api/v1/ws`);
+      socket = new WebSocket(wsUrl("/api/v1/ws"));
       socket.onopen = () => {
         socket?.send(JSON.stringify({ type: "auth", token: useAuth.getState().token?.access_token }));
         delay = 1000;

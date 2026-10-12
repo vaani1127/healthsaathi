@@ -8,6 +8,7 @@ import { Alert, Field, Input } from "@/components/ui/form";
 import { AuthCard } from "@/features/auth/AuthCard";
 import { finishSignIn } from "@/features/auth/finish";
 import { api, call } from "@/lib/api/client";
+import { DEV_MAILBOX } from "@/lib/config";
 import { errorMessage } from "@/lib/format";
 
 export function PatientLoginPage() {
@@ -78,6 +79,11 @@ export function PatientLoginPage() {
           <Button type="button" variant="ghost" onClick={() => request.mutate()}>
             {t("portal.resend")}
           </Button>
+        )}
+        {sent && DEV_MAILBOX && (
+          <a href="/dev/mailbox" target="_blank" rel="noreferrer" className="text-center text-sm text-primary underline">
+            {t("devMailbox.link")}
+          </a>
         )}
       </form>
     </AuthCard>

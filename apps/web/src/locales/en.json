@@ -794,5 +794,13 @@
     "end": "End",
     "add": "Add to care team",
     "addButton": "Add"
+  },
+  "devMailbox": {
+    "title": "Dev mailbox",
+    "explain": "Local development only. Emails the app would send, such as sign-in codes, appear here instead of being sent.",
+    "filter": "Show only emails to",
+    "empty": "No emails yet.",
+    "to": "To {{to}}",
+    "link": "Open the dev mailbox to read the code (local only)"
   }
 }

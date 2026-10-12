@@ -36,9 +36,16 @@ export default defineConfig({
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        // config.js is replaced per deployment, so it is fetched fresh (cached copy when offline).
+        globIgnores: ["config.js"],
         // SPEC 4: today's queue is available offline. Notes, labs and prescriptions are never
         // cached. The cache is cleared on sign out.
         runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname === "/config.js",
+            handler: "NetworkFirst",
+            options: { cacheName: "hs-config", networkTimeoutSeconds: 3 },
+          },
           {
             urlPattern: ({ url }) => url.pathname === "/api/v1/queue",
             handler: "NetworkFirst",
