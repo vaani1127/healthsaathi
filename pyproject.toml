@@ -45,7 +45,7 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-extend-exclude = ["apps/api/migrations/versions", "contracts/lib", "node_modules"]
+extend-exclude = ["apps/api/migrations/versions", "contracts/lib", "node_modules", "experiments/results"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "N", "S", "SIM", "RUF", "ASYNC"]

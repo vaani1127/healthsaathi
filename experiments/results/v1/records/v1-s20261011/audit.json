@@ -1,0 +1,100 @@
+{
+  "run": "experiments/outputs/v1/none/runs/v1-s20261011",
+  "threshold": 0.9,
+  "attacks": 9947,
+  "benign_sampled": 400000,
+  "single_feature_auc": {
+    "accesses_1h": 0.609,
+    "accesses_24h": 0.5369,
+    "accesses_7d": 0.5164,
+    "patients_1h": 0.5375,
+    "patients_24h": 0.5034,
+    "patients_7d": 0.5009,
+    "exports_1h": 0.5745,
+    "exports_24h": 0.5704,
+    "exports_7d": 0.566,
+    "off_shift": 0.7698,
+    "new_device": 0.5376,
+    "session_age_min": 0.5083,
+    "hour_local": 0.574,
+    "weekday": 0.5348,
+    "refused": 0.5083
+  },
+  "max_single": {
+    "feature": "off_shift",
+    "auc": 0.7698
+  },
+  "depth2_tree_auc": 0.7996,
+  "by_attack_type_info": {
+    "1": {
+      "attacks": 445,
+      "best_feature": "off_shift",
+      "best_auc": 0.746
+    },
+    "2": {
+      "attacks": 342,
+      "best_feature": "off_shift",
+      "best_auc": 0.7583
+    },
+    "3": {
+      "attacks": 963,
+      "best_feature": "off_shift",
+      "best_auc": 0.8042
+    },
+    "4": {
+      "attacks": 949,
+      "best_feature": "off_shift",
+      "best_auc": 0.7504
+    },
+    "5": {
+      "attacks": 2424,
+      "best_feature": "exports_1h",
+      "best_auc": 0.9633
+    },
+    "6": {
+      "attacks": 2718,
+      "best_feature": "accesses_1h",
+      "best_auc": 0.8026
+    },
+    "7": {
+      "attacks": 1189,
+      "best_feature": "session_age_min",
+      "best_auc": 0.9273
+    },
+    "8": {
+      "attacks": 504,
+      "best_feature": "off_shift",
+      "best_auc": 0.7731
+    },
+    "9": {
+      "attacks": 266,
+      "best_feature": "accesses_7d",
+      "best_auc": 0.8196
+    },
+    "10": {
+      "attacks": 147,
+      "best_feature": "accesses_1h",
+      "best_auc": 0.8203
+    }
+  },
+  "status_history": {
+    "appointments": {
+      "rows": 517315,
+      "incomplete": 0
+    },
+    "lab_orders": {
+      "rows": 104714,
+      "incomplete": 0
+    },
+    "referrals": {
+      "rows": 14135,
+      "incomplete": 0
+    },
+    "invoices": {
+      "rows": 421282,
+      "incomplete": 0
+    }
+  },
+  "passed": true,
+  "failures": []
+}

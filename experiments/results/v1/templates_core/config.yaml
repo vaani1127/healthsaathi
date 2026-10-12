@@ -1,0 +1,47 @@
+data:
+  name: v1
+  sim_config: sim/configs/v1.yaml
+  base_seed: 20261008
+  require_audit: true
+ablation:
+  name: templates_core
+  templates:
+  - T_APPT
+  - T_QUEUE
+  - T_FRONTDESK
+  - T_LAB
+  - T_SELF
+seeds:
+- 0
+- 1
+- 2
+- 3
+- 4
+- 5
+- 6
+- 7
+- 8
+- 9
+splits:
+- temporal
+- clinic
+- attack
+- user
+budgets:
+- 3
+- 5
+- 10
+methods:
+- e2d
+- b5_explanation_only
+- upper_lightgbm
+vae_epochs: 3
+workers: 4
+out: experiments/outputs/v1/templates_core
+export:
+  tables: /dev/shm/scratch/templates_core-sall/tables
+  figures: /dev/shm/scratch/templates_core-sall/figures
+mlflow:
+  enabled: false
+  tracking_uri: sqlite:///experiments/mlruns/mlflow.db
+  experiment: e2d-${data.name}

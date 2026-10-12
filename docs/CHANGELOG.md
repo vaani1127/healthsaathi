@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Results of the registered v1 experiments
+
+- The main run, the 16 ablations and the ECOD and COPOD scorer variants of the registered plan
+  (experiments/PREREGISTRATION.md at 14f5feb), 10 seeds each. Summaries, tests, per-seed metric
+  rows, configs, run manifests and audits are in `experiments/results/v1/`; the tables and
+  figures written by the pipeline are in `paper/tables` and `paper/figures`. How the runs were
+  executed, and every change made after registration, is in section 9 of the pre-registration.
+- `e2d_experiments.paper_figures` draws the paper figures (vector PDF and 300 DPI PNG) from the
+  committed results only; diagnostics that are not registered results are in
+  `experiments/results/v1/diagnostics.json` and `diagnostics2.json`.
+
 ### Experiments: B3 without full-size sequence copies
 
 - The sequence VAE (B3) samples its 100,000 training accesses before building their sequences

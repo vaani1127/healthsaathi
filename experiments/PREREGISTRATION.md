@@ -225,6 +225,43 @@ Any change after registration is listed here with its reason and effect.
   code (`experiments/tests/test_sequence_vae.py` compares against the old implementation). On
   seed 0's temporal split B3 now fits in 16.5 s and scores 2.2 million accesses in 7.1 s on CPU,
   adding about 1.3 GB of memory. B3 stays on the CPU, as registered.
+- Where and how the final runs were executed (no effect on the method). The final runs ran on a
+  rented Linux machine (46 CPU cores, about 190 GB of RAM) from commit e74e66f, with the locked
+  package versions (CPU PyTorch; no GPU code was used). Before the main run, seed 0 was simulated
+  there and its separability audit matched `experiments/audit/v1/audit-seed0.json` exactly. Every
+  final run used 4 threads per process (`POLARS_MAX_THREADS`, `OMP_NUM_THREADS`,
+  `OPENBLAS_NUM_THREADS`, `MKL_NUM_THREADS`) and 4 worker processes per seed, with seeds run as
+  separate processes and combined afterwards from the saved per-seed results. Thread counts can
+  change floating-point results in the last digits, so all reported runs use this one setting.
+- Ablations that use the main run's data unchanged (`no_forgery`, `no_graph`, `role_onehot`,
+  `role_per_role`, `learning_curve_10/25/50`, `window_1h/24h/7d`) were run for E2D only, and the
+  scorer variants (E2D with ECOD and COPOD) for those two methods only (approved by the authors
+  before the final runs). These ablations change only E2D's features or training, so B0 to B5 and
+  the upper bound would be refitted on identical data with identical settings; their results are
+  those of the main run. `templates_core` changes the explanations, so E2D, B5 and the upper bound
+  were run there, and only B0 to B4 come from the main run.
+- `mimicry_0` was run without the separability-audit gate (approved by the authors during the
+  final runs). Re-simulated with every campaign at mimicry 0, its data fails the registered audit
+  on all 10 seeds (`off_shift` ROC-AUC 0.969 to 0.979 and depth-2 tree 0.972 to 0.982, threshold
+  0.9; `experiments/results/v1/records/v1-mimicry_0-*/audit.json`), so the pipeline refused to
+  use it. All 50 other simulated runs passed. Section 7 lists it as a descriptive ablation, so it was run with
+  `data.require_audit=false` and its results are reported as outside the audited regime, together
+  with its audit results. No other run was exempted from the gate.
+- The measured hard-negative share of `hard_neg_half` and `hard_neg_double` (section 7) was not
+  written by the pipeline, so it was measured after the runs with `saathibench.realism`, from the
+  same simulated data (`experiments/results/v1/execution/extra.py`, output in
+  `experiments/results/v1/diagnostics.json`): 0.016 (0.015 to 0.017) and 0.049 (0.048 to 0.050)
+  over the 10 seeds, against 0.027 (0.026 to 0.028) in the main run. Three `hard_neg_half` runs
+  simulated again on another machine had the same configuration fingerprint and row counts and
+  gave the same shares. The same script reports two diagnostics that are not registered results:
+  the false-explanation rate per attack type, and E2D's PR-AUC per clinic next to the pooled one.
+  A second script (`experiments/results/v1/execution/extra2.py`, output in
+  `experiments/results/v1/diagnostics2.json`) reports which template explains the falsely
+  explained attacks, the distribution of explanation strength, coverage per role and what E2D's
+  benign alerts at B = 5 are; it also recomputed E2D's recall@5 on every seed and matched the
+  registered value exactly. Figures for the paper are drawn from the committed results by
+  `e2d_experiments.paper_figures`, which was added after the runs and computes no new result
+  (the per-seed paired differences it plots are the ones the registered tests use).
 
 ## 10. Registration record
 

@@ -95,3 +95,8 @@ Thumbs.db
 desktop.ini
 .pip-audit-requirements.txt
 requirements-audit.txt
+
+# Downloaded archives of experiment runs (the committed results are in experiments/results)
+results-*.tar.gz
+# Result summaries of the registered runs are small and committed; raw Parquet stays ignored
+!experiments/results/**/*.parquet

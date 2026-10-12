@@ -1,0 +1,39 @@
+data:
+  name: v1
+  sim_config: sim/configs/v1.yaml
+  base_seed: 20261008
+  require_audit: true
+ablation:
+  name: no_graph
+seeds:
+- 0
+- 1
+- 2
+- 3
+- 4
+- 5
+- 6
+- 7
+- 8
+- 9
+splits:
+- temporal
+- clinic
+- attack
+- user
+budgets:
+- 3
+- 5
+- 10
+methods:
+- e2d
+vae_epochs: 3
+workers: 4
+out: experiments/outputs/v1/no_graph
+export:
+  tables: /dev/shm/scratch/no_graph-sall/tables
+  figures: /dev/shm/scratch/no_graph-sall/figures
+mlflow:
+  enabled: false
+  tracking_uri: sqlite:///experiments/mlruns/mlflow.db
+  experiment: e2d-${data.name}

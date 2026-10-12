@@ -1,0 +1,100 @@
+{
+  "run": "experiments/outputs/v1/none/runs/v1-s20261016",
+  "threshold": 0.9,
+  "attacks": 10606,
+  "benign_sampled": 400000,
+  "single_feature_auc": {
+    "accesses_1h": 0.6159,
+    "accesses_24h": 0.5089,
+    "accesses_7d": 0.5242,
+    "patients_1h": 0.5425,
+    "patients_24h": 0.5429,
+    "patients_7d": 0.529,
+    "exports_1h": 0.564,
+    "exports_24h": 0.5857,
+    "exports_7d": 0.5794,
+    "off_shift": 0.7893,
+    "new_device": 0.5603,
+    "session_age_min": 0.5169,
+    "hour_local": 0.613,
+    "weekday": 0.54,
+    "refused": 0.5057
+  },
+  "max_single": {
+    "feature": "off_shift",
+    "auc": 0.7893
+  },
+  "depth2_tree_auc": 0.8089,
+  "by_attack_type_info": {
+    "1": {
+      "attacks": 371,
+      "best_feature": "off_shift",
+      "best_auc": 0.7671
+    },
+    "2": {
+      "attacks": 225,
+      "best_feature": "accesses_1h",
+      "best_auc": 0.7449
+    },
+    "3": {
+      "attacks": 847,
+      "best_feature": "off_shift",
+      "best_auc": 0.7802
+    },
+    "4": {
+      "attacks": 743,
+      "best_feature": "off_shift",
+      "best_auc": 0.6934
+    },
+    "5": {
+      "attacks": 2044,
+      "best_feature": "exports_1h",
+      "best_auc": 0.9676
+    },
+    "6": {
+      "attacks": 3669,
+      "best_feature": "off_shift",
+      "best_auc": 0.784
+    },
+    "7": {
+      "attacks": 1761,
+      "best_feature": "session_age_min",
+      "best_auc": 0.9232
+    },
+    "8": {
+      "attacks": 553,
+      "best_feature": "off_shift",
+      "best_auc": 0.805
+    },
+    "9": {
+      "attacks": 227,
+      "best_feature": "off_shift",
+      "best_auc": 0.8414
+    },
+    "10": {
+      "attacks": 166,
+      "best_feature": "patients_1h",
+      "best_auc": 0.8334
+    }
+  },
+  "status_history": {
+    "appointments": {
+      "rows": 518471,
+      "incomplete": 0
+    },
+    "lab_orders": {
+      "rows": 104828,
+      "incomplete": 0
+    },
+    "referrals": {
+      "rows": 14023,
+      "incomplete": 0
+    },
+    "invoices": {
+      "rows": 421802,
+      "incomplete": 0
+    }
+  },
+  "passed": true,
+  "failures": []
+}

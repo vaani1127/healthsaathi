@@ -1,0 +1,103 @@
+{
+  "run": "experiments/outputs/v1/mimicry_0/runs/v1-mimicry_0-s20261009",
+  "threshold": 0.9,
+  "attacks": 14701,
+  "benign_sampled": 400000,
+  "single_feature_auc": {
+    "accesses_1h": 0.6377,
+    "accesses_24h": 0.5348,
+    "accesses_7d": 0.5638,
+    "patients_1h": 0.5876,
+    "patients_24h": 0.5304,
+    "patients_7d": 0.5393,
+    "exports_1h": 0.5626,
+    "exports_24h": 0.6165,
+    "exports_7d": 0.5999,
+    "off_shift": 0.9754,
+    "new_device": 0.5798,
+    "session_age_min": 0.5357,
+    "hour_local": 0.5619,
+    "weekday": 0.5035,
+    "refused": 0.5111
+  },
+  "max_single": {
+    "feature": "off_shift",
+    "auc": 0.9754
+  },
+  "depth2_tree_auc": 0.9814,
+  "by_attack_type_info": {
+    "1": {
+      "attacks": 250,
+      "best_feature": "off_shift",
+      "best_auc": 0.9762
+    },
+    "2": {
+      "attacks": 222,
+      "best_feature": "off_shift",
+      "best_auc": 0.9862
+    },
+    "3": {
+      "attacks": 1339,
+      "best_feature": "off_shift",
+      "best_auc": 0.9862
+    },
+    "4": {
+      "attacks": 664,
+      "best_feature": "off_shift",
+      "best_auc": 0.9862
+    },
+    "5": {
+      "attacks": 2686,
+      "best_feature": "exports_1h",
+      "best_auc": 0.9903
+    },
+    "6": {
+      "attacks": 5958,
+      "best_feature": "off_shift",
+      "best_auc": 0.9612
+    },
+    "7": {
+      "attacks": 2345,
+      "best_feature": "new_device",
+      "best_auc": 1.0
+    },
+    "8": {
+      "attacks": 686,
+      "best_feature": "off_shift",
+      "best_auc": 0.9818
+    },
+    "9": {
+      "attacks": 226,
+      "best_feature": "off_shift",
+      "best_auc": 0.9796
+    },
+    "10": {
+      "attacks": 325,
+      "best_feature": "off_shift",
+      "best_auc": 0.977
+    }
+  },
+  "status_history": {
+    "appointments": {
+      "rows": 517470,
+      "incomplete": 0
+    },
+    "lab_orders": {
+      "rows": 104312,
+      "incomplete": 0
+    },
+    "referrals": {
+      "rows": 13884,
+      "incomplete": 0
+    },
+    "invoices": {
+      "rows": 421231,
+      "incomplete": 0
+    }
+  },
+  "passed": false,
+  "failures": [
+    "off_shift 0.9754",
+    "depth-2 tree 0.9814"
+  ]
+}

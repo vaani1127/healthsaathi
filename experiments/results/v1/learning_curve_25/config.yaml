@@ -1,0 +1,40 @@
+data:
+  name: v1
+  sim_config: sim/configs/v1.yaml
+  base_seed: 20261008
+  require_audit: true
+ablation:
+  name: learning_curve_25
+  train_share: 0.25
+seeds:
+- 0
+- 1
+- 2
+- 3
+- 4
+- 5
+- 6
+- 7
+- 8
+- 9
+splits:
+- temporal
+- clinic
+- attack
+- user
+budgets:
+- 3
+- 5
+- 10
+methods:
+- e2d
+vae_epochs: 3
+workers: 4
+out: experiments/outputs/v1/learning_curve_25
+export:
+  tables: /dev/shm/scratch/learning_curve_25-sall/tables
+  figures: /dev/shm/scratch/learning_curve_25-sall/figures
+mlflow:
+  enabled: false
+  tracking_uri: sqlite:///experiments/mlruns/mlflow.db
+  experiment: e2d-${data.name}

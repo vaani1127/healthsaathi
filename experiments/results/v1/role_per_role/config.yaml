@@ -1,0 +1,39 @@
+data:
+  name: v1
+  sim_config: sim/configs/v1.yaml
+  base_seed: 20261008
+  require_audit: true
+ablation:
+  name: role_per_role
+seeds:
+- 0
+- 1
+- 2
+- 3
+- 4
+- 5
+- 6
+- 7
+- 8
+- 9
+splits:
+- temporal
+- clinic
+- attack
+- user
+budgets:
+- 3
+- 5
+- 10
+methods:
+- e2d
+vae_epochs: 3
+workers: 4
+out: experiments/outputs/v1/role_per_role
+export:
+  tables: /dev/shm/scratch/role_per_role-sall/tables
+  figures: /dev/shm/scratch/role_per_role-sall/figures
+mlflow:
+  enabled: false
+  tracking_uri: sqlite:///experiments/mlruns/mlflow.db
+  experiment: e2d-${data.name}
