@@ -1227,7 +1227,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List Referrals */
+        get: operations["list_referrals_api_v1_patients__patient_id__referrals_get"];
         put?: never;
         /** Refer */
         post: operations["refer_api_v1_patients__patient_id__referrals_post"];
@@ -6074,6 +6075,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PrescriptionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_referrals_api_v1_patients__patient_id__referrals_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                patient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralOut"][];
                 };
             };
             /** @description Validation Error */

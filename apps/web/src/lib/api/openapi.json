@@ -9061,6 +9061,56 @@
       }
     },
     "/api/v1/patients/{patient_id}/referrals": {
+      "get": {
+        "operationId": "list_referrals_api_v1_patients__patient_id__referrals_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReferralOut"
+                  },
+                  "title": "Response List Referrals Api V1 Patients  Patient Id  Referrals Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Referrals",
+        "tags": [
+          "clinical"
+        ]
+      },
       "post": {
         "operationId": "refer_api_v1_patients__patient_id__referrals_post",
         "parameters": [

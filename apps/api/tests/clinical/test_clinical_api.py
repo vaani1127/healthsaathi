@@ -434,6 +434,21 @@ async def test_referral_explains_the_other_doctor(
     )
     assert self_ref.status_code == 422
 
+    listed = await client.get(
+        f"/api/v1/patients/{visit['patient']}/referrals", headers=specialist.headers
+    )
+    assert listed.status_code == 200
+    assert [r["id"] for r in listed.json()] == [ref.json()["id"]]
+    nurse = await client.get(
+        f"/api/v1/patients/{visit['patient']}/referrals", headers=staff[Role.NURSE].headers
+    )
+    assert nurse.status_code == 403
+    outsider = await make_actor(admin_engine, await make_clinic(admin_engine), Role.DOCTOR)
+    other = await client.get(
+        f"/api/v1/patients/{visit['patient']}/referrals", headers=outsider.headers
+    )
+    assert other.status_code == 404, "a doctor of another clinic cannot list them"
+
     done = await client.patch(
         f"/api/v1/referrals/{ref.json()['id']}",
         json={"status": "completed"},

@@ -721,6 +721,16 @@ async def refer(
     return referral
 
 
+async def list_referrals(
+    db: AsyncSession, principal: ClinicPrincipal, patient_id: uuid.UUID, req: RequestInfo
+) -> Sequence[Referral]:
+    await _record(db, principal, patient_id, R.NOTES, A.VIEW, req, op="referral.list")
+    rows = await db.scalars(
+        select(Referral).where(Referral.patient_id == patient_id).order_by(Referral.created_at.desc())
+    )
+    return rows.all()
+
+
 async def update_referral(
     db: AsyncSession,
     principal: ClinicPrincipal,

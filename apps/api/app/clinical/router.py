@@ -294,6 +294,14 @@ async def refer(
     )
 
 
+@router.get("/patients/{patient_id}/referrals", response_model=list[schemas.ReferralOut])
+async def list_referrals(
+    principal: Doctor, patient_id: uuid.UUID, db: Db, req: ReqInfo
+) -> list[schemas.ReferralOut]:
+    rows = await service.list_referrals(db, principal, patient_id, req)
+    return [schemas.ReferralOut.model_validate(r) for r in rows]
+
+
 @router.patch("/referrals/{referral_id}", response_model=schemas.ReferralOut)
 async def update_referral(
     principal: Doctor,
