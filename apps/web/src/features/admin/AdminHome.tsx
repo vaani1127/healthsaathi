@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, Badge, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Alerts } from "@/features/admin/Alerts";
+import { Shifts } from "@/features/admin/Shifts";
 import { api, call, type Role, type Schemas } from "@/lib/api/client";
 import { errorMessage, formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const TABS = ["alerts", "staff", "schedules", "services", "consent", "breakGlass", "reports", "revenue", "audit"] as const;
+const TABS = ["alerts", "staff", "schedules", "shifts", "services", "consent", "breakGlass", "reports", "revenue", "audit"] as const;
 type Tab = (typeof TABS)[number];
 
 export function AdminHome() {
@@ -37,6 +38,7 @@ export function AdminHome() {
       {tab === "alerts" && <Alerts />}
       {tab === "staff" && <Staff />}
       {tab === "schedules" && <Schedules />}
+      {tab === "shifts" && <Shifts />}
       {tab === "services" && <Services />}
       {tab === "consent" && <Notices />}
       {tab === "breakGlass" && <BreakGlassQueue />}

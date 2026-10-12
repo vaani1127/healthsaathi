@@ -209,7 +209,11 @@
     "portalTitle": "Patient portal",
     "portalExplain": "Let the patient see their record, prescriptions and access log with their own email.",
     "portalGrant": "Give portal access",
-    "portalSent": "Done. The patient can now sign in with this email."
+    "portalSent": "Done. The patient can now sign in with this email.",
+    "noShow": "No-show",
+    "cancelAppointment": "Cancel",
+    "cancelConfirm": "Cancel the appointment of {{name}}?",
+    "searching": "Searching..."
   },
   "appointmentStatus": {
     "booked": "Booked",
@@ -265,7 +269,9 @@
     "none": "No known allergies.",
     "substance": "Substance",
     "severity": "Severity",
-    "add": "Add allergy"
+    "add": "Add allergy",
+    "deactivate": "Mark inactive",
+    "reactivate": "Mark active"
   },
   "conditions": {
     "title": "Active conditions",
@@ -561,7 +567,8 @@
       "reports": "Patient reports",
       "revenue": "Revenue",
       "audit": "Audit log",
-      "alerts": "Alerts"
+      "alerts": "Alerts",
+      "shifts": "Shifts"
     },
     "staff": "Staff",
     "invite": "Invite staff",
@@ -656,7 +663,17 @@
         "export": "exported",
         "print": "printed"
       }
-    }
+    },
+    "shifts": "Shifts this week",
+    "shiftsExplain": "Staff on shift can open records for their work that day.",
+    "noShifts": "No shifts in the next 7 days.",
+    "until": "to",
+    "cancelShift": "Cancel",
+    "addShift": "Add a shift",
+    "staffMember": "Staff member",
+    "shiftDay": "Day",
+    "shiftChooseStaff": "Choose a staff member.",
+    "shiftAdded": "Shift added."
   },
   "verify": {
     "title": "Check an access receipt",

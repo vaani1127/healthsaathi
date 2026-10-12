@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, Badge, Input } from "@/components/ui/form";
+import { Empty, Loading, QueryStatus } from "@/components/ui/state";
 import { RegisterPatient } from "@/features/reception/RegisterPatient";
 import { api, call } from "@/lib/api/client";
 import { errorMessage, formatTime } from "@/lib/format";
@@ -35,6 +36,7 @@ export function ReceptionHome() {
             onChange={(e) => setQuery(e.target.value)}
           />
           {search.isError && <Alert tone="error">{errorMessage(search.error)}</Alert>}
+          {search.isFetching && !search.data && <Loading label={t("reception.searching")} />}
           <ul className="flex flex-col divide-y">
             {search.data?.items.map((p) => (
               <li key={p.id} className="py-2">
@@ -81,6 +83,16 @@ function TodayAppointments() {
       call(() => api.POST("/api/v1/queue/tokens", { body: { appointment_id: appointmentId } })),
     onSuccess: () => client.invalidateQueries({ queryKey: ["queue"] }),
   });
+  const close = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: "cancelled" | "no_show" }) =>
+      call(() =>
+        api.PATCH("/api/v1/appointments/{appointment_id}", { params: { path: { appointment_id: id } }, body: { status } }),
+      ),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["appointments"] });
+      await client.invalidateQueries({ queryKey: ["queue"] });
+    },
+  });
 
   return (
     <Card>
@@ -88,10 +100,9 @@ function TodayAppointments() {
         <CardTitle>{t("reception.today")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
-        {issue.isError && <Alert tone="error">{errorMessage(issue.error)}</Alert>}
-        {appointments.data?.length === 0 && (
-          <p className="text-sm text-muted-foreground">{t("reception.noAppointments")}</p>
-        )}
+        <QueryStatus query={appointments} />
+        {(issue.isError || close.isError) && <Alert tone="error">{errorMessage(issue.error ?? close.error)}</Alert>}
+        {appointments.data?.length === 0 && <Empty>{t("reception.noAppointments")}</Empty>}
         <ul className="flex flex-col divide-y">
           {appointments.data?.map((a) => {
             const token = tokens.get(a.id);
@@ -103,15 +114,41 @@ function TodayAppointments() {
                     {formatTime(a.slot_start)} · {t(`appointmentStatus.${a.status}`)}
                   </span>
                 </div>
-                {token !== undefined ? (
-                  <Badge tone="success">{t("reception.tokenNo", { no: token })}</Badge>
-                ) : (
-                  a.status === "booked" && (
-                    <Button size="sm" onClick={() => issue.mutate(a.id)} disabled={issue.isPending}>
-                      {t("reception.issueToken")}
-                    </Button>
-                  )
-                )}
+                <div className="flex flex-wrap items-center justify-end gap-1">
+                  {token !== undefined ? (
+                    <Badge tone="success">{t("reception.tokenNo", { no: token })}</Badge>
+                  ) : (
+                    a.status === "booked" && (
+                      <Button size="sm" onClick={() => issue.mutate(a.id)} disabled={issue.isPending}>
+                        {t("reception.issueToken")}
+                      </Button>
+                    )
+                  )}
+                  {(a.status === "booked" || a.status === "checked_in") && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={close.isPending}
+                        onClick={() => close.mutate({ id: a.id, status: "no_show" })}
+                      >
+                        {t("reception.noShow")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={close.isPending}
+                        onClick={() => {
+                          if (window.confirm(t("reception.cancelConfirm", { name: a.patient.name }))) {
+                            close.mutate({ id: a.id, status: "cancelled" });
+                          }
+                        }}
+                      >
+                        {t("reception.cancelAppointment")}
+                      </Button>
+                    </>
+                  )}
+                </div>
               </li>
             );
           })}
