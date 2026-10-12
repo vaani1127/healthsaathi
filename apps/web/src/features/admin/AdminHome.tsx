@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, Badge, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Alerts } from "@/features/admin/Alerts";
+import { AuditStatus } from "@/features/admin/AuditStatus";
 import { Shifts } from "@/features/admin/Shifts";
 import { api, call, type Role, type Schemas } from "@/lib/api/client";
 import { errorMessage, formatDate, formatDateTime, formatMoney } from "@/lib/format";
@@ -492,80 +493,6 @@ function Revenue() {
             <dt className="text-muted-foreground">{t("admin.invoicesPaid")}</dt>
             <dd>{report.data.invoices_paid}</dd>
           </dl>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function Check({ ok, label }: { ok: boolean | null | undefined; label: string }) {
-  const { t } = useTranslation();
-  const tone = ok == null ? "default" : ok ? "success" : "danger";
-  const word = ok == null ? t("verify.skipped") : ok ? t("verify.pass") : t("verify.fail");
-  return (
-    <div className="contents">
-      <dt>{label}</dt>
-      <dd>
-        <Badge tone={tone}>{word}</Badge>
-      </dd>
-    </div>
-  );
-}
-
-function AuditStatus() {
-  const { t } = useTranslation();
-  const status = useQuery({ queryKey: ["audit-status"], queryFn: () => call(() => api.GET("/api/v1/audit/status")) });
-  const data = status.data;
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("admin.audit.title")}</CardTitle>
-        <p className="text-sm text-muted-foreground">{t("admin.audit.explain")}</p>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3 text-sm">
-        {status.isError && <Alert tone="error">{errorMessage(status.error)}</Alert>}
-        {data && (
-          <>
-            {data.problem && <Alert tone="error">{data.problem}</Alert>}
-            <dl className="grid grid-cols-2 gap-2">
-              <dt>{t("admin.audit.events")}</dt>
-              <dd>{data.events}</dd>
-              <dt>{t("admin.audit.checkpoint")}</dt>
-              <dd>
-                {data.sth
-                  ? t("admin.audit.checkpointOf", {
-                      size: data.sth.tree_size,
-                      at: formatDateTime(new Date(Number(data.sth.timestamp)).toISOString()),
-                    })
-                  : t("admin.audit.none")}
-              </dd>
-              <Check ok={data.chain_ok} label={t("admin.audit.chain")} />
-              <Check ok={data.consistency_ok} label={t("admin.audit.consistency")} />
-            </dl>
-            {data.sth && (
-              <p className="break-all font-mono text-xs text-muted-foreground">
-                {t("admin.audit.root")}: {String(data.sth.root_hex)}
-              </p>
-            )}
-            <ul className="flex flex-col gap-1">
-              {data.anchors.length === 0 && <li className="text-muted-foreground">{t("admin.audit.noAnchors")}</li>}
-              {data.anchors.map((a) => (
-                <li key={a.backend} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2">
-                  <span>{t(`admin.audit.backend.${a.backend}`)}</span>
-                  <span className="flex items-center gap-2">
-                    <Badge tone={a.status === "confirmed" ? "success" : a.status === "failed" ? "danger" : "warning"}>
-                      {t(`admin.audit.status.${a.status}`)}
-                    </Badge>
-                    {a.link && (
-                      <a className="text-primary underline" href={a.link} target="_blank" rel="noreferrer">
-                        {t("admin.audit.open")}
-                      </a>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </>
         )}
       </CardContent>
     </Card>

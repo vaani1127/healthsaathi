@@ -10,6 +10,16 @@
 - "My sessions" page for every signed-in user, with sign out per device.
 - `/invite` page where invited staff set their password.
 - Email alert when an account signs in from a device it has not used before.
+- Doctors can add and resolve conditions, amend signed notes and prescriptions (new version) and
+  see note versions, list and close referrals, and manage the care team. The break-glass view
+  survives a page reload while it is valid. New `GET /patients/{id}/referrals`.
+- Nurses can mark allergies inactive; reception can cancel appointments or mark no-shows; admins
+  manage staff shifts.
+- Bilingual lab report print view and `GET /lab-orders/{id}/print` (doctor and patient, released
+  results only, logged as a print access).
+- Anchoring: `ANCHOR_CHAIN=anvil` for a local chain (stored as the self-hosted `besu` backend) and
+  `WITNESS_DIR` for a local git witness folder (stored as `github`). `GET /audit/status` returns
+  the state of every witness, configured or not, and the audit page shows each one.
 
 ### Results of the registered v1 experiments
 

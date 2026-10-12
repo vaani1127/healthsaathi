@@ -619,7 +619,7 @@
     "invoicesPaid": "Invoices paid",
     "audit": {
       "title": "Audit log integrity",
-      "explain": "Every access is written to an append-only log. Signed checkpoints of the log are published to public witnesses.",
+      "explain": "Every access is written to an append-only log. Signed checkpoints of the log are published to independent witnesses, so a later change to the log can be detected.",
       "events": "Events in the log",
       "checkpoint": "Latest checkpoint",
       "checkpointOf": "{{size}} events, signed {{at}}",
@@ -627,19 +627,37 @@
       "chain": "Hash chain intact",
       "consistency": "Log matches earlier checkpoints",
       "root": "Root",
-      "noAnchors": "Not published to any witness yet.",
-      "open": "Open",
-      "backend": {
-        "amoy": "Polygon Amoy",
-        "besu": "Consortium chain",
-        "github": "GitHub witness",
-        "ots": "OpenTimestamps (Bitcoin)"
-      },
       "status": {
         "pending": "Pending",
         "confirmed": "Confirmed",
         "failed": "Failed"
-      }
+      },
+      "witnesses": "Witnesses",
+      "refresh": "Refresh",
+      "kind": {
+        "amoy": "Polygon Amoy (public test chain)",
+        "besu": "Besu network",
+        "anvil": "Local anvil chain",
+        "github": "GitHub witness repository",
+        "local": "Local witness folder",
+        "ots": "OpenTimestamps (Bitcoin)"
+      },
+      "notConfigured": "Not configured",
+      "notConfiguredWhy": {
+        "chain": "No chain is set up for this installation.",
+        "witness": "No witness repository is set up for this installation.",
+        "ots": "OpenTimestamps is turned off for this installation."
+      },
+      "waiting": "Waiting for the next run",
+      "tx": "Transaction",
+      "commit": "Commit",
+      "block": "block {{block}}",
+      "lastConfirmed": "Last confirmed {{at}} at {{size}} events",
+      "openTx": "Open transaction",
+      "openCommit": "Open commit",
+      "problemChain": "FAIL: the audit log hash chain is broken. A stored event was changed or removed.",
+      "problemConsistency": "FAIL: the audit log no longer matches its signed checkpoint.",
+      "technical": "Technical detail"
     },
     "alerts": {
       "title": "Alerts to review",
