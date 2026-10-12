@@ -9,6 +9,7 @@ import { Alert, Badge, Field, Select, Textarea } from "@/components/ui/form";
 import { VitalsList } from "@/features/common/VitalsList";
 import { useChart } from "@/features/common/queries";
 import { BreakGlass } from "@/features/doctor/BreakGlass";
+import { CareTeamCard, ConditionsCard, ReferralsCard } from "@/features/doctor/ChartCards";
 import { Consultation } from "@/features/doctor/Consultation";
 import { DocumentLink, ResultValues } from "@/features/common/LabResult";
 import { api, ApiError, call, type Schemas } from "@/lib/api/client";
@@ -21,6 +22,7 @@ export function DoctorPatient() {
   const { t } = useTranslation();
   const { patientId } = useParams({ from: "/app/doctor/patients/$patientId" });
   const { appointment } = useSearch({ from: "/app/doctor/patients/$patientId" });
+  const client = useQueryClient();
   const chart = useChart(patientId);
   const [withReason, setWithReason] = useState<DoctorChart | null>(null);
 
@@ -71,18 +73,7 @@ export function DoctorPatient() {
             </ul>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("conditions.title")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="text-sm">
-              {data.conditions.filter((c) => c.status === "active").map((c) => (
-                <li key={c.id}>{c.text}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <ConditionsCard chart={data} onChanged={() => void client.invalidateQueries({ queryKey: ["chart", patientId] })} />
         <Card>
           <CardHeader>
             <CardTitle>{t("vitals.latest")}</CardTitle>
@@ -112,6 +103,10 @@ export function DoctorPatient() {
         </Card>
       )}
       <Consultation chart={data} appointmentId={appointment} />
+      <div className="grid gap-4 md:grid-cols-2">
+        <ReferralsCard patientId={patientId} />
+        <CareTeamCard patientId={patientId} />
+      </div>
     </div>
   );
 }

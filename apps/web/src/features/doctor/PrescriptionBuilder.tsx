@@ -12,38 +12,54 @@ type Item = Schemas["PrescriptionItem"];
 
 const blank = (): Item => ({ drug: "", strength: "", dose: "", duration_days: 5, instructions_en: "", instructions_hi: "" });
 
-export function PrescriptionBuilder({
-  patientId,
-  encounterId,
-  onSaved,
-}: {
-  patientId: string;
-  encounterId: string;
-  onSaved: () => void;
-}) {
+const text = (value: unknown): string => (typeof value === "string" ? value : "");
+
+/** Stored items are plain JSON; turn them back into form rows. */
+function fromStored(item: Record<string, unknown>): Item {
+  return {
+    drug: text(item.drug),
+    strength: text(item.strength),
+    dose: text(item.dose),
+    duration_days: typeof item.duration_days === "number" ? item.duration_days : 5,
+    instructions_en: text(item.instructions_en),
+    instructions_hi: text(item.instructions_hi),
+  };
+}
+
+type Props =
+  | { patientId: string; encounterId: string; amend?: undefined; onSaved: () => void; onCancel?: undefined }
+  | { patientId: string; encounterId?: undefined; amend: Schemas["PrescriptionOut"]; onSaved: () => void; onCancel: () => void };
+
+/** New prescription in a consultation, or a new version of a signed one (`amend`). */
+export function PrescriptionBuilder({ patientId, encounterId, amend, onSaved, onCancel }: Props) {
   const { t } = useTranslation();
-  const [items, setItems] = useState<Item[]>([blank()]);
-  const [adviceEn, setAdviceEn] = useState("");
-  const [adviceHi, setAdviceHi] = useState("");
+  const [items, setItems] = useState<Item[]>(() => (amend ? amend.items.map(fromStored) : [blank()]));
+  const [adviceEn, setAdviceEn] = useState(amend?.advice_en ?? "");
+  const [adviceHi, setAdviceHi] = useState(amend?.advice_hi ?? "");
 
   const save = useMutation({
-    mutationFn: () =>
-      call(() =>
-        api.POST("/api/v1/patients/{patient_id}/prescriptions", {
-          params: { path: { patient_id: patientId } },
-          body: {
-            encounter_id: encounterId,
-            items: items.map((i) => ({
-              ...i,
-              strength: i.strength || null,
-              instructions_en: i.instructions_en || null,
-              instructions_hi: i.instructions_hi || null,
-            })),
-            advice_en: adviceEn || null,
-            advice_hi: adviceHi || null,
-          },
-        }),
-      ),
+    mutationFn: () => {
+      const body = {
+        items: items.map((i) => ({
+          ...i,
+          strength: i.strength || null,
+          instructions_en: i.instructions_en || null,
+          instructions_hi: i.instructions_hi || null,
+        })),
+        advice_en: adviceEn || null,
+        advice_hi: adviceHi || null,
+      };
+      return amend
+        ? call(() =>
+            api.POST("/api/v1/prescriptions/{rx_id}/versions", { params: { path: { rx_id: amend.id } }, body }),
+          )
+        : call(() =>
+            api.POST("/api/v1/patients/{patient_id}/prescriptions", {
+              params: { path: { patient_id: patientId } },
+              body: { ...body, encounter_id: encounterId },
+            }),
+          );
+    },
     onSuccess: () => {
       setItems([blank()]);
       setAdviceEn("");
@@ -65,7 +81,7 @@ export function PrescriptionBuilder({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t("rx.title")}</CardTitle>
+        <CardTitle>{amend ? t("rx.amendTitle", { version: amend.version + 1 }) : t("rx.title")}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="flex flex-col gap-3">
@@ -111,9 +127,16 @@ export function PrescriptionBuilder({
           </Field>
           {save.isError && <Alert tone="error">{errorMessage(save.error)}</Alert>}
           {save.isSuccess && <Alert tone="success">{t("rx.saved")}</Alert>}
-          <Button type="submit" disabled={save.isPending}>
-            {t("rx.save")}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" disabled={save.isPending}>
+              {amend ? t("rx.saveVersion") : t("rx.save")}
+            </Button>
+            {onCancel && (
+              <Button type="button" variant="outline" onClick={onCancel}>
+                {t("common.cancel")}
+              </Button>
+            )}
+          </div>
         </form>
       </CardContent>
     </Card>

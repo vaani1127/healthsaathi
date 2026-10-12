@@ -1,15 +1,15 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, Badge, Field, Input, Select, Textarea } from "@/components/ui/form";
+import { Alert, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { useDoctors } from "@/features/common/queries";
+import { NotesHistory, PrescriptionsHistory } from "@/features/doctor/ChartCards";
 import { PrescriptionBuilder } from "@/features/doctor/PrescriptionBuilder";
 import { api, call, type Schemas } from "@/lib/api/client";
-import { errorMessage, formatDateTime, toLocalInput } from "@/lib/format";
+import { errorMessage, toLocalInput } from "@/lib/format";
 import { useAuth } from "@/stores/auth";
 
 type Chart = Schemas["DoctorChart"];
@@ -66,7 +66,10 @@ export function Consultation({ chart, appointmentId }: { chart: Chart; appointme
         </>
       )}
       {encounter?.status === "closed" && <Alert tone="success">{t("consult.finished")}</Alert>}
-      <History chart={chart} onChanged={refresh} />
+      <div className="grid gap-4 md:grid-cols-2">
+        <NotesHistory chart={chart} onChanged={refresh} />
+        <PrescriptionsHistory chart={chart} onChanged={refresh} />
+      </div>
     </div>
   );
 }
@@ -197,6 +200,7 @@ function LabOrderForm({ patientId, encounterId, onSaved }: { patientId: string; 
 
 function ReferralForm({ patientId }: { patientId: string }) {
   const { t } = useTranslation();
+  const client = useQueryClient();
   const me = useAuth((s) => s.me);
   const doctors = useDoctors();
   const [to, setTo] = useState("");
@@ -209,6 +213,7 @@ function ReferralForm({ patientId }: { patientId: string }) {
           body: { to_user_id: to, reason },
         }),
       ),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["referrals", patientId] }),
   });
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -281,72 +286,5 @@ function FollowUpForm({ patientId }: { patientId: string }) {
         </form>
       </CardContent>
     </Card>
-  );
-}
-
-function History({ chart, onChanged }: { chart: Chart; onChanged: () => void }) {
-  const { t } = useTranslation();
-  const sign = useMutation({
-    mutationFn: (rxId: string) =>
-      call(() => api.POST("/api/v1/prescriptions/{rx_id}/sign", { params: { path: { rx_id: rxId } } })),
-    onSuccess: onChanged,
-  });
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("notes.history")}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm">
-          {chart.notes.length === 0 && <p className="text-muted-foreground">{t("notes.none")}</p>}
-          {chart.notes.map((n) => (
-            <article key={n.id} className="rounded-md border p-2">
-              <p className="text-xs text-muted-foreground">
-                {formatDateTime(n.created_at)} · v{n.version}{" "}
-                {n.signed_at ? <Badge tone="success">{t("notes.signedBadge")}</Badge> : <Badge>{t("notes.draft")}</Badge>}
-              </p>
-              <p className="whitespace-pre-wrap">{n.body}</p>
-            </article>
-          ))}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("rx.history")}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm">
-          {chart.prescriptions.length === 0 && <p className="text-muted-foreground">{t("rx.none")}</p>}
-          {chart.prescriptions.map((rx) => (
-            <article key={rx.id} className="flex flex-col gap-1 rounded-md border p-2">
-              <p className="text-xs text-muted-foreground">
-                {formatDateTime(rx.created_at)} · v{rx.version}
-              </p>
-              <ul>
-                {rx.items.map((item, i) => (
-                  <li key={i}>
-                    {String(item.drug)} {String(item.strength ?? "")} · {String(item.dose)}
-                  </li>
-                ))}
-              </ul>
-              {rx.signed_at ? (
-                <Link
-                  to="/print/prescription/$rxId"
-                  params={{ rxId: rx.id }}
-                  search={{ patient: chart.patient.id }}
-                  className="text-primary underline"
-                >
-                  {t("rx.print")}
-                </Link>
-              ) : (
-                <Button size="sm" onClick={() => sign.mutate(rx.id)} disabled={sign.isPending}>
-                  {t("rx.sign")}
-                </Button>
-              )}
-            </article>
-          ))}
-          {sign.isError && <Alert tone="error">{errorMessage(sign.error)}</Alert>}
-        </CardContent>
-      </Card>
-    </div>
   );
 }
