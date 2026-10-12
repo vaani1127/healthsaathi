@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, useSearch } from "@tanstack/react-router";
+import { Link, useParams, useSearch } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -12,6 +12,7 @@ import { BreakGlass } from "@/features/doctor/BreakGlass";
 import { CareTeamCard, ConditionsCard, ReferralsCard } from "@/features/doctor/ChartCards";
 import { Consultation } from "@/features/doctor/Consultation";
 import { DocumentLink, ResultValues } from "@/features/common/LabResult";
+import { testLabel } from "@/features/common/labTests";
 import { api, ApiError, call, type Schemas } from "@/lib/api/client";
 import { errorMessage, formatDate } from "@/lib/format";
 
@@ -92,11 +93,18 @@ export function DoctorPatient() {
             {data.lab_orders.map((o) => (
               <article key={o.id} className="rounded-md border p-2">
                 <p className="font-medium">
-                  {o.tests.map((x) => String(x.name ?? x.code)).join(", ")}{" "}
+                  {o.tests.map((x) => testLabel(t, x)).join(", ")}{" "}
                   <Badge>{t(`labStatus.${o.status}`)}</Badge>
                 </p>
                 <ResultValues values={o.result?.values ?? {}} />
-                {o.result?.document_id && <DocumentLink id={o.result.document_id} label={t("portal.downloadReport")} />}
+                <div className="flex flex-wrap gap-3">
+                  {o.result?.document_id && <DocumentLink id={o.result.document_id} label={t("portal.downloadReport")} />}
+                  {o.result?.released_at && (
+                    <Link to="/print/lab/$orderId" params={{ orderId: o.id }} className="inline-flex h-8 items-center text-sm text-primary underline">
+                      {t("lab.printReport")}
+                    </Link>
+                  )}
+                </div>
               </article>
             ))}
           </CardContent>

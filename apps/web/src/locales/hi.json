@@ -394,7 +394,8 @@
     "reportHint": "PDF, PNG या JPEG, 10 MB तक",
     "saveAndRelease": "परिणाम सेव करें और जारी करें",
     "released": "परिणाम सेव होकर डॉक्टर को जारी हो गया।",
-    "results": "लैब रिपोर्ट"
+    "results": "लैब रिपोर्ट",
+    "printReport": "रिपोर्ट प्रिंट करें"
   },
   "referral": {
     "title": "रेफ़र करें",
@@ -426,7 +427,17 @@
     "dose": "खुराक",
     "days": "दिन",
     "advice": "सलाह",
-    "signedBy": "हस्ताक्षर"
+    "signedBy": "हस्ताक्षर",
+    "labReport": "लैब रिपोर्ट",
+    "orderedBy": "जाँच लिखने वाले",
+    "orderedOn": "जाँच की तारीख",
+    "tests": "जाँचें",
+    "test": "जाँच",
+    "value": "परिणाम",
+    "unit": "इकाई",
+    "seeAttached": "संलग्न रिपोर्ट फ़ाइल देखें।",
+    "resultedOn": "रिपोर्ट की तारीख",
+    "resultedBy": "लैब तकनीशियन"
   },
   "actions": {
     "view": "{{who}} ने आपके {{what}} खोले",
@@ -503,7 +514,8 @@
     "downloadTitle": "अपना डेटा डाउनलोड करें",
     "downloadExplain": "अपने रिकॉर्ड और उसे खोलने वालों के लॉग की कॉपी लें।",
     "downloadJson": "फ़ाइल डाउनलोड करें (JSON)",
-    "printRecord": "मेरा रिकॉर्ड प्रिंट करें"
+    "printRecord": "मेरा रिकॉर्ड प्रिंट करें",
+    "downloadFailed": "फ़ाइल नहीं खुल सकी। फिर से कोशिश करें।"
   },
   "billing": {
     "title": "बिलिंग",

@@ -152,6 +152,12 @@ const printRoute = createRoute({
   validateSearch: (search: Record<string, unknown>) => ({ patient: String(search.patient ?? "") }),
   component: lazyRouteComponent(() => import("@/features/print/PrescriptionPrint"), "PrescriptionPrint"),
 });
+const labPrintRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/print/lab/$orderId",
+  beforeLoad: only("doctor", "patient"),
+  component: lazyRouteComponent(() => import("@/features/print/LabReportPrint"), "LabReportPrint"),
+});
 const labRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/lab",
@@ -212,6 +218,7 @@ const routeTree = rootRoute.addChildren([
     doctorRoute,
     doctorPatientRoute,
     printRoute,
+    labPrintRoute,
     labRoute,
     adminRoute,
     patientRoute,

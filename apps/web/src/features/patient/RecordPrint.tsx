@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/form";
 import { ResultValues } from "@/features/common/LabResult";
+import { testLabel } from "@/features/common/labTests";
 import { api, call } from "@/lib/api/client";
 import { errorMessage, formatDate } from "@/lib/format";
 
@@ -71,7 +72,7 @@ export function RecordPrint() {
         <h2 className="font-bold">{t("portal.labResults")}</h2>
         {c.lab_orders.map((o) => (
           <div key={o.id} className="border-b py-1">
-            <p>{o.tests.map((x) => String(x.name ?? x.code)).join(", ")}</p>
+            <p>{o.tests.map((x) => testLabel(t, x)).join(", ")}</p>
             <ResultValues values={o.result?.values ?? {}} />
           </div>
         ))}

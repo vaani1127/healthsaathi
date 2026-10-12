@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, Badge, Field, Input } from "@/components/ui/form";
+import { testLabel } from "@/features/common/labTests";
 import { api, ApiError, call, type Schemas } from "@/lib/api/client";
 import { API_URL } from "@/lib/config";
 import { errorMessage, formatDateTime } from "@/lib/format";
@@ -57,7 +58,7 @@ function WorkItem({ item, onReleased }: { item: Item; onReleased: () => void }) 
           <p className="font-medium">
             {item.patient_name} <span className="text-sm text-muted-foreground">{item.patient_mrn}</span>
           </p>
-          <p className="text-sm">{order.tests.map((x) => String(x.name ?? x.code)).join(", ")}</p>
+          <p className="text-sm">{order.tests.map((x) => testLabel(t, x)).join(", ")}</p>
           <p className="text-xs text-muted-foreground">{formatDateTime(order.created_at)}</p>
         </div>
         <Badge tone={order.status === "ordered" ? "warning" : "default"}>{t(`labStatus.${order.status}`)}</Badge>

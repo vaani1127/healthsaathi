@@ -394,7 +394,8 @@
     "reportHint": "PDF, PNG or JPEG, up to 10 MB",
     "saveAndRelease": "Save and release result",
     "released": "Result saved and released to the doctor.",
-    "results": "Lab results"
+    "results": "Lab results",
+    "printReport": "Print report"
   },
   "referral": {
     "title": "Refer",
@@ -426,7 +427,17 @@
     "dose": "Dose",
     "days": "Days",
     "advice": "Advice",
-    "signedBy": "Signed by"
+    "signedBy": "Signed by",
+    "labReport": "Lab report",
+    "orderedBy": "Ordered by",
+    "orderedOn": "Ordered on",
+    "tests": "Tests",
+    "test": "Test",
+    "value": "Result",
+    "unit": "Unit",
+    "seeAttached": "See the attached report file.",
+    "resultedOn": "Result date",
+    "resultedBy": "Lab technician"
   },
   "actions": {
     "view": "{{who}} opened your {{what}}",
@@ -503,7 +514,8 @@
     "downloadTitle": "Download your data",
     "downloadExplain": "Get a copy of your record and the log of who opened it.",
     "downloadJson": "Download file (JSON)",
-    "printRecord": "Print my record"
+    "printRecord": "Print my record",
+    "downloadFailed": "The file could not be opened. Try again."
   },
   "billing": {
     "title": "Billing",

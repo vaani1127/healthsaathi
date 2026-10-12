@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, Badge, Textarea } from "@/components/ui/form";
 import { DocumentLink, ResultValues } from "@/features/common/LabResult";
+import { testLabel } from "@/features/common/labTests";
 import { VitalsList } from "@/features/common/VitalsList";
 import { accessSentence } from "@/features/patient/explain";
 import { checkReceipt, downloadReceipt } from "@/features/verify/check";
@@ -110,11 +111,18 @@ function MyRecord({ patientId }: { patientId: string }) {
           {data.lab_orders.length === 0 && <p className="text-muted-foreground">{t("portal.noResults")}</p>}
           {data.lab_orders.map((o) => (
             <article key={o.id} className="rounded-md border p-2">
-              <p className="font-medium">{o.tests.map((x) => String(x.name ?? x.code)).join(", ")}</p>
+              <p className="font-medium">{o.tests.map((x) => testLabel(t, x)).join(", ")}</p>
               <ResultValues values={o.result?.values ?? {}} />
-              {o.result?.document_id && (
-                <DocumentLink id={o.result.document_id} label={t("portal.downloadReport")} />
-              )}
+              <div className="flex flex-wrap gap-3">
+                {o.result?.document_id && (
+                  <DocumentLink id={o.result.document_id} label={t("portal.downloadReport")} />
+                )}
+                {o.result?.released_at && (
+                  <Link to="/print/lab/$orderId" params={{ orderId: o.id }} className="inline-flex h-8 items-center text-primary underline">
+                    {t("lab.printReport")}
+                  </Link>
+                )}
+              </div>
             </article>
           ))}
         </CardContent>
