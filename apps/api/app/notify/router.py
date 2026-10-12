@@ -1,4 +1,6 @@
-"""Dev mailbox: the emails the console backend wrote, so a local demo can read sign-in codes.
+"""Dev mailbox (local only) and web push subscriptions.
+
+Dev mailbox: the emails the console backend wrote, so a local demo can read sign-in codes.
 
 The route answers only when APP_ENV=local and returns 404 everywhere else. It is always
 registered so the OpenAPI document is the same in every environment.
@@ -8,11 +10,14 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, Response, status
+from pydantic import BaseModel, Field, HttpUrl
 
 from app.core.config import get_settings
+from app.core.db import TenantContext, tenant_session
 from app.core.errors import ProblemError
+from app.identity.deps import CurrentPrincipal
+from app.notify import push
 from app.notify.email import outbox
 
 router = APIRouter(tags=["dev"])
@@ -57,3 +62,50 @@ async def mailbox(to: str | None = None) -> list[MailOut]:
     if to:
         mails = [m for m in mails if m.to.lower() == to.strip().lower()]
     return mails
+
+
+push_router = APIRouter(tags=["push"])
+
+
+class PushKeyOut(BaseModel):
+    public_key: str | None
+
+
+class PushKeys(BaseModel):
+    p256dh: str = Field(min_length=10, max_length=200)
+    auth: str = Field(min_length=8, max_length=100)
+
+
+class PushSubscriptionIn(BaseModel):
+    endpoint: HttpUrl
+    keys: PushKeys
+
+
+class PushUnsubscribeIn(BaseModel):
+    endpoint: HttpUrl
+
+
+@push_router.get("/push/key", response_model=PushKeyOut)
+async def push_key() -> PushKeyOut:
+    """The VAPID public key for the browser, or null when push is off here."""
+    return PushKeyOut(public_key=get_settings().vapid_public_key if push.enabled() else None)
+
+
+@push_router.post("/push/subscriptions", status_code=status.HTTP_204_NO_CONTENT)
+async def push_subscribe(principal: CurrentPrincipal, body: PushSubscriptionIn) -> Response:
+    if not push.enabled():
+        raise ProblemError(404, "push-off", "Notifications are not available here.")
+    if body.endpoint.scheme != "https":
+        raise ProblemError(422, "validation-error", "The push endpoint must use https.")
+    async with tenant_session(TenantContext(user_id=principal.user_id)) as db:
+        await push.subscribe(
+            db, principal.user_id, str(body.endpoint), body.keys.p256dh, body.keys.auth
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@push_router.post("/push/subscriptions/remove", status_code=status.HTTP_204_NO_CONTENT)
+async def push_unsubscribe(principal: CurrentPrincipal, body: PushUnsubscribeIn) -> Response:
+    async with tenant_session(TenantContext(user_id=principal.user_id)) as db:
+        await push.unsubscribe(db, principal.user_id, str(body.endpoint))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

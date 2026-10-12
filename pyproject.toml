@@ -8,11 +8,12 @@ requires-python = ">=3.12,<3.13"
 package = false
 
 [tool.uv.workspace]
-members = ["apps/api", "packages/e2d-core", "sim", "experiments"]
+members = ["apps/api", "packages/e2d-core", "sim", "experiments", "infra/demo"]
 
 [tool.uv.sources]
 e2d-core = { workspace = true }
 healthsaathi-api = { workspace = true }
+healthsaathi-demo = { workspace = true }
 saathibench = { workspace = true }
 e2d-experiments = { workspace = true }
 # CPU-only PyTorch for the VAE baseline; the default wheels bundle CUDA.
@@ -29,6 +30,7 @@ dev = [
     "e2d-core",
     "saathibench",
     "e2d-experiments",
+    "healthsaathi-demo",
     "ruff>=0.6",
     "mypy>=1.11",
     "pytest>=8.3",
@@ -52,7 +54,7 @@ select = ["E", "F", "W", "I", "B", "UP", "N", "S", "SIM", "RUF", "ASYNC"]
 ignore = ["S101"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app", "e2d_core", "saathibench", "e2d_experiments"]
+known-first-party = ["app", "e2d_core", "saathibench", "e2d_experiments", "hs_demo"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S105", "S106", "S311", "S608"]
@@ -65,11 +67,14 @@ python_version = "3.12"
 strict = true
 warn_unreachable = true
 plugins = ["pydantic.mypy"]
-mypy_path = ["packages/e2d-core/src", "apps/api", "sim/src", "experiments/src"]
+mypy_path = ["packages/e2d-core/src", "apps/api", "sim/src", "experiments/src", "infra/demo/src"]
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["asyncpg.*", "opentimestamps.*", "sklearn.*", "pyod.*", "scipy.*", "lightgbm.*", "mlflow.*"]
+module = [
+    "asyncpg.*", "opentimestamps.*", "sklearn.*", "pyod.*", "scipy.*", "lightgbm.*", "mlflow.*",
+    "pywebpush.*",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -81,6 +86,7 @@ testpaths = [
     "apps/api/tests",
     "sim/tests",
     "experiments/tests",
+    "infra/demo/tests",
 ]
 addopts = "--import-mode=importlib"
 pythonpath = ["apps/api"]

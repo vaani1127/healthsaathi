@@ -39,6 +39,7 @@ from app.db.models import (
 )
 from app.identity.deps import ClinicPrincipal
 from app.ledger.writer import append_audit_event
+from app.notify import push
 from e2d_core.explain import AccessEvent as CoreAccessEvent
 from e2d_core.explain import EvidenceQuery, Explanation, default_config, explain
 from e2d_core.explain.model import AccessReason
@@ -333,6 +334,9 @@ async def record_and_explain(
         break_glass_id,
         detail,
     )
+    if row.user_id is not None and row.user_id != principal.user_id:
+        # The patient may have opted in to hear about every access by someone else (SPEC 1.2).
+        await push.enqueue_access(db, row.user_id, event.id)
     return AccessRecord(event.id, patient_id, decision.requirement, explanation)
 
 

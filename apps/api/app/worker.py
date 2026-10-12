@@ -2,6 +2,7 @@
 
 - Detection: every DETECT_INTERVAL_SECONDS it scores the day's accesses of each clinic and
   raises alerts; once a day it fits the models on the last 30 days.
+- Web push: sends the queued access notifications every few seconds.
 - Anchor fallback: the GitHub Actions schedule is the main trigger for the anchor job; if it has
   not run for ANCHOR_FALLBACK_MINUTES the worker runs the job itself. The job's advisory lock
   keeps the two from overlapping.
@@ -21,11 +22,13 @@ from app.core.db import TenantContext, get_engine, tenant_session
 from app.core.logging import configure_logging
 from app.db.models import AnchorReceipt, MerkleCheckpoint
 from app.detect import service as detect
+from app.notify import push
 from app.startup import maintenance_loop, run_startup_tasks
 
 logger = logging.getLogger(__name__)
 
 CHECK_INTERVAL_SECONDS = 60
+PUSH_INTERVAL_SECONDS = 10
 FIT_EVERY = timedelta(hours=24)
 FIT_MARKER = "last_fit.txt"
 
@@ -94,11 +97,21 @@ async def detect_loop() -> None:
         await asyncio.sleep(interval)
 
 
+async def push_loop() -> None:
+    """Sends queued web push messages (patients who opted in to access notifications)."""
+    while True:
+        try:
+            await push.send_pending()
+        except Exception:
+            logger.exception("push sending failed")
+        await asyncio.sleep(PUSH_INTERVAL_SECONDS)
+
+
 async def main() -> None:
     configure_logging()
     await run_startup_tasks()
     try:
-        await asyncio.gather(maintenance_loop(), anchor_fallback_loop(), detect_loop())
+        await asyncio.gather(maintenance_loop(), anchor_fallback_loop(), detect_loop(), push_loop())
     finally:
         await get_engine().dispose()
 

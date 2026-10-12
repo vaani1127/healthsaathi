@@ -25,6 +25,7 @@ from app.core.security_headers import SecurityHeadersMiddleware
 from app.detect.router import router as detect_router
 from app.identity.router import router as auth_router
 from app.identity.router import staff_router
+from app.notify.router import push_router
 from app.notify.router import router as dev_mail_router
 from app.portal.router import router as portal_router
 from app.realtime.hub import hub
@@ -89,6 +90,7 @@ def create_app() -> FastAPI:
     app.include_router(anchor_router, prefix=API_PREFIX)
     app.include_router(detect_router, prefix=API_PREFIX)
     app.include_router(dev_mail_router, prefix=API_PREFIX)
+    app.include_router(push_router, prefix=API_PREFIX)
     return app
 
 

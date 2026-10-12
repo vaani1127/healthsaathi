@@ -88,6 +88,11 @@ class Settings(BaseSettings):
         alias="OTS_CALENDARS",
     )
 
+    # Web push (patient opt-in). `make env` creates a key pair; empty turns push off.
+    vapid_public_key: str | None = Field(default=None, alias="VAPID_PUBLIC_KEY")
+    vapid_private_key: SecretStr | None = Field(default=None, alias="VAPID_PRIVATE_KEY")
+    vapid_subject: str = Field(default="mailto:no-reply@healthsaathi.test", alias="VAPID_SUBJECT")
+
     email_backend: Literal["console", "brevo"] = Field(default="console", alias="EMAIL_BACKEND")
     brevo_api_key: SecretStr | None = Field(default=None, alias="BREVO_API_KEY")
     email_from: str = Field(default="no-reply@healthsaathi.test", alias="EMAIL_FROM")
@@ -111,6 +116,8 @@ class Settings(BaseSettings):
         "witness_repo",
         "witness_github_token",
         "witness_dir",
+        "vapid_public_key",
+        "vapid_private_key",
         mode="before",
     )
     @classmethod

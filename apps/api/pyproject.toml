@@ -21,6 +21,7 @@ dependencies = [
     "python-multipart>=0.0.32",
     "web3>=8.0.0",
     "opentimestamps>=0.4.5",
+    "pywebpush>=2.5.0",
 ]
 
 [build-system]
