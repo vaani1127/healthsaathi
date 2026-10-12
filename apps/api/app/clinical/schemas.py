@@ -15,6 +15,7 @@ from app.chart.schemas import (
     PrescriptionOut,
     VitalOut,
 )
+from app.clinic.schemas import PatientSummary
 from app.db.enums import (
     AllergySeverity,
     ConditionStatus,
@@ -139,6 +140,15 @@ class WorklistItem(BaseModel):
     patient_id: uuid.UUID
     patient_name: str
     patient_mrn: str
+
+
+class LabReportOut(BaseModel):
+    """A released lab result with what its print view needs."""
+
+    order: LabOrderOut
+    patient: PatientSummary
+    ordered_by_name: str
+    resulted_by_name: str
 
 
 class ReferralIn(BaseModel):

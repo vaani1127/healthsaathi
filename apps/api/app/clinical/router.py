@@ -216,6 +216,14 @@ async def order_lab(
     return service.lab_order_out(order, None)
 
 
+@router.get("/lab-orders/{order_id}/print", response_model=schemas.LabReportOut)
+@limiter.limit(EXPORT_PRINT)
+async def print_lab_report(
+    request: Request, principal: DocumentReaders, order_id: uuid.UUID, db: Db, req: ReqInfo
+) -> schemas.LabReportOut:
+    return await service.get_lab_report_for_print(db, principal, order_id, req)
+
+
 @router.patch("/lab-orders/{order_id}", response_model=LabOrderOut)
 async def update_lab_order(
     principal: LabPeople,

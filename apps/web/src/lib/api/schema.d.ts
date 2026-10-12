@@ -791,6 +791,23 @@ export interface paths {
         patch: operations["update_lab_order_api_v1_lab_orders__order_id__patch"];
         trace?: never;
     };
+    "/api/v1/lab-orders/{order_id}/print": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Print Lab Report */
+        get: operations["print_lab_report_api_v1_lab_orders__order_id__print_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/lab-orders/{order_id}/release": {
         parameters: {
             query?: never;
@@ -2591,6 +2608,18 @@ export interface components {
         /** LabOrderUpdate */
         LabOrderUpdate: {
             status: components["schemas"]["LabOrderStatus"];
+        };
+        /**
+         * LabReportOut
+         * @description A released lab result with what its print view needs.
+         */
+        LabReportOut: {
+            order: components["schemas"]["LabOrderOut"];
+            /** Ordered By Name */
+            ordered_by_name: string;
+            patient: components["schemas"]["PatientSummary"];
+            /** Resulted By Name */
+            resulted_by_name: string;
         };
         /** LabResultOut */
         LabResultOut: {
@@ -5126,6 +5155,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LabOrderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    print_lab_report_api_v1_lab_orders__order_id__print_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabReportOut"];
                 };
             };
             /** @description Validation Error */

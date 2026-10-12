@@ -18,6 +18,7 @@ from app.access.service import RequestInfo, db_now, record_and_explain, record_m
 from app.chart.schemas import LabOrderOut, LabResultOut, NoteOut
 from app.clinic import schemas as clinic_schemas
 from app.clinic import service as clinic_service
+from app.clinic.schemas import PatientSummary
 from app.clinical import schemas
 from app.clinical.notes_crypto import decrypt_body, encrypt_body
 from app.core.config import get_settings
@@ -44,6 +45,7 @@ from app.db.models import (
     Patient,
     Prescription,
     Referral,
+    User,
     Vital,
 )
 from app.identity.deps import ClinicPrincipal
@@ -514,6 +516,28 @@ async def _result_of(db: AsyncSession, order: LabOrder) -> LabResult | None:
     return await db.scalar(select(LabResult).where(LabResult.lab_order_id == order.id))
 
 
+async def get_lab_report_for_print(
+    db: AsyncSession, principal: ClinicPrincipal, order_id: uuid.UUID, req: RequestInfo
+) -> schemas.LabReportOut:
+    order = await db.get(LabOrder, order_id)
+    if order is None:
+        raise ProblemError(404, "lab-order-not-found")
+    await _record(db, principal, order.patient_id, R.LAB, A.PRINT, req, lab_order_id=order.id)
+    result = await _result_of(db, order)
+    if result is None or result.released_at is None:
+        raise ProblemError(409, "no-result", "There is no released result to print yet.")
+    patient = await db.get(Patient, order.patient_id)
+    assert patient is not None
+    people = select(User.id, User.name).where(User.id.in_([order.ordered_by, result.resulted_by]))
+    names = {row.id: row.name for row in await db.execute(people)}
+    return schemas.LabReportOut(
+        order=lab_order_out(order, result),
+        patient=PatientSummary.model_validate(patient),
+        ordered_by_name=names.get(order.ordered_by, ""),
+        resulted_by_name=names.get(result.resulted_by, ""),
+    )
+
+
 async def order_lab(
     db: AsyncSession,
     principal: ClinicPrincipal,
@@ -726,7 +750,9 @@ async def list_referrals(
 ) -> Sequence[Referral]:
     await _record(db, principal, patient_id, R.NOTES, A.VIEW, req, op="referral.list")
     rows = await db.scalars(
-        select(Referral).where(Referral.patient_id == patient_id).order_by(Referral.created_at.desc())
+        select(Referral)
+        .where(Referral.patient_id == patient_id)
+        .order_by(Referral.created_at.desc())
     )
     return rows.all()
 

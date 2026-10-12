@@ -2347,6 +2347,33 @@
         "title": "LabOrderUpdate",
         "type": "object"
       },
+      "LabReportOut": {
+        "description": "A released lab result with what its print view needs.",
+        "properties": {
+          "order": {
+            "$ref": "#/components/schemas/LabOrderOut"
+          },
+          "ordered_by_name": {
+            "title": "Ordered By Name",
+            "type": "string"
+          },
+          "patient": {
+            "$ref": "#/components/schemas/PatientSummary"
+          },
+          "resulted_by_name": {
+            "title": "Resulted By Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order",
+          "patient",
+          "ordered_by_name",
+          "resulted_by_name"
+        ],
+        "title": "LabReportOut",
+        "type": "object"
+      },
       "LabResultOut": {
         "properties": {
           "document_id": {
@@ -7454,6 +7481,54 @@
           }
         ],
         "summary": "Update Lab Order",
+        "tags": [
+          "clinical"
+        ]
+      }
+    },
+    "/api/v1/lab-orders/{order_id}/print": {
+      "get": {
+        "operationId": "print_lab_report_api_v1_lab_orders__order_id__print_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Print Lab Report",
         "tags": [
           "clinical"
         ]

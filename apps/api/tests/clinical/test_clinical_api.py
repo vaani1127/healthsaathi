@@ -377,6 +377,31 @@ async def test_lab_order_to_released_result_with_file(
     chart = await client.get(f"/api/v1/patients/{visit['patient']}/chart", headers=doctor.headers)
     assert chart.json()["lab_orders"][0]["result"]["values"]["hb"]["value"] == 13.1
 
+    report = await client.get(f"/api/v1/lab-orders/{order['id']}/print", headers=doctor.headers)
+    assert report.status_code == 200, report.text
+    assert report.json()["order"]["result"]["values"]["hb"]["value"] == 13.1
+    assert report.json()["ordered_by_name"] == "doctor actor"
+    assert report.json()["resulted_by_name"] == "lab_tech actor"
+
+    owner = await make_actor(admin_engine, clinic, Role.PATIENT)
+    stranger = await make_actor(admin_engine, clinic, Role.PATIENT)
+    async with AsyncSession(admin_engine) as s, s.begin():
+        await s.execute(
+            text("UPDATE patients SET user_id = :u WHERE id = :p"),
+            {"u": owner.user_id, "p": uuid.UUID(visit["patient"])},
+        )
+    own = await client.get(f"/api/v1/lab-orders/{order['id']}/print", headers=owner.headers)
+    assert own.status_code == 200
+    other = await client.get(f"/api/v1/lab-orders/{order['id']}/print", headers=stranger.headers)
+    assert other.status_code == 403, "a patient cannot print someone else's report"
+    nurse = await client.get(
+        f"/api/v1/lab-orders/{order['id']}/print", headers=staff[Role.NURSE].headers
+    )
+    assert nurse.status_code == 403
+    outsider = await make_actor(admin_engine, await make_clinic(admin_engine), Role.DOCTOR)
+    elsewhere = await client.get(f"/api/v1/lab-orders/{order['id']}/print", headers=outsider.headers)
+    assert elsewhere.status_code == 404, "another clinic cannot see the order"
+
 
 async def test_lab_status_rules(
     client: AsyncClient, staff: dict[Role, Actor], visit: dict[str, str]
