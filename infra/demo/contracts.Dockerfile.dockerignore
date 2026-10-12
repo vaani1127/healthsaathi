@@ -1,0 +1,8 @@
+*
+!contracts/src
+!contracts/script
+!contracts/lib
+!contracts/foundry.toml
+!contracts/remappings.txt
+!infra/demo/deploy-contracts.sh
+contracts/lib/**/.git

@@ -1,0 +1,12 @@
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!apps/web
+!packages/receipt-verify
+!infra/demo/Caddyfile
+**/node_modules
+apps/web/dist
+apps/web/dev-dist
+apps/web/test-results
+apps/web/playwright-report

@@ -100,3 +100,9 @@ requirements-audit.txt
 results-*.tar.gz
 # Result summaries of the registered runs are small and committed; raw Parquet stays ignored
 !experiments/results/**/*.parquet
+
+# Local demo witness folder (make demo)
+.demo/
+
+# Downloaded tools (FHIR validator)
+.cache/

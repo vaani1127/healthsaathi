@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### One-command local demo (make demo)
+
+- `make demo` builds and starts `infra/docker-compose.demo.yml`: postgres, anvil with the contracts
+  deployed automatically, a one-time seed, the api, the worker (anchor job every 2 minutes,
+  detector every minute) and the production web build behind Caddy on http://localhost:8080 with
+  the API on the same origin. Ports listen on 127.0.0.1 only. `make demo-code EMAIL=...` prints a
+  login's current authenticator code; `make demo-down` and `make demo-reset` stop or wipe it.
+- `infra/demo` (package `hs_demo`): runs the unchanged SaathiBench simulator for two polyclinics
+  and three weeks, loads 50 patients and all their activity into the product tables with the
+  product's own explanation engine and audit chain, registers the clinics on the local chain,
+  runs the detector over the past days, books today's queue, anchors once, and prints the login
+  table with the insider cases from the simulation. Secrets, the poster wallet and VAPID keys are
+  generated per installation in the demo volume.
+- The local witness is a git repository in `.demo/witness`; OpenTimestamps is off and shows as
+  not configured.
+
 ### App gap fixes (docs/APP_GAPS.md)
 
 - Every problem code the API raises is translated in English and Hindi; the UI never shows raw

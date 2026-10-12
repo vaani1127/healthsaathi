@@ -1,0 +1,15 @@
+# SaathiBench run used only by the local demo (make demo). The simulator is unchanged; this file
+# picks two polyclinics, three weeks, and a campaign mix with snooping (types 1 and 2), break-glass
+# abuse (type 8) and explanation forgery (type 10). The seed was chosen so that both clinics get
+# snooping and forgery. Times are later shifted by whole weeks so the data ends in the past week.
+name: healthsaathi-demo
+seed: 11
+start_date: "2026-01-05"
+days: 21
+timezone: Asia/Kolkata
+clinics:
+  - {profile: polyclinic, count: 2}
+attacks:
+  campaigns_per_clinic_month: 12.0
+  first_day: 3
+  types: [1, 2, 8, 10]

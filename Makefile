@@ -1,13 +1,17 @@
 COMPOSE := docker compose -f infra/docker-compose.dev.yml
+DEMO := docker compose -f infra/docker-compose.demo.yml
 UV := uv run
-PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests experiments/src experiments/tests
+PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests experiments/src experiments/tests \n	infra/demo/src infra/demo/tests
 
-.PHONY: help env install dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
+.PHONY: help env install demo demo-code demo-logs demo-down demo-reset dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
 	test-sol migrate seed sim sim-coverage sim-audit sim-splits exp prereg-audit prereg-stamp audit
 
 help:
 	@echo "env       create .env with fresh local secrets"
 	@echo "install   install Python, JS and Solidity dependencies"
+	@echo "demo      run the whole app locally in Docker with demo data, then print the logins"
+	@echo "demo-code print the current authenticator code of a demo login, EMAIL=..."
+	@echo "demo-down stop the demo (keeps its data); demo-reset deletes the demo data"
 	@echo "dev       start postgres, api and web with docker compose"
 	@echo "lint      ruff, mypy, eslint, tsc, forge fmt --check"
 	@echo "test      pytest, vitest, forge test"
@@ -35,6 +39,24 @@ dev: env
 
 dev-down:
 	$(COMPOSE) down
+
+# Local demo (infra/docker-compose.demo.yml): postgres, anvil with the contracts, seed, api,
+# worker and the production web build on http://localhost:8080.
+demo:
+	$(DEMO) up --build --detach --wait
+	$(DEMO) exec -T api python -m hs_demo.logins
+
+demo-code:
+	@$(DEMO) exec -T api python -m hs_demo.logins $(EMAIL)
+
+demo-logs:
+	$(DEMO) logs --follow api worker
+
+demo-down:
+	$(DEMO) down
+
+demo-reset:
+	$(DEMO) down --volumes
 
 # CI provides its own postgres service, so it sets SKIP_DB_UP=1.
 db-up:

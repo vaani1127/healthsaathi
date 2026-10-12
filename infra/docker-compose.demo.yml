@@ -1,0 +1,145 @@
+# Local demo: `make demo`. Everything runs on this machine and listens on 127.0.0.1 only.
+# Web app http://localhost:8080, API http://localhost:8081, anvil http://localhost:8545.
+# State (secrets, logins, emails, models) lives in the demo_state volume; `make demo-reset`
+# deletes it. Witness commits go to .demo/witness in the repo folder (gitignored).
+name: healthsaathi-demo
+
+x-demo: &demo
+  image: healthsaathi-demo-app:local
+  environment: &demo-env
+    APP_ENV: local
+    DATABASE_URL: postgresql+asyncpg://healthsaathi:healthsaathi@postgres:5432/healthsaathi
+    MIGRATOR_DATABASE_URL: postgresql+asyncpg://healthsaathi:healthsaathi@postgres:5432/healthsaathi
+    CORS_ORIGINS: '["http://localhost:8080"]'
+    PUBLIC_APP_URL: http://localhost:8080
+    COOKIE_SECURE: "true"
+    RATE_LIMIT_ENABLED: ${DEMO_RATE_LIMIT:-true}
+    FORWARDED_ALLOW_IPS: "*"
+    EMAIL_BACKEND: console
+    EMAIL_OUTBOX_DIR: /state/outbox
+    STORAGE_DIR: /state/blobs
+    MODEL_DIR: /state/models
+    ANCHOR_RPC_URL: http://anvil:8545
+    ANCHOR_CHAIN: anvil
+    ANCHOR_FALLBACK_MINUTES: "2"
+    WITNESS_DIR: /witness
+    OTS_ENABLED: "false"
+    DETECT_INTERVAL_SECONDS: "60"
+  volumes:
+    - demo_state:/state
+    - ../.demo/witness:/witness
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: healthsaathi
+      POSTGRES_PASSWORD: healthsaathi
+      POSTGRES_DB: healthsaathi
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - demo_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthsaathi -d healthsaathi"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:v1.8.5
+    user: root
+    entrypoint: ["anvil"]
+    command:
+      ["--host", "0.0.0.0", "--chain-id", "31337", "--state", "/anvil/state.json", "--state-interval", "10"]
+    ports:
+      - "127.0.0.1:8545:8545"
+    volumes:
+      - demo_anvil:/anvil
+    healthcheck:
+      test: ["CMD", "cast", "chain-id", "--rpc-url", "http://127.0.0.1:8545"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  contracts:
+    build:
+      context: ..
+      dockerfile: infra/demo/contracts.Dockerfile
+    image: healthsaathi-demo-contracts:local
+    environment:
+      ANVIL_RPC_URL: http://anvil:8545
+      DEMO_STATE_DIR: /state
+    volumes:
+      - demo_state:/state
+    depends_on:
+      anvil:
+        condition: service_healthy
+
+  init:
+    <<: *demo
+    build:
+      context: ..
+      dockerfile: infra/demo/demo.Dockerfile
+    command: ["python", "-m", "hs_demo.init"]
+    depends_on:
+      contracts:
+        condition: service_completed_successfully
+
+  migrate:
+    <<: *demo
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  seed:
+    <<: *demo
+    command: ["python", "-m", "hs_demo.seed"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      anvil:
+        condition: service_healthy
+
+  api:
+    <<: *demo
+    command:
+      ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers"]
+    ports:
+      - "127.0.0.1:8081:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/ready', timeout=4)"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+
+  worker:
+    <<: *demo
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/demo/web.Dockerfile
+    image: healthsaathi-demo-web:local
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - demo_state:/state:ro
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  demo_pg:
+  demo_anvil:
+  demo_state:
