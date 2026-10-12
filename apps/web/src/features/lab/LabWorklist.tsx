@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, Badge, Field, Input } from "@/components/ui/form";
-import { api, call, type Schemas } from "@/lib/api/client";
+import { api, ApiError, call, type Schemas } from "@/lib/api/client";
 import { API_URL } from "@/lib/config";
 import { errorMessage, formatDateTime } from "@/lib/format";
 import { useAuth } from "@/stores/auth";
@@ -100,7 +100,7 @@ function ResultForm({ order, onReleased }: { order: Schemas["LabOrderOut"]; onRe
       }
       if (!resp.ok) {
         const problem = (await resp.json().catch(() => ({}))) as { code?: string };
-        throw new Error(problem.code ?? `http-${resp.status}`);
+        throw new ApiError({ status: resp.status, code: problem.code ?? `http-${resp.status}` });
       }
       return (await resp.json()) as Schemas["LabOrderOut"];
     },
@@ -152,7 +152,7 @@ function ResultForm({ order, onReleased }: { order: Schemas["LabOrderOut"]; onRe
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
       </Field>
-      {save.isError && <Alert tone="error">{t(`errors.${save.error.message}`, { defaultValue: t("errors.generic") })}</Alert>}
+      {save.isError && <Alert tone="error">{errorMessage(save.error)}</Alert>}
       <Button type="submit" disabled={save.isPending}>
         {t("lab.saveAndRelease")}
       </Button>

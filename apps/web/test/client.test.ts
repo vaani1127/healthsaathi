@@ -34,9 +34,15 @@ describe("call", () => {
     expect((error as ApiError).status).toBe(0);
   });
 
-  it("falls back to the server text for unknown codes", () => {
-    expect(errorMessage(new ApiError({ status: 400, code: "brand-new", detail: "Server says" }))).toBe(
-      "Server says",
+  it("never shows server text: unknown codes get a message for their status", () => {
+    expect(errorMessage(new ApiError({ status: 409, code: "brand-new", detail: "Server says" }))).toBe(
+      "This changed in the meantime. Reload and try again.",
+    );
+    expect(errorMessage(new ApiError({ status: 503, code: "brand-new", detail: "Server says" }))).toBe(
+      "Something went wrong on the server. Please try again.",
+    );
+    expect(errorMessage(new ApiError({ status: 418, code: "brand-new", detail: "Server says" }))).toBe(
+      "Something went wrong. Please try again.",
     );
     expect(errorMessage(new Error("x"))).toBe("Something went wrong. Please try again.");
   });

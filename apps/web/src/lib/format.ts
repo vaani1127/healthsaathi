@@ -21,14 +21,18 @@ export function formatMoney(paise: number): string {
   return new Intl.NumberFormat(locale(), { style: "currency", currency: "INR" }).format(paise / 100);
 }
 
-/** A translated message for an API problem, falling back to the server's own text. */
+/** A translated message for an API problem. Server text is never shown, because it is English
+ * only and may be technical; unknown codes get a message for their HTTP status. */
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     const key = `errors.${error.code}`;
     if (i18n.exists(key)) {
       return i18n.t(key);
     }
-    return error.detail ?? i18n.t("errors.generic");
+    const byStatus = `errors.byStatus.${error.status >= 500 ? 500 : error.status}`;
+    if (i18n.exists(byStatus)) {
+      return i18n.t(byStatus);
+    }
   }
   return i18n.t("errors.generic");
 }
