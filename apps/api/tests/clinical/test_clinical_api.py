@@ -399,7 +399,9 @@ async def test_lab_order_to_released_result_with_file(
     )
     assert nurse.status_code == 403
     outsider = await make_actor(admin_engine, await make_clinic(admin_engine), Role.DOCTOR)
-    elsewhere = await client.get(f"/api/v1/lab-orders/{order['id']}/print", headers=outsider.headers)
+    elsewhere = await client.get(
+        f"/api/v1/lab-orders/{order['id']}/print", headers=outsider.headers
+    )
     assert elsewhere.status_code == 404, "another clinic cannot see the order"
 
 

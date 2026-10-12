@@ -754,5 +754,7 @@ async def test_new_device_alert_only_after_the_first_device(
     sent = outbox.last_to(user.email)
     assert sent is not None and "Chrome Android" in sent.text
 
-    await service.create_session(user.user_id, "mfa", service.DeviceInfo(fingerprint=None, user_agent=None))
+    await service.create_session(
+        user.user_id, "mfa", service.DeviceInfo(fingerprint=None, user_agent=None)
+    )
     assert alerts() == 1, "a sign-in without a device id is not a new device"

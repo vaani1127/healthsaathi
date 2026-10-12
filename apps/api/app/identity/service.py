@@ -10,8 +10,8 @@ string, so a client cannot change the kind without the token stopping working.
 """
 
 import hashlib
-import logging
 import hmac
+import logging
 import secrets
 import uuid
 from dataclasses import dataclass
@@ -289,7 +289,9 @@ async def _device(db: AsyncSession, user_id: uuid.UUID, device: DeviceInfo) -> D
         row.last_seen = _now()
         row.user_agent = device.user_agent or row.user_agent
         return DeviceRef(row.id)
-    known = await db.scalar(select(func.count()).select_from(Device).where(Device.user_id == user_id))
+    known = await db.scalar(
+        select(func.count()).select_from(Device).where(Device.user_id == user_id)
+    )
     row = Device(user_id=user_id, fingerprint_hash=fingerprint_hash, user_agent=device.user_agent)
     db.add(row)
     await db.flush()
@@ -304,10 +306,10 @@ async def _new_device_alert(email: str, device: DeviceInfo) -> None:
                 to=email,
                 subject="New sign-in to your HealthSaathi account",
                 text=(
-                    f"Your account was signed in from a new device ({device.user_agent or 'unknown'}) "
-                    f"at {_now():%d %b %Y %H:%M} UTC. If this was you, you can ignore this email. "
-                    "If it was not you, change your password and sign the device out from "
-                    "My sessions."
+                    "Your account was signed in from a new device "
+                    f"({device.user_agent or 'unknown'}) at {_now():%d %b %Y %H:%M} UTC. "
+                    "If this was you, you can ignore this email. If it was not you, change your "
+                    "password and sign the device out from My sessions."
                 ),
             )
         )
