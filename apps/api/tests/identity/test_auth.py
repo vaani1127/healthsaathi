@@ -729,3 +729,30 @@ async def test_no_secret_in_access_token(
         "role",
     }
     assert claims["exp"] - claims["iat"] == 15 * 60
+
+
+# New-device alert ---------------------------------------------------------------------------------
+
+
+async def test_new_device_alert_only_after_the_first_device(
+    clinic: ClinicGraph, admin_engine: AsyncEngine
+) -> None:
+    user = await make_user(admin_engine, clinic.clinic_id, Role.NURSE)
+    first = service.DeviceInfo(fingerprint="laptop-1", user_agent="Firefox")
+
+    def alerts() -> int:
+        return sum(1 for e in outbox.sent if e.to == user.email and "New sign-in" in e.subject)
+
+    await service.create_session(user.user_id, "mfa", first)
+    await service.create_session(user.user_id, "mfa", first)
+    assert alerts() == 0, "the first device and a known device send no alert"
+
+    await service.create_session(
+        user.user_id, "mfa", service.DeviceInfo(fingerprint="phone-2", user_agent="Chrome Android")
+    )
+    assert alerts() == 1
+    sent = outbox.last_to(user.email)
+    assert sent is not None and "Chrome Android" in sent.text
+
+    await service.create_session(user.user_id, "mfa", service.DeviceInfo(fingerprint=None, user_agent=None))
+    assert alerts() == 1, "a sign-in without a device id is not a new device"

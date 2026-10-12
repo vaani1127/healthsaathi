@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### App gap fixes (docs/APP_GAPS.md)
+
+- Every problem code the API raises is translated in English and Hindi; the UI never shows raw
+  server text and falls back to a message per HTTP status. A test fails when a new code has no
+  translation.
+- "My sessions" page for every signed-in user, with sign out per device.
+- `/invite` page where invited staff set their password.
+- Email alert when an account signs in from a device it has not used before.
+
 ### Results of the registered v1 experiments
 
 - The main run, the 16 ablations and the ECOD and COPOD scorer variants of the registered plan

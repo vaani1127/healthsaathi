@@ -17,9 +17,9 @@ Method:
 
 | # | Gap | Where | Fix | Status |
 |---|---|---|---|---|
-| 1 | Sessions list and revoke (SPEC 1.2 identity must-have) have an API but no screen. | `GET/DELETE /auth/sessions`; no web caller | Add a "My sessions" page reachable from the header for every signed-in user, with revoke. | open |
-| 2 | Invited staff cannot set a password: the invite email links to `/invite`, which does not exist. | `POST /auth/invite/accept`; router has no `/invite` | Add the `/invite` page (email and token from the link, password with the policy rules). | open |
-| 3 | No new-device email alert (SPEC 1.2 identity, end-sem must-have). | `identity/service.py` `_device_id` | When a sign-in creates a new device row for a user who already had one, send an email. | open |
+| 1 | Sessions list and revoke (SPEC 1.2 identity must-have) have an API but no screen. | `GET/DELETE /auth/sessions`; no web caller | Add a "My sessions" page reachable from the header for every signed-in user, with revoke. | fixed |
+| 2 | Invited staff cannot set a password: the invite email links to `/invite`, which does not exist. | `POST /auth/invite/accept`; router has no `/invite` | Add the `/invite` page (email and token from the link, password with the policy rules). | fixed |
+| 3 | No new-device email alert (SPEC 1.2 identity, end-sem must-have). | `identity/service.py` `_device_id` | When a sign-in creates a new device row for a user who already had one, send an email. | fixed |
 | 4 | Care team assignments (SPEC 1.2 clinic ops) have an API but no screen. | `POST /care-team`, `GET /patients/{id}/care-team`, `POST /care-team/{id}/end` | Care team card on the doctor's patient page (doctor and admin can add and end). | open |
 | 5 | Shifts (SPEC 1.2 clinic ops) have an API but no screen. | `GET/POST /shifts`, `POST /shifts/{id}/cancel` | Shifts tab on the admin page: list the week, add, cancel. | open |
 | 6 | Conditions can be read but not added or resolved. | `POST /patients/{id}/conditions`, `PATCH /conditions/{id}` | Add and resolve conditions on the doctor's patient page. | open |
@@ -30,7 +30,7 @@ Method:
 | 11 | The break-glass emergency view is lost on page reload; the reopen endpoint is unused. | `GET /patients/{id}/emergency` | Keep the break-glass id for the session and reopen the view while it is valid. | open |
 | 12 | No lab report print view (SPEC 9 lists prescription, lab report and receipt). | `apps/web/src/router.tsx` | Add a bilingual `/print/lab/$orderId` view linked from released results. | open |
 | 13 | No web push opt-in (SPEC 9). The `push_subscriptions` table exists but nothing uses it. | API and web | Add VAPID keys to the env, subscribe and unsubscribe endpoints, an opt-in switch in the patient portal, and a push job sent when someone opens the patient's record. | open |
-| 14 | 71 of the 86 problem codes raised by the API have no translation, so the UI shows the raw English server text, also in Hindi. | `apps/web/src/lib/format.ts` `errorMessage`, locale files | Translate every code in English and Hindi, fall back to a message per HTTP status (never the raw text), and add a test that fails when a new code has no translation. | open |
+| 14 | 71 of the 86 problem codes raised by the API have no translation, so the UI shows the raw English server text, also in Hindi. | `apps/web/src/lib/format.ts` `errorMessage`, locale files | Translate every code in English and Hindi, fall back to a message per HTTP status (never the raw text), and add a test that fails when a new code has no translation. | fixed |
 | 15 | The admin audit page shows no loading state, shows the raw `problem` text, and lists only anchors that exist, so a backend that is not configured is invisible. | `AdminHome.tsx` `AuditStatus`, `anchor/receipts.py` | API returns the state of every backend (configured or not, last result, link); the page shows each one, translated. | open |
 | 16 | Flow 9 (audit verification page) has no Playwright test. | `apps/web/e2e` | Covered by the new end-to-end suite against the demo stack. | open |
 | 17 | P17 FHIR export is not built. | `apps/api/app/fhir` missing | Build it (see P17 in docs/PROMPTS.md). | open |

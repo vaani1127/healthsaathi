@@ -10,6 +10,7 @@ string, so a client cannot change the kind without the token stopping working.
 """
 
 import hashlib
+import logging
 import hmac
 import secrets
 import uuid
@@ -29,6 +30,8 @@ from app.db.models import Device, EmailOtp, Membership, MfaSecret, User, UserSes
 from app.identity import lockout, password_policy, passwords, tokens, totp
 from app.notify.email import Email, send_email
 from e2d_core.ids import uuid7
+
+logger = logging.getLogger(__name__)
 
 SessionKind = Literal["mfa", "email"]
 AMR: dict[SessionKind, list[str]] = {"mfa": ["pwd", "otp"], "email": ["email_otp"]}
@@ -267,23 +270,49 @@ async def verify_email_code(email: str, code: str, device: DeviceInfo) -> Issued
 # Sessions -----------------------------------------------------------------------------------------
 
 
-async def _device_id(db: AsyncSession, user_id: uuid.UUID, device: DeviceInfo) -> uuid.UUID | None:
+@dataclass(frozen=True)
+class DeviceRef:
+    id: uuid.UUID | None
+    is_new: bool = False
+
+
+async def _device(db: AsyncSession, user_id: uuid.UUID, device: DeviceInfo) -> DeviceRef:
+    """The user's device row for this fingerprint. `is_new` is true only when the user had signed
+    in before from another device, which is when the new-device alert is sent."""
     if not device.fingerprint:
-        return None
+        return DeviceRef(None)
     fingerprint_hash = hashlib.sha256(device.fingerprint.encode()).hexdigest()
     row = await db.scalar(
         select(Device).where(Device.user_id == user_id, Device.fingerprint_hash == fingerprint_hash)
     )
-    if row is None:
-        row = Device(
-            user_id=user_id, fingerprint_hash=fingerprint_hash, user_agent=device.user_agent
-        )
-        db.add(row)
-        await db.flush()
-    else:
+    if row is not None:
         row.last_seen = _now()
         row.user_agent = device.user_agent or row.user_agent
-    return row.id
+        return DeviceRef(row.id)
+    known = await db.scalar(select(func.count()).select_from(Device).where(Device.user_id == user_id))
+    row = Device(user_id=user_id, fingerprint_hash=fingerprint_hash, user_agent=device.user_agent)
+    db.add(row)
+    await db.flush()
+    return DeviceRef(row.id, is_new=bool(known))
+
+
+async def _new_device_alert(email: str, device: DeviceInfo) -> None:
+    """SPEC 1.2: tell the user when their account signs in from a device it has not seen."""
+    try:
+        await send_email(
+            Email(
+                to=email,
+                subject="New sign-in to your HealthSaathi account",
+                text=(
+                    f"Your account was signed in from a new device ({device.user_agent or 'unknown'}) "
+                    f"at {_now():%d %b %Y %H:%M} UTC. If this was you, you can ignore this email. "
+                    "If it was not you, change your password and sign the device out from "
+                    "My sessions."
+                ),
+            )
+        )
+    except Exception:
+        logger.exception("new device alert not sent")
 
 
 def _new_refresh(kind: SessionKind) -> tuple[str, str]:
@@ -301,16 +330,19 @@ async def create_session(user_id: uuid.UUID, kind: SessionKind, device: DeviceIn
     refresh, refresh_hash = _new_refresh(kind)
     family = uuid7()
     async with tenant_session(ANONYMOUS) as db:
-        device_id = await _device_id(db, user_id, device)
+        device_ref = await _device(db, user_id, device)
+        email = await db.scalar(select(User.email).where(User.id == user_id))
         db.add(
             UserSession(
                 user_id=user_id,
-                device_id=device_id,
+                device_id=device_ref.id,
                 refresh_hash=refresh_hash,
                 family_id=family,
                 expires_at=_now() + timedelta(days=get_settings().refresh_token_days),
             )
         )
+    if device_ref.is_new and email:
+        await _new_device_alert(email, device)
     access, expires = tokens.access_token(user_id, family, AMR[kind])
     return IssuedTokens(access, expires, refresh, family)
 
