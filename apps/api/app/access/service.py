@@ -99,7 +99,7 @@ async def clinic_timezone(db: AsyncSession, clinic_id: uuid.UUID) -> str:
     return tz or "Asia/Kolkata"
 
 
-def _audit_payload(
+def audit_payload(
     event: AccessEvent, explanation: Explanation | None, detail: dict[str, str] | None = None
 ) -> dict[str, object]:
     payload: dict[str, object] = {
@@ -166,7 +166,7 @@ async def _write(
     )
     await db.flush()
     await append_audit_event(
-        db, principal.clinic_id, "access", _audit_payload(event, explanation, detail)
+        db, principal.clinic_id, "access", audit_payload(event, explanation, detail)
     )
     return event
 

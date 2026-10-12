@@ -2008,6 +2008,8 @@ export interface components {
         AuditStatus: {
             /** Anchors */
             anchors: components["schemas"]["AnchorRef"][];
+            /** Backends */
+            backends: components["schemas"]["BackendState"][];
             /** Chain Ok */
             chain_ok: boolean;
             /** Confirmed Backends */
@@ -2026,6 +2028,36 @@ export interface components {
             sth: {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * BackendState
+         * @description One witness as configured here, and what happened to the latest checkpoint on it.
+         */
+        BackendState: {
+            /** Block Ref */
+            block_ref: string | null;
+            /** Configured */
+            configured: boolean;
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "chain" | "witness" | "ots";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "amoy" | "besu" | "anvil" | "github" | "local" | "ots";
+            /** Last Confirmed At */
+            last_confirmed_at: string | null;
+            /** Last Confirmed Size */
+            last_confirmed_size: number | null;
+            /** Link */
+            link: string | null;
+            /** Status */
+            status: string | null;
+            /** Tx Ref */
+            tx_ref: string | null;
         };
         /**
          * Because

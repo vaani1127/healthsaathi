@@ -830,6 +830,13 @@
             "title": "Anchors",
             "type": "array"
           },
+          "backends": {
+            "items": {
+              "$ref": "#/components/schemas/BackendState"
+            },
+            "title": "Backends",
+            "type": "array"
+          },
           "chain_ok": {
             "title": "Chain Ok",
             "type": "boolean"
@@ -904,9 +911,120 @@
           "consistency_ok",
           "problem",
           "anchors",
-          "confirmed_backends"
+          "confirmed_backends",
+          "backends"
         ],
         "title": "AuditStatus",
+        "type": "object"
+      },
+      "BackendState": {
+        "description": "One witness as configured here, and what happened to the latest checkpoint on it.",
+        "properties": {
+          "block_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Ref"
+          },
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "key": {
+            "enum": [
+              "chain",
+              "witness",
+              "ots"
+            ],
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "amoy",
+              "besu",
+              "anvil",
+              "github",
+              "local",
+              "ots"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_confirmed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Confirmed At"
+          },
+          "last_confirmed_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Confirmed Size"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "tx_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tx Ref"
+          }
+        },
+        "required": [
+          "key",
+          "kind",
+          "configured",
+          "status",
+          "tx_ref",
+          "block_ref",
+          "link",
+          "last_confirmed_at",
+          "last_confirmed_size"
+        ],
+        "title": "BackendState",
         "type": "object"
       },
       "Because": {

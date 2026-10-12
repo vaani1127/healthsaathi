@@ -6,7 +6,8 @@ clinic's public key, and where that tree head was anchored.
 """
 
 import uuid
-from typing import Any
+from datetime import datetime
+from typing import Any, Literal
 
 from pydantic import BaseModel
 from sqlalchemy import select, text
@@ -14,9 +15,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.access.service import RequestInfo, record_and_explain
 from app.anchor.evm import clinic_bytes32
+from app.anchor.job import chain_backend
 from app.core.config import get_settings
 from app.core.errors import ProblemError
-from app.db.enums import AccessAction, AnchorStatus, ResourceType
+from app.db.enums import AccessAction, AnchorBackend, AnchorStatus, ResourceType
 from app.db.models import AccessEvent, AnchorReceipt, AuditEvent, MerkleCheckpoint
 from app.identity.deps import ClinicPrincipal
 from app.ledger.checkpoint import (
@@ -59,7 +61,7 @@ def _link(backend: str, tx_ref: str | None) -> str | None:
         return None
     if backend in ("amoy", "besu") and settings.anchor_explorer_url:
         return f"{settings.anchor_explorer_url.rstrip('/')}/tx/{tx_ref}"
-    if backend == "github" and settings.witness_repo:
+    if backend == "github" and settings.witness_repo and not settings.witness_dir:
         return f"https://github.com/{settings.witness_repo}/commit/{tx_ref}"
     return None
 
@@ -130,6 +132,79 @@ async def receipt_for(
     )
 
 
+BackendKey = Literal["chain", "witness", "ots"]
+BackendKind = Literal["amoy", "besu", "anvil", "github", "local", "ots"]
+
+
+class BackendState(BaseModel):
+    """One witness as configured here, and what happened to the latest checkpoint on it."""
+
+    key: BackendKey
+    kind: BackendKind
+    configured: bool
+    # pending, confirmed or failed for the latest checkpoint; None when nothing was sent yet.
+    status: str | None
+    tx_ref: str | None
+    block_ref: str | None
+    link: str | None
+    last_confirmed_at: datetime | None
+    last_confirmed_size: int | None
+
+
+def configured_backends() -> list[tuple[BackendKey, BackendKind, bool, AnchorBackend]]:
+    s = get_settings()
+    return [
+        (
+            "chain",
+            s.anchor_chain,
+            bool(s.anchor_rpc_url and s.audit_anchor_address),
+            chain_backend(s.anchor_chain),
+        ),
+        (
+            "witness",
+            "local" if s.witness_dir else "github",
+            bool(s.witness_dir or (s.witness_repo and s.witness_github_token)),
+            AnchorBackend.GITHUB,
+        ),
+        ("ots", "ots", s.ots_enabled, AnchorBackend.OTS),
+    ]
+
+
+async def _backend_states(
+    db: AsyncSession, clinic_id: uuid.UUID, anchors: list[AnchorRef]
+) -> list[BackendState]:
+    states = []
+    for key, kind, configured, stored in configured_backends():
+        latest = next((a for a in anchors if a.backend == stored.value), None)
+        confirmed = (
+            await db.execute(
+                select(AnchorReceipt.confirmed_at, MerkleCheckpoint.tree_size)
+                .join(MerkleCheckpoint, MerkleCheckpoint.id == AnchorReceipt.checkpoint_id)
+                .where(
+                    AnchorReceipt.clinic_id == clinic_id,
+                    AnchorReceipt.backend == stored,
+                    AnchorReceipt.status == AnchorStatus.CONFIRMED,
+                )
+                .order_by(MerkleCheckpoint.tree_size.desc())
+                .limit(1)
+            )
+        ).first()
+        states.append(
+            BackendState(
+                key=key,
+                kind=kind,
+                configured=configured,
+                status=latest.status if latest else None,
+                tx_ref=latest.tx_ref if latest else None,
+                block_ref=latest.block_ref if latest else None,
+                link=latest.link if latest else None,
+                last_confirmed_at=confirmed[0] if confirmed else None,
+                last_confirmed_size=confirmed[1] if confirmed else None,
+            )
+        )
+    return states
+
+
 class AuditStatus(BaseModel):
     sth: dict[str, Any] | None
     signature: str | None
@@ -140,6 +215,7 @@ class AuditStatus(BaseModel):
     problem: str | None
     anchors: list[AnchorRef]
     confirmed_backends: list[str]
+    backends: list[BackendState]
 
 
 async def audit_status(db: AsyncSession, clinic_id: uuid.UUID) -> AuditStatus:
@@ -186,4 +262,5 @@ async def audit_status(db: AsyncSession, clinic_id: uuid.UUID) -> AuditStatus:
         problem=problem,
         anchors=anchors,
         confirmed_backends=[a.backend for a in anchors if a.status == AnchorStatus.CONFIRMED.value],
+        backends=await _backend_states(db, clinic_id, anchors),
     )

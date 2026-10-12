@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.anchor.evm import ZERO32, EvmAnchor
 from app.anchor.github import GitHubWitness
+from app.anchor.local_witness import LocalWitness
 from app.anchor.ots import OtsStamper
 from app.core.config import get_settings
 from app.core.db import TenantContext, get_engine, tenant_session
@@ -47,8 +48,13 @@ JOB_ROLE = "anchor_job"
 class Backends:
     evm: EvmAnchor | None = None
     evm_name: AnchorBackend = AnchorBackend.AMOY
-    github: GitHubWitness | None = None
+    github: GitHubWitness | LocalWitness | None = None
     ots: OtsStamper | None = None
+
+
+def chain_backend(chain: str) -> AnchorBackend:
+    """The stored backend for a chain setting: anvil is a self-hosted EVM chain like Besu."""
+    return AnchorBackend.BESU if chain == "anvil" else AnchorBackend(chain)
 
 
 def backends_from_settings() -> Backends:
@@ -62,14 +68,16 @@ def backends_from_settings() -> Backends:
             s.clinic_registry_address,
             tx_timeout=s.anchor_tx_timeout_seconds,
         )
-    github = None
-    if s.witness_repo and s.witness_github_token:
+    github: GitHubWitness | LocalWitness | None = None
+    if s.witness_dir:
+        github = LocalWitness(s.witness_dir)
+    elif s.witness_repo and s.witness_github_token:
         github = GitHubWitness(
             s.witness_repo, s.witness_github_token.get_secret_value(), s.witness_branch
         )
     return Backends(
         evm=evm,
-        evm_name=AnchorBackend(s.anchor_chain),
+        evm_name=chain_backend(s.anchor_chain),
         github=github,
         ots=OtsStamper(s.ots_calendars) if s.ots_enabled else None,
     )
@@ -179,7 +187,7 @@ async def anchor_on_chain(evm: EvmAnchor, name: AnchorBackend, cp: CheckpointRes
     return status.value
 
 
-async def publish_witness(github: GitHubWitness, cp: CheckpointResult) -> str:
+async def publish_witness(github: GitHubWitness | LocalWitness, cp: CheckpointResult) -> str:
     clinic_id = cp.checkpoint.clinic_id
     existing = await _status(cp.checkpoint.id, AnchorBackend.GITHUB)
     if existing is not None and existing.status == AnchorStatus.CONFIRMED:

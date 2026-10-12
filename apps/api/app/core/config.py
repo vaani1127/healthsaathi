@@ -60,7 +60,9 @@ class Settings(BaseSettings):
 
     # Anchoring (SPEC 6). Every backend is optional; unset means that witness is skipped.
     anchor_rpc_url: str | None = Field(default=None, alias="ANCHOR_RPC_URL")
-    anchor_chain: Literal["amoy", "besu"] = Field(default="amoy", alias="ANCHOR_CHAIN")
+    # "anvil" is the local demo chain. Like Besu it is a self-hosted EVM chain, so its receipts are
+    # stored under the "besu" backend; the audit page names it "Local anvil chain".
+    anchor_chain: Literal["amoy", "besu", "anvil"] = Field(default="amoy", alias="ANCHOR_CHAIN")
     audit_anchor_address: str | None = Field(default=None, alias="AUDIT_ANCHOR_ADDRESS")
     clinic_registry_address: str | None = Field(default=None, alias="CLINIC_REGISTRY_ADDRESS")
     anchor_poster_private_key: SecretStr | None = Field(
@@ -74,6 +76,8 @@ class Settings(BaseSettings):
     witness_repo: str | None = Field(default=None, alias="WITNESS_REPO")
     witness_branch: str = Field(default="main", alias="WITNESS_BRANCH")
     witness_github_token: SecretStr | None = Field(default=None, alias="WITNESS_GITHUB_TOKEN")
+    # Local only: commit signed tree heads to a git repository in this folder instead of GitHub.
+    witness_dir: str | None = Field(default=None, alias="WITNESS_DIR")
     ots_enabled: bool = Field(default=False, alias="OTS_ENABLED")
     ots_calendars: list[str] = Field(
         default_factory=lambda: [
@@ -106,6 +110,7 @@ class Settings(BaseSettings):
         "anchor_trigger_token",
         "witness_repo",
         "witness_github_token",
+        "witness_dir",
         mode="before",
     )
     @classmethod
