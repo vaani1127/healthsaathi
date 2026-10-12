@@ -2616,6 +2616,42 @@
         "title": "LoginResponse",
         "type": "object"
       },
+      "MailOut": {
+        "properties": {
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to",
+          "subject",
+          "text",
+          "sent_at"
+        ],
+        "title": "MailOut",
+        "type": "object"
+      },
       "MeResponse": {
         "properties": {
           "clinic_id": {
@@ -7067,6 +7103,60 @@
         "summary": "Withdraw",
         "tags": [
           "consent"
+        ]
+      }
+    },
+    "/api/v1/dev/mailbox": {
+      "get": {
+        "description": "Local only: the newest emails first, optionally for one address.",
+        "operationId": "mailbox_api_v1_dev_mailbox_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MailOut"
+                  },
+                  "title": "Response Mailbox Api V1 Dev Mailbox Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mailbox",
+        "tags": [
+          "dev"
         ]
       }
     },
