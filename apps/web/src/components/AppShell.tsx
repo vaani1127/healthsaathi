@@ -34,7 +34,12 @@ export function AppShell() {
             {token?.role && ` · ${t(`roles.${token.role}`)}`}
           </span>
           <div className="ml-auto flex items-center gap-1">
-            <span className="hidden text-sm sm:inline">{me?.name}</span>
+            <Link to="/account/sessions" className="hidden text-sm underline-offset-2 hover:underline sm:inline">
+              {me?.name}
+            </Link>
+            <Link to="/account/sessions" className="rounded-md px-2 py-1 text-sm text-primary underline sm:hidden">
+              {t("sessions.link")}
+            </Link>
             <Button
               variant="ghost"
               size="sm"

@@ -52,6 +52,15 @@ const verifyRoute = createRoute({
   path: "/verify",
   component: lazyRouteComponent(() => import("@/features/verify/VerifyPage"), "VerifyPage"),
 });
+const inviteRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/invite",
+  validateSearch: (search: Record<string, unknown>) => ({
+    email: typeof search.email === "string" ? search.email : "",
+    token: typeof search.token === "string" ? search.token : "",
+  }),
+  component: lazyRouteComponent(() => import("@/features/auth/InvitePage"), "InvitePage"),
+});
 const patientLoginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/patient/login",
@@ -173,6 +182,11 @@ const invoiceRoute = createRoute({
   beforeLoad: only("reception"),
   component: lazyRouteComponent(() => import("@/features/billing/InvoicePage"), "InvoicePage"),
 });
+const sessionsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/account/sessions",
+  component: lazyRouteComponent(() => import("@/features/account/SessionsPage"), "SessionsPage"),
+});
 const receiptRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/print/receipt/$invoiceId",
@@ -189,6 +203,7 @@ const routeTree = rootRoute.addChildren([
   statusRoute,
   verifyRoute,
   patientLoginRoute,
+  inviteRoute,
   appRoute.addChildren([
     receptionRoute,
     receptionPatientRoute,
@@ -203,6 +218,7 @@ const routeTree = rootRoute.addChildren([
     patientPrintRoute,
     invoiceRoute,
     receiptRoute,
+    sessionsRoute,
   ]),
 ]);
 
