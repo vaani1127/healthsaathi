@@ -38,6 +38,8 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
         // config.js is replaced per deployment, so it is fetched fresh (cached copy when offline).
         globIgnores: ["config.js"],
+        // Push and notification click handlers for patients who opt in.
+        importScripts: ["push-sw.js"],
         // SPEC 4: today's queue is available offline. Notes, labs and prescriptions are never
         // cached. The cache is cleared on sign out.
         runtimeCaching: [

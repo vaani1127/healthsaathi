@@ -11,6 +11,7 @@ export default tseslint.config(
       "dev-dist",
       "coverage",
       "public/config.js",
+      "public/push-sw.js",
       "src/lib/api/schema.d.ts",
       "playwright-report",
       "test-results",

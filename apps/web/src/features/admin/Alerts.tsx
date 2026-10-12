@@ -5,8 +5,9 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert as Notice, Badge, Field, Input, Textarea } from "@/components/ui/form";
+import { Empty, Loading, LoadError, QueryStatus } from "@/components/ui/state";
 import { api, call, type Schemas } from "@/lib/api/client";
-import { errorMessage, formatDateTime, formatTime } from "@/lib/format";
+import { errorMessage, formatDate, formatDateTime, formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type AlertItem = Schemas["AlertOut"];
@@ -33,15 +34,27 @@ function Why({ code, strength }: { code: string | null | undefined; strength: nu
   );
 }
 
+function localDay(d = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+type View = "open" | "day";
+
 export function Alerts() {
   const { t } = useTranslation();
-  const [day, setDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const [view, setView] = useState<View>("open");
+  const [day, setDay] = useState(() => localDay());
   const [selected, setSelected] = useState<string | null>(null);
   const alerts = useQuery({
-    queryKey: ["alerts", day],
-    queryFn: () => call(() => api.GET("/api/v1/alerts", { params: { query: { day } } })),
+    queryKey: ["alerts", view, view === "day" ? day : null],
+    queryFn: () =>
+      call(() =>
+        api.GET("/api/v1/alerts", { params: { query: view === "open" ? { status: "open" } : { day } } }),
+      ),
   });
   const label = useFeatureLabel();
+  let lastDay: string | null = null;
   return (
     <Card>
       <CardHeader>
@@ -49,58 +62,79 @@ export function Alerts() {
         <p className="text-sm text-muted-foreground">{t("admin.alerts.explain")}</p>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <Field label={t("admin.day")} htmlFor="alerts-day">
-          <Input id="alerts-day" type="date" value={day} onChange={(e) => setDay(e.target.value)} />
-        </Field>
-        {alerts.isError && <Notice tone="error">{errorMessage(alerts.error)}</Notice>}
-        {alerts.data?.length === 0 && <p className="text-sm text-muted-foreground">{t("admin.alerts.empty")}</p>}
-        <ul className="flex flex-col gap-2">
-          {alerts.data?.map((a: AlertItem) => (
-            <li key={a.id} className="rounded-md border p-3 text-sm" data-testid="alert">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold">
-                    {t("admin.alerts.rank", { rank: a.rank_in_day })} {a.user_name} ({t(`roles.${a.role}`)})
-                  </p>
-                  <p>
-                    {t(`admin.alerts.action.${a.action}`)} {t(`resources.${a.resource}`)} · {formatTime(a.at)}
-                  </p>
-                  <p>
-                    <Why code={a.template_code} strength={a.strength} />
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <Badge tone={statusTone(a.status)}>{t(`admin.alerts.status.${a.status}`)}</Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {t("admin.alerts.score")} {a.score.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-              <ul className="mt-2 flex flex-wrap gap-1">
-                {a.top_features.slice(0, 3).map((f) => (
-                  <li key={f.feature} className="rounded bg-muted px-2 py-0.5 text-xs">
-                    {label(f.feature)}: {Number.isInteger(f.value) ? f.value : f.value.toFixed(2)}
-                  </li>
-                ))}
-              </ul>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-1 px-0 text-primary underline"
-                onClick={() => setSelected(selected === a.id ? null : a.id)}
-              >
-                {selected === a.id ? t("admin.alerts.close") : t("admin.alerts.open")}
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex gap-1" role="group" aria-label={t("admin.alerts.show")}>
+            {(["open", "day"] as const).map((v) => (
+              <Button key={v} size="sm" variant={view === v ? "default" : "outline"} aria-pressed={view === v} onClick={() => setView(v)}>
+                {t(`admin.alerts.view.${v}`)}
               </Button>
-              {selected === a.id && <AlertDetail id={a.id} day={day} />}
-            </li>
-          ))}
+            ))}
+          </div>
+          {view === "day" && (
+            <Field label={t("admin.day")} htmlFor="alerts-day">
+              <Input id="alerts-day" type="date" value={day} onChange={(e) => setDay(e.target.value)} />
+            </Field>
+          )}
+        </div>
+        <QueryStatus query={alerts} />
+        {alerts.data?.length === 0 && (
+          <Empty>{view === "open" ? t("admin.alerts.noneOpen") : t("admin.alerts.empty")}</Empty>
+        )}
+        <ul className="flex flex-col gap-2">
+          {alerts.data?.map((a: AlertItem) => {
+            const header = view === "open" && a.day !== lastDay ? a.day : null;
+            lastDay = a.day;
+            return (
+              <li key={a.id} className="flex flex-col gap-2">
+                {header && <h3 className="pt-2 text-sm font-semibold text-muted-foreground">{formatDate(header)}</h3>}
+                <div className="rounded-md border p-3 text-sm" data-testid="alert">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold">
+                        {t("admin.alerts.rank", { rank: a.rank_in_day })} {a.user_name} ({t(`roles.${a.role}`)})
+                      </p>
+                      <p>
+                        {t(`admin.alerts.action.${a.action}`)} {t(`resources.${a.resource}`)} · {formatTime(a.at)}
+                      </p>
+                      <p>
+                        <Why code={a.template_code} strength={a.strength} />
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge tone={statusTone(a.status)}>{t(`admin.alerts.status.${a.status}`)}</Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {t("admin.alerts.score")} {a.score.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                  <ul className="mt-2 flex flex-wrap gap-1">
+                    {a.top_features.slice(0, 3).map((f) => (
+                      <li key={f.feature} className="rounded bg-muted px-2 py-0.5 text-xs">
+                        {label(f.feature)}: {Number.isInteger(f.value) ? f.value : f.value.toFixed(2)}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-1 px-0 text-primary underline"
+                    aria-expanded={selected === a.id}
+                    onClick={() => setSelected(selected === a.id ? null : a.id)}
+                  >
+                    {selected === a.id ? t("admin.alerts.close") : t("admin.alerts.open")}
+                  </Button>
+                  {selected === a.id && <AlertDetail id={a.id} />}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </CardContent>
     </Card>
   );
 }
 
-function AlertDetail({ id, day }: { id: string; day: string }) {
+function AlertDetail({ id }: { id: string }) {
   const { t } = useTranslation();
   const client = useQueryClient();
   const label = useFeatureLabel();
@@ -119,15 +153,15 @@ function AlertDetail({ id, day }: { id: string; day: string }) {
       ),
     onSuccess: (data) => {
       client.setQueryData(["alert", id], data);
-      void client.invalidateQueries({ queryKey: ["alerts", day] });
+      void client.invalidateQueries({ queryKey: ["alerts"] });
     },
   });
   if (detail.isError) {
-    return <Notice tone="error">{errorMessage(detail.error)}</Notice>;
+    return <LoadError error={detail.error} onRetry={() => void detail.refetch()} />;
   }
   const d = detail.data;
   if (!d) {
-    return null;
+    return <Loading />;
   }
   const fired = Object.entries(d.forgery_flags).filter(([, v]) => v === true);
   const last = d.reviews.at(-1);

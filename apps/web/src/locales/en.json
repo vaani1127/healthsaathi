@@ -692,7 +692,13 @@
         "edit": "changed",
         "export": "exported",
         "print": "printed"
-      }
+      },
+      "show": "Show",
+      "view": {
+        "open": "Open alerts, all days",
+        "day": "One day"
+      },
+      "noneOpen": "No open alerts. Every alert has been reviewed."
     },
     "shifts": "Shifts this week",
     "shiftsExplain": "Staff on shift can open records for their work that day.",
@@ -802,5 +808,12 @@
     "empty": "No emails yet.",
     "to": "To {{to}}",
     "link": "Open the dev mailbox to read the code (local only)"
+  },
+  "push": {
+    "explain": "Get a notification on this device each time someone at the clinic opens your record.",
+    "on": "Notifications are on for this device. You get one each time someone at the clinic opens your record.",
+    "turnOn": "Turn on notifications",
+    "turnOff": "Turn off notifications",
+    "denied": "Notifications are blocked for this site. Allow them in your browser settings and try again."
   }
 }

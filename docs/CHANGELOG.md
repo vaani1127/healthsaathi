@@ -17,6 +17,13 @@
   manage staff shifts.
 - Bilingual lab report print view and `GET /lab-orders/{id}/print` (doctor and patient, released
   results only, logged as a print access).
+- Web push opt-in for patients (SPEC 9): `GET /push/key`, `POST /push/subscriptions`,
+  `POST /push/subscriptions/remove`. When staff open a subscribed patient's record a job is queued
+  in the same transaction and the worker sends a notification that carries no patient data. New
+  env vars `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`make env` creates the pair).
+- Dev mailbox (`GET /dev/mailbox` and the `/dev/mailbox` page), answering only when
+  `APP_ENV=local`. The web app reads runtime settings from `/config.js`.
+- Admin alert queue opens on the open alerts of every day; the day view uses the local date.
 - Anchoring: `ANCHOR_CHAIN=anvil` for a local chain (stored as the self-hosted `besu` backend) and
   `WITNESS_DIR` for a local git witness folder (stored as `github`). `GET /audit/status` returns
   the state of every witness, configured or not, and the audit page shows each one.

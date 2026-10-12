@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Receipt } from "@healthsaathi/receipt-verify";
@@ -11,6 +11,7 @@ import { DocumentLink, ResultValues } from "@/features/common/LabResult";
 import { testLabel } from "@/features/common/labTests";
 import { VitalsList } from "@/features/common/VitalsList";
 import { accessSentence } from "@/features/patient/explain";
+import { PushOptIn } from "@/features/patient/PushOptIn";
 import { checkReceipt, downloadReceipt } from "@/features/verify/check";
 import { ReceiptResultView } from "@/features/verify/ReceiptResultView";
 import { api, ApiError, call, type Schemas } from "@/lib/api/client";
@@ -21,7 +22,8 @@ type Tab = "record" | "log" | "consent" | "download";
 
 export function PatientPortal() {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<Tab>("record");
+  const search = useSearch({ from: "/app/patient" });
+  const [tab, setTab] = useState<Tab>(search.tab ?? "record");
   const me = useQuery({ queryKey: ["me-patient"], queryFn: () => call(() => api.GET("/api/v1/me/patient")) });
 
   if (me.isError) {
@@ -207,6 +209,7 @@ function AccessLog({ patientId }: { patientId: string }) {
   return (
     <section className="flex flex-col gap-4" aria-label={t("portal.tabs.log")}>
       <p className="text-sm text-muted-foreground">{t("portal.logIntro")}</p>
+      <PushOptIn />
       {log.isPending && <p role="status">{t("common.loading")}</p>}
       {!log.isPending && entries.length === 0 && <p>{t("portal.logEmpty")}</p>}
       {[...byDay.entries()].map(([day, items]) => (

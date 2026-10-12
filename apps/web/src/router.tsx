@@ -179,6 +179,10 @@ const patientRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/patient",
   beforeLoad: only("patient"),
+  validateSearch: (search: Record<string, unknown>): { tab?: "record" | "log" | "consent" | "download" } =>
+    search.tab === "record" || search.tab === "log" || search.tab === "consent" || search.tab === "download"
+      ? { tab: search.tab }
+      : {},
   component: lazyRouteComponent(() => import("@/features/patient/PatientPortal"), "PatientPortal"),
 });
 const patientPrintRoute = createRoute({
