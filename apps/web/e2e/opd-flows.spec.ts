@@ -27,14 +27,23 @@ test.describe.serial("OPD day", () => {
     await expect(page.getByText("Given (notice v1)")).toBeVisible();
 
     await page.getByLabel("Doctor").first().selectOption({ label: user("doctor").name });
-    // A time of its own, so a rerun on a stack that already has bookings does not hit a taken slot.
-    const at = new Date(Date.now() + (20 + (Number(stamp) % 50) * 5) * 60_000);
+    // A few minutes ahead, so the appointment explains the visit. A stack that already has
+    // bookings (the demo) may have that slot taken: then try a few minutes later.
     const pad = (n: number) => String(n).padStart(2, "0");
-    await page
-      .locator("#book-when")
-      .fill(`${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`);
-    await page.getByRole("button", { name: "Book appointment" }).click();
-    await expect(page.getByText("Appointment booked.")).toBeVisible();
+    const booked = page.getByText("Appointment booked.");
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const at = new Date(Date.now() + (2 + attempt * 6) * 60_000);
+      await page
+        .locator("#book-when")
+        .fill(`${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`);
+      await page.getByRole("button", { name: "Book appointment" }).click();
+      await page.waitForLoadState("networkidle");
+      await expect(booked.or(page.getByText("The doctor already has an appointment at that time."))).toBeVisible();
+      if (await booked.isVisible()) {
+        break;
+      }
+    }
+    await expect(booked).toBeVisible();
 
     await page.getByRole("link", { name: "HealthSaathi" }).click();
     const row = page.getByRole("listitem").filter({ hasText: patientName });
