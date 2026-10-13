@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, Badge, Input } from "@/components/ui/form";
+import { Empty, QueryStatus } from "@/components/ui/state";
 import { api, call, type Schemas } from "@/lib/api/client";
 import { errorMessage, formatDate, formatMoney } from "@/lib/format";
 
@@ -58,6 +59,8 @@ export function CreateInvoice({
             ))}
           </ul>
         )}
+        <QueryStatus query={services} />
+        {services.data?.length === 0 && <Empty>{t("admin.noServices")}</Empty>}
         <ul className="flex flex-col gap-2">
           {services.data?.map((s) => (
             <li key={s.id} className="flex items-center justify-between gap-2">

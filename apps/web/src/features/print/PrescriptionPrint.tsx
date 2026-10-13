@@ -6,12 +6,12 @@ import { useParams, useSearch } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import { Alert } from "@/components/ui/form";
+import { Loading, LoadError } from "@/components/ui/state";
 import { useStaffNames } from "@/features/common/queries";
 import { api, call } from "@/lib/api/client";
 import en from "@/locales/en.json";
 import hi from "@/locales/hi.json";
-import { errorMessage, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 
 /** Bilingual prescription for the browser's print dialog (save as PDF works too). */
 export function PrescriptionPrint() {
@@ -34,10 +34,10 @@ export function PrescriptionPrint() {
   });
 
   if (data.isError) {
-    return <Alert tone="error">{errorMessage(data.error)}</Alert>;
+    return <LoadError error={data.error} onRetry={() => void data.refetch()} />;
   }
   if (!data.data) {
-    return <p role="status">{t("common.loading")}</p>;
+    return <Loading />;
   }
   const { rx, patient, clinic } = data.data;
   const label = (key: keyof typeof en.print) => `${en.print[key]} / ${hi.print[key]}`;

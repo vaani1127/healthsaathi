@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, Badge, Field, Input, Select, Textarea } from "@/components/ui/form";
+import { Empty, QueryStatus } from "@/components/ui/state";
 import { Alerts } from "@/features/admin/Alerts";
 import { AuditStatus } from "@/features/admin/AuditStatus";
 import { Shifts } from "@/features/admin/Shifts";
@@ -86,6 +87,9 @@ function Staff() {
         </CardHeader>
         <CardContent>
           <ul className="divide-y text-sm">
+            <QueryStatus query={members} />
+            <QueryStatus query={members} />
+          {members.data?.length === 0 && <Empty>{t("admin.noStaff")}</Empty>}
             {members.data?.map((m) => (
               <li key={m.membership_id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <div className="min-w-0">
@@ -173,6 +177,9 @@ function Schedules() {
         </CardHeader>
         <CardContent>
           <ul className="divide-y text-sm">
+            <QueryStatus query={schedules} />
+            <QueryStatus query={schedules} />
+          {schedules.data?.length === 0 && <Empty>{t("admin.noSchedules")}</Empty>}
             {schedules.data?.map((s) => (
               <li key={s.id} className="flex items-center justify-between py-1">
                 <span className={cn(s.status !== "active" && "text-muted-foreground line-through")}>
@@ -270,6 +277,8 @@ function Services() {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <ul className="divide-y text-sm">
+          <QueryStatus query={services} />
+          {services.data?.length === 0 && <Empty>{t("admin.noServices")}</Empty>}
           {services.data?.map((s) => (
             <li key={s.id} className="flex items-center justify-between py-1">
               <span className={cn(!s.is_active && "text-muted-foreground line-through")}>
@@ -332,6 +341,8 @@ function Notices() {
           <CardTitle>{t("admin.notices")}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm">
+          <QueryStatus query={notices} />
+          {notices.data?.length === 0 && <Empty>{t("admin.noNotices")}</Empty>}
           {notices.data?.map((n) => (
             <article key={n.id} className="rounded-md border p-2">
               <p className="font-medium">
@@ -401,7 +412,8 @@ function BreakGlassQueue() {
         <CardTitle>{t("admin.breakGlassQueue")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-2 text-sm">
-        {queue.data?.length === 0 && <p className="text-muted-foreground">{t("admin.nothingToReview")}</p>}
+        <QueryStatus query={queue} />
+        {queue.data?.length === 0 && <Empty>{t("admin.nothingToReview")}</Empty>}
         {queue.data?.map((b) => (
           <article key={b.id} className="rounded-md border p-2">
             <p>
@@ -447,7 +459,8 @@ function AccessReports() {
         <CardTitle>{t("admin.reports")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-2 text-sm">
-        {reports.data?.length === 0 && <p className="text-muted-foreground">{t("admin.nothingToReview")}</p>}
+        <QueryStatus query={reports} />
+        {reports.data?.length === 0 && <Empty>{t("admin.nothingToReview")}</Empty>}
         {reports.data?.map((q) => (
           <article key={q.id} className="flex items-start justify-between gap-2 rounded-md border p-2">
             <div>

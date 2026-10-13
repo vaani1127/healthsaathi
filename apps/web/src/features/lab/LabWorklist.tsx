@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, Badge, Field, Input } from "@/components/ui/form";
+import { Empty, QueryStatus } from "@/components/ui/state";
 import { testLabel } from "@/features/common/labTests";
 import { api, ApiError, call, type Schemas } from "@/lib/api/client";
 import { API_URL } from "@/lib/config";
@@ -26,8 +27,8 @@ export function LabWorklist() {
         <CardTitle>{t("lab.worklist")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {worklist.isError && <Alert tone="error">{errorMessage(worklist.error)}</Alert>}
-        {worklist.data?.length === 0 && <p className="text-sm text-muted-foreground">{t("lab.empty")}</p>}
+        <QueryStatus query={worklist} />
+        {worklist.data?.length === 0 && <Empty>{t("lab.empty")}</Empty>}
         {released > 0 && <Alert tone="success">{t("lab.released")}</Alert>}
         {worklist.data?.map((item) => (
           <WorkItem key={item.order.id} item={item} onReleased={() => setReleased((n) => n + 1)} />

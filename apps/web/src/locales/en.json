@@ -715,7 +715,11 @@
     "staffMember": "Staff member",
     "shiftDay": "Day",
     "shiftChooseStaff": "Choose a staff member.",
-    "shiftAdded": "Shift added."
+    "shiftAdded": "Shift added.",
+    "noStaff": "No staff yet. Invite the first person below.",
+    "noSchedules": "No doctor schedules yet. Add one so patients can be booked.",
+    "noServices": "No services yet. Add the services the clinic bills for.",
+    "noNotices": "No consent notice yet. Write the first version below."
   },
   "verify": {
     "title": "Check an access receipt",

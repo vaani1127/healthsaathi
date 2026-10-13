@@ -5,9 +5,9 @@ import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import { Alert } from "@/components/ui/form";
+import { Loading, LoadError } from "@/components/ui/state";
 import { api, call } from "@/lib/api/client";
-import { errorMessage, formatDateTime, formatMoney } from "@/lib/format";
+import { formatDateTime, formatMoney } from "@/lib/format";
 import en from "@/locales/en.json";
 import hi from "@/locales/hi.json";
 
@@ -29,10 +29,10 @@ export function ReceiptPrint() {
     },
   });
   if (data.isError) {
-    return <Alert tone="error">{errorMessage(data.error)}</Alert>;
+    return <LoadError error={data.error} onRetry={() => void data.refetch()} />;
   }
   if (!data.data) {
-    return <p role="status">{t("common.loading")}</p>;
+    return <Loading />;
   }
   const { receipt, patient, clinic } = data.data;
   const label = (key: keyof typeof en.receipt) => `${en.receipt[key]} / ${hi.receipt[key]}`;

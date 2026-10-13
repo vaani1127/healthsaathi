@@ -2,11 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import { Alert } from "@/components/ui/form";
+import { Loading, LoadError } from "@/components/ui/state";
 import { ResultValues } from "@/features/common/LabResult";
 import { testLabel } from "@/features/common/labTests";
 import { api, call } from "@/lib/api/client";
-import { errorMessage, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 
 /** The patient's own record as a page to print or save as PDF. */
 export function RecordPrint() {
@@ -22,11 +22,11 @@ export function RecordPrint() {
     },
   });
   if (data.isError) {
-    return <Alert tone="error">{errorMessage(data.error)}</Alert>;
+    return <LoadError error={data.error} onRetry={() => void data.refetch()} />;
   }
   const c = data.data;
   if (!c) {
-    return <p role="status">{t("common.loading")}</p>;
+    return <Loading />;
   }
   return (
     <article className="mx-auto flex max-w-2xl flex-col gap-4 bg-white p-4 text-black">
