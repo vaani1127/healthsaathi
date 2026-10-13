@@ -1,7 +1,8 @@
 COMPOSE := docker compose -f infra/docker-compose.dev.yml
 DEMO := docker compose -f infra/docker-compose.demo.yml
 UV := uv run
-PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests experiments/src experiments/tests \n	infra/demo/src infra/demo/tests
+PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests experiments/src experiments/tests \
+	infra/demo/src infra/demo/tests
 
 .PHONY: help env install demo demo-code demo-e2e fhir-validate demo-logs demo-down demo-reset dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
 	test-sol migrate seed sim sim-coverage sim-audit sim-splits exp prereg-audit prereg-stamp audit
