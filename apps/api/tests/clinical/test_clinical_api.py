@@ -342,6 +342,13 @@ async def test_lab_order_to_released_result_with_file(
         headers=lab.headers,
     )
     assert bad_type.status_code == 415
+    renamed = await client.post(
+        f"/api/v1/lab-orders/{order['id']}/result",
+        data={"values": "{}"},
+        files={"file": ("report.pdf", b"MZ not a pdf", "application/pdf")},
+        headers=lab.headers,
+    )
+    assert renamed.status_code == 415, "the file's bytes must match its declared type"
     bad_values = await client.post(
         f"/api/v1/lab-orders/{order['id']}/result", data={"values": "[1]"}, headers=lab.headers
     )

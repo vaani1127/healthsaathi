@@ -57,6 +57,12 @@ R = ResourceType
 A = AccessAction
 
 ALLOWED_UPLOADS = {"application/pdf": "pdf", "image/png": "png", "image/jpeg": "jpg"}
+# The declared type must match the file's first bytes, so a renamed file is refused.
+MAGIC = {
+    "application/pdf": (b"%PDF-",),
+    "image/png": (b"\x89PNG\r\n\x1a\n",),
+    "image/jpeg": (b"\xff\xd8\xff",),
+}
 
 
 async def _record(
@@ -639,7 +645,7 @@ async def record_result(
     document_id = None
     if upload is not None:
         data, content_type = upload
-        if content_type not in ALLOWED_UPLOADS:
+        if content_type not in ALLOWED_UPLOADS or not data.startswith(MAGIC[content_type]):
             raise ProblemError(415, "unsupported-file", "Upload a PDF, PNG or JPEG file.")
         if len(data) > get_settings().max_upload_bytes:
             raise ProblemError(413, "file-too-large")
