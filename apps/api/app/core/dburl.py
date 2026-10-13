@@ -58,5 +58,9 @@ def engine_options(url: str, pooler_prepared: bool = False) -> dict[str, Any]:
         }
         if not pooler_prepared:
             connect_args.update(statement_cache_size=0, prepared_statement_cache_size=0)
+        # A remote pooler: fail a statement on a dropped connection instead of waiting forever,
+        # and allow more connections, since each request holds one for several round trips.
+        connect_args["command_timeout"] = 60
         options["connect_args"] = connect_args
+        options.update(pool_size=10, max_overflow=10)
     return options

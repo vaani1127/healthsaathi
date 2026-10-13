@@ -15,9 +15,9 @@ const phone = { ...devices["Desktop Chrome"], viewport: { width: 360, height: 78
 export default defineConfig({
   testDir: ".",
   // Native mode talks to a remote database (Neon), so every screen waits on network round trips.
-  timeout: process.env.E2E_NATIVE ? 180_000 : 90_000,
+  timeout: process.env.E2E_NATIVE ? 300_000 : 90_000,
   globalTimeout: (process.env.E2E_NATIVE ? 120 : 45) * 60_000,
-  expect: { timeout: process.env.E2E_NATIVE ? 30_000 : 15_000 },
+  expect: { timeout: process.env.E2E_NATIVE ? 60_000 : 15_000 },
   fullyParallel: false,
   workers: 1,
   retries: 0,

@@ -35,6 +35,7 @@ def test_pooled_endpoints_get_no_statement_caches() -> None:
     supported = engine_options(asyncpg_url(NEON_POOLED), pooler_prepared=True)["connect_args"]
     assert "statement_cache_size" not in supported, "caches stay on when the pooler supports them"
     assert callable(supported["prepared_statement_name_func"])
+    assert supported["command_timeout"] == 60
 
 
 def test_listen_dsn_keeps_ssl() -> None:
