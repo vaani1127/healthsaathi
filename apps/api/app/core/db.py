@@ -57,14 +57,17 @@ def _apply_tenant_context(
         return
     if ctx.db_role not in DB_ROLES:
         raise ValueError(f"unknown database role {ctx.db_role!r}")
-    connection.execute(text(f"SET LOCAL ROLE {ctx.db_role}"))
+    # One round trip: set_config('role', ..., true) is SET LOCAL ROLE. With a remote database every
+    # statement costs a network round trip, and this runs at the start of every transaction.
     connection.execute(
         text(
-            "SELECT set_config('app.clinic_id', :clinic_id, true),"
+            "SELECT set_config('role', :db_role, true),"
+            " set_config('app.clinic_id', :clinic_id, true),"
             " set_config('app.user_id', :user_id, true),"
             " set_config('app.role', :role, true)"
         ),
         {
+            "db_role": ctx.db_role,
             "clinic_id": str(ctx.clinic_id) if ctx.clinic_id else "",
             "user_id": str(ctx.user_id) if ctx.user_id else "",
             "role": ctx.role or "",
@@ -74,8 +77,11 @@ def _apply_tenant_context(
 
 @lru_cache
 def get_engine() -> AsyncEngine:
-    url = get_settings().database_url
-    return create_async_engine(url, **engine_options(url))
+    settings = get_settings()
+    url = settings.database_url
+    return create_async_engine(
+        url, **engine_options(url, settings.database_pooler_prepared_statements)
+    )
 
 
 async def wait_for_database(attempts: int = 8) -> None:

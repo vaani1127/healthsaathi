@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     )
     # Optional direct (not pooled) connection, for LISTEN/NOTIFY. Defaults to DATABASE_URL.
     database_direct_url: str | None = Field(default=None, alias="DATABASE_DIRECT_URL")
+    # True when the pooler in DATABASE_URL supports prepared statements (Neon's does).
+    database_pooler_prepared_statements: bool = Field(
+        default=False, alias="DATABASE_POOLER_PREPARED_STATEMENTS"
+    )
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:5173"], alias="CORS_ORIGINS"
     )

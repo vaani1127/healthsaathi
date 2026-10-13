@@ -86,6 +86,8 @@ def demo_env(*, direct: bool = False) -> dict[str, str]:
             "APP_ENV": "local",
             "DATABASE_URL": db[DIRECT] if direct else db[POOLED],
             "DATABASE_DIRECT_URL": db[DIRECT],
+            # Neon's pooler keeps prepared statements, so their caches stay on.
+            "DATABASE_POOLER_PREPARED_STATEMENTS": "true",
             "MIGRATOR_DATABASE_URL": db[DIRECT],
             "DEMO_STATE_DIR": str(STATE),
             "SIM_PROFILES_DIR": str(ROOT / "sim" / "profiles"),

@@ -45,14 +45,17 @@ def asyncpg_dsn(url: str) -> str:
     return parsed.set(drivername="postgresql", query=query).render_as_string(hide_password=False)
 
 
-def engine_options(url: str) -> dict[str, Any]:
+def engine_options(url: str, pooler_prepared: bool = False) -> dict[str, Any]:
     """Options for create_async_engine: check connections before use (a sleeping Neon compute
-    closes them), recycle idle ones, and no prepared statement caches behind a pooler."""
+    closes them) and recycle idle ones. Behind a pooler, prepared statements get unique names;
+    their caches stay on only when the pooler supports prepared statements (PgBouncer 1.21 and
+    later with max_prepared_statements, as Neon's does), which saves two round trips a query."""
     options: dict[str, Any] = {"pool_pre_ping": True, "pool_recycle": 300}
     if is_pooled(url):
-        options["connect_args"] = {
-            "statement_cache_size": 0,
-            "prepared_statement_cache_size": 0,
+        connect_args: dict[str, Any] = {
             "prepared_statement_name_func": lambda: f"__hs_{uuid.uuid4().hex}__",
         }
+        if not pooler_prepared:
+            connect_args.update(statement_cache_size=0, prepared_statement_cache_size=0)
+        options["connect_args"] = connect_args
     return options
