@@ -15,7 +15,11 @@ export function QueueList({ doctorId, to }: { doctorId?: string; to: "/nurse/pat
   const items = queue.data ?? [];
   return (
     <ul className="flex flex-col divide-y" aria-label={t("queue.title")}>
-      {queue.isPending && <li role="status">{t("common.loading")}</li>}
+      {queue.isPending && (
+        <li className="py-2 text-sm text-muted-foreground">
+          <span role="status">{t("common.loading")}</span>
+        </li>
+      )}
       {!queue.isPending && items.length === 0 && (
         <li className="py-2 text-sm text-muted-foreground">{t("queue.empty")}</li>
       )}

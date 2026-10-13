@@ -55,3 +55,23 @@
 .print-font {
   font-family: "Noto Sans", "Noto Sans Devanagari", sans-serif;
 }
+
+/* Global activity bar (components/ui/busy.tsx). */
+@keyframes busy-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+.busy-bar-fill {
+  animation: busy-slide 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .busy-bar-fill {
+    animation: none;
+    width: 100%;
+    opacity: 0.6;
+  }
+}

@@ -86,10 +86,9 @@ function Staff() {
           <CardTitle>{t("admin.staff")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="divide-y text-sm">
-            <QueryStatus query={members} />
-            <QueryStatus query={members} />
+          <QueryStatus query={members} />
           {members.data?.length === 0 && <Empty>{t("admin.noStaff")}</Empty>}
+          <ul className="divide-y text-sm">
             {members.data?.map((m) => (
               <li key={m.membership_id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <div className="min-w-0">
@@ -176,10 +175,9 @@ function Schedules() {
           <CardTitle>{t("admin.schedules")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="divide-y text-sm">
-            <QueryStatus query={schedules} />
-            <QueryStatus query={schedules} />
+          <QueryStatus query={schedules} />
           {schedules.data?.length === 0 && <Empty>{t("admin.noSchedules")}</Empty>}
+          <ul className="divide-y text-sm">
             {schedules.data?.map((s) => (
               <li key={s.id} className="flex items-center justify-between py-1">
                 <span className={cn(s.status !== "active" && "text-muted-foreground line-through")}>
@@ -276,9 +274,9 @@ function Services() {
         <CardTitle>{t("admin.services")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        <QueryStatus query={services} />
+        {services.data?.length === 0 && <Empty>{t("admin.noServices")}</Empty>}
         <ul className="divide-y text-sm">
-          <QueryStatus query={services} />
-          {services.data?.length === 0 && <Empty>{t("admin.noServices")}</Empty>}
           {services.data?.map((s) => (
             <li key={s.id} className="flex items-center justify-between py-1">
               <span className={cn(!s.is_active && "text-muted-foreground line-through")}>

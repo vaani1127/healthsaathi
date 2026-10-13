@@ -9,6 +9,7 @@ import {
 
 import { AppShell } from "@/components/AppShell";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
+import { GlobalBusy } from "@/components/ui/busy";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { PatientLoginPage } from "@/features/auth/PatientLoginPage";
 import { SelectClinicPage } from "@/features/auth/SelectClinicPage";
@@ -23,6 +24,7 @@ import { homeFor, useAuth } from "@/stores/auth";
 const rootRoute = createRootRoute({
   component: () => (
     <>
+      <GlobalBusy />
       <Outlet />
       <UpdatePrompt />
     </>
