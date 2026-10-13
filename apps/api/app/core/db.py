@@ -6,6 +6,8 @@ applies even if the connection itself logs in as a more powerful user. The conte
 at the start of every transaction, so a commit in the middle of a request cannot drop it.
 """
 
+import asyncio
+import logging
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -23,6 +25,9 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import Session, SessionTransaction
 
 from app.core.config import get_settings
+from app.core.dburl import engine_options
+
+logger = logging.getLogger(__name__)
 
 APP_ROLE = "app_rw"
 _TENANT_KEY = "tenant"
@@ -69,7 +74,25 @@ def _apply_tenant_context(
 
 @lru_cache
 def get_engine() -> AsyncEngine:
-    return create_async_engine(get_settings().database_url, pool_pre_ping=True)
+    url = get_settings().database_url
+    return create_async_engine(url, **engine_options(url))
+
+
+async def wait_for_database(attempts: int = 8) -> None:
+    """Wait for the database to answer. A hosted database that sleeps when idle (Neon) takes a
+    few seconds to wake on the first connection; the app retries instead of failing to start."""
+    delay = 1.0
+    for attempt in range(1, attempts + 1):
+        try:
+            async with get_engine().connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            return
+        except Exception:
+            if attempt == attempts:
+                raise
+            logger.warning("database not reachable yet, retrying", extra={"attempt": attempt})
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, 8.0)
 
 
 @lru_cache

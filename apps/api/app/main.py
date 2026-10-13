@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -17,6 +18,7 @@ from app.clinic.router import router as clinic_router
 from app.clinical.router import router as clinical_router
 from app.consent.router import router as consent_router
 from app.core.config import get_settings
+from app.core.db import wait_for_database
 from app.core.errors import install_error_handlers, problem_response
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
@@ -32,6 +34,8 @@ from app.realtime.hub import hub
 from app.realtime.router import router as realtime_router
 from app.startup import maintenance_loop, run_startup_tasks
 
+logger = logging.getLogger(__name__)
+
 API_PREFIX = "/api/v1"
 
 
@@ -41,6 +45,10 @@ def _rate_limited(_: Request, __: Exception) -> Response:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    try:
+        await wait_for_database()
+    except Exception:
+        logger.exception("database not reachable at startup; /ready reports it")
     await run_startup_tasks()
     maintenance = asyncio.create_task(maintenance_loop())
     yield

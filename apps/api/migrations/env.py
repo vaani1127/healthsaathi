@@ -8,6 +8,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.config import get_settings
+from app.core.dburl import asyncpg_url, engine_options
 from app.db import models  # noqa: F401  (registers tables)
 from app.db.base import Base
 
@@ -55,7 +56,8 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_async_migrations() -> None:
-    engine = create_async_engine(database_url())
+    url = asyncpg_url(database_url())
+    engine = create_async_engine(url, **engine_options(url))
     async with engine.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await engine.dispose()

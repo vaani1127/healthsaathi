@@ -18,7 +18,7 @@ from sqlalchemy import func, select, text
 
 from app.anchor import job
 from app.core.config import get_settings
-from app.core.db import TenantContext, get_engine, tenant_session
+from app.core.db import TenantContext, get_engine, tenant_session, wait_for_database
 from app.core.logging import configure_logging
 from app.db.models import AnchorReceipt, MerkleCheckpoint
 from app.detect import service as detect
@@ -109,6 +109,7 @@ async def push_loop() -> None:
 
 async def main() -> None:
     configure_logging()
+    await wait_for_database()
     await run_startup_tasks()
     try:
         await asyncio.gather(maintenance_loop(), anchor_fallback_loop(), detect_loop(), push_loop())

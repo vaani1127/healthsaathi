@@ -16,10 +16,10 @@ from typing import Any
 
 import asyncpg
 from sqlalchemy import text
-from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.dburl import asyncpg_dsn
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +43,11 @@ class Hub:
         async with self._lock:
             if self._conn is not None and not self._conn.is_closed():
                 return
-            url = make_url(get_settings().database_url).set(drivername="postgresql")
-            self._conn = await asyncpg.connect(url.render_as_string(hide_password=False))
+            # LISTEN needs a session of its own, so a pooled URL will not do: use the direct one.
+            settings = get_settings()
+            self._conn = await asyncpg.connect(
+                asyncpg_dsn(settings.database_direct_url or settings.database_url)
+            )
             await self._conn.add_listener(CHANNEL, self._on_message)
 
     def _on_message(self, _conn: object, _pid: int, _channel: str, payload: str) -> None:

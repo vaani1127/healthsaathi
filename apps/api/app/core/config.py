@@ -5,6 +5,8 @@ from typing import Literal
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.dburl import asyncpg_url
+
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
@@ -24,6 +26,8 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://healthsaathi:healthsaathi@localhost:5432/healthsaathi",
         alias="MIGRATOR_DATABASE_URL",
     )
+    # Optional direct (not pooled) connection, for LISTEN/NOTIFY. Defaults to DATABASE_URL.
+    database_direct_url: str | None = Field(default=None, alias="DATABASE_DIRECT_URL")
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:5173"], alias="CORS_ORIGINS"
     )
@@ -123,6 +127,12 @@ class Settings(BaseSettings):
     @classmethod
     def _blank_is_unset(cls, value: object) -> object:
         return None if value == "" else value
+
+    @field_validator("database_url", "migrator_database_url", "database_direct_url")
+    @classmethod
+    def _asyncpg_form(cls, value: str | None) -> str | None:
+        # Hosted Postgres hands out postgresql://...?sslmode=require; see app.core.dburl.
+        return asyncpg_url(value) if value else None
 
     @field_validator("jwt_secret", "otp_hmac_key", "ledger_signing_seed")
     @classmethod
