@@ -4,6 +4,9 @@
 
 ### P18 hardening
 
+- Detection fits its models up to the database clock, the clock that stamps accesses; a host
+  clock slightly behind the database left the latest accesses out of training.
+
 - `POST /auth/password`: change the password with the current one; other sessions are signed
   out and the user gets an email. "Change password" card on the account page; every password
   field has a show and hide button.

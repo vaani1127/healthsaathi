@@ -236,7 +236,11 @@ async def fit_models(
     settings = get_settings()
     store = store or model_store()
     scorer = scorer or settings.detect_scorer
-    now = now or datetime.now(UTC)
+    if now is None:
+        # The database clock stamps accesses; the API host's clock can be a little behind it, and
+        # accesses from that gap would fall outside the window.
+        async with tenant_session(_ctx()) as db:
+            now = await db_now(db)
     by_clinic = {str(c): await _training_rows(c, now) for c in await clinic_ids()}
     by_clinic = {k: v for k, v in by_clinic.items() if v.height}
     models, fallback = fit_per_clinic(by_clinic, ALL_FEATURES, scorer)

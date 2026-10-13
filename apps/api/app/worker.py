@@ -79,7 +79,7 @@ async def detect_tick(now: datetime | None = None) -> dict[str, int]:
     store = detect.model_store()
     now = now or datetime.now(UTC)
     if fit_is_due(store, now):
-        await detect.fit_models(now, store=store)
+        await detect.fit_models(store=store)  # fits up to the database clock
         store.root.mkdir(parents=True, exist_ok=True)
         (store.root / FIT_MARKER).write_text(now.isoformat(), encoding="utf-8")
     return await detect.score_all()
