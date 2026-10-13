@@ -108,9 +108,15 @@ http://localhost:8080 and the API on http://localhost:8081. Process logs are in 
 | `make demo-e2e`, `make demo-videos` | Browser tests and flow videos against the running demo |
 | `uv run python -m hs_demo.native smoke` | API and database smoke tests on the Neon `test` branch |
 
-Every request travels to the Neon region and back, so screens take about a second longer than
-with a local database. Neon pauses an idle database after a few minutes; the first request after
-that wakes it and takes a few seconds.
+Every database query travels to the Neon region (Singapore for this project) and back, and a
+screen needs several of them, so native mode is slower than a deployment where the API and the
+database sit together. Measured on 13 October 2026 over the full browser test suite (816
+requests; `uv run python infra/demo/request_stats.py .demo/logs/api.log --since ...`): median
+2.6 s and 95th percentile 9.0 s per request; reception day list 5.9 s, patient chart 8.3 s and
+queue 5.4 s (medians). Before list screens and charts recorded their accesses in batches, the
+same suite gave median 3.6 s and 95th percentile 39.7 s, with the day list at 41.0 s. Neon pauses
+an idle database after a few minutes; the first request after that wakes it and takes a few
+seconds.
 
 ## Development setup
 

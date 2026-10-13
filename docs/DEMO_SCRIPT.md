@@ -1,14 +1,25 @@
 # 10 minute demo script
 
-For an evaluator watching the app, run on one laptop with `make demo`. Times are a guide.
+For an evaluator watching the app, run on one laptop with `make demo` (Docker) or
+`make demo-native` (no Docker, database on Neon). Times are a guide.
 Logins, the staff password and authenticator keys come from the table `make demo` prints; the
 same table lists the insider cases from the simulation and where each one ended up (alert day
 and rank, or the break-glass queue). Use two browser windows (one normal, one private) so a staff
 user and a patient can be signed in at the same time. Get any staff code with
 `make demo-code EMAIL=...`.
 
-Before you start (1 minute before the audience arrives): run `make demo`, open
-http://localhost:8080, and keep the printed table on screen.
+Before you start (1 minute before the audience arrives): run `make demo` or `make demo-native`,
+open http://localhost:8080, and keep the printed table on screen (native mode also writes it to
+`.demo/state/logins.txt`). Stop with `make demo-down` or `make demo-native-stop`.
+
+Native mode keeps the database on Neon in Singapore, so every screen waits for many round trips
+to it. Measured on 13 October 2026 over the full browser test suite (`make demo-e2e`, 816
+requests, timings from `infra/demo/request_stats.py`): half of all requests took under 2.6 s and
+95% under 9.0 s; the reception day list took 5.9 s (median), a patient chart 8.3 s, the queue
+5.4 s and the admin alert list 14.6 s. A thin bar at the top of the page shows that a request is
+running. In a deployment the API and the database sit in the same data centre, so these waits
+mostly go away. If Neon has paused the idle database, the first screen takes a few seconds more;
+open one screen before the audience arrives.
 
 ## 1. Setting (1 minute)
 
@@ -83,6 +94,13 @@ API, worker, a local blockchain (anvil) and a local git witness.
       ALTER TABLE audit_events ENABLE TRIGGER audit_events_append_only; COMMIT;"
    ```
 
+   In native mode the same change goes through the database owner connection from `.env.local`
+   (this one targets Clinic A, whose admin is `admin.a`):
+
+   ```sh
+   uv run python -m hs_demo.native sql "BEGIN; ALTER TABLE audit_events DISABLE TRIGGER audit_events_append_only; UPDATE audit_events SET payload = payload || '{\"tampered\": true}' WHERE seq = (SELECT min(a.seq) FROM audit_events a JOIN clinics c ON c.id = a.clinic_id WHERE c.name = 'Saathi Demo Clinic A'); ALTER TABLE audit_events ENABLE TRIGGER audit_events_append_only; COMMIT;"
+   ```
+
 3. Press "Refresh" on the audit page: the clinic whose first event was changed shows
    "FAIL: the audit log hash chain is broken". Say: the anchored roots on the chain and in the
    witness folder are outside the database operator's control, so a rewrite is detectable.
@@ -94,6 +112,12 @@ API, worker, a local blockchain (anvil) and a local git witness.
       UPDATE audit_events SET payload = payload - 'tampered'
       WHERE seq = (SELECT min(seq) FROM audit_events);
       ALTER TABLE audit_events ENABLE TRIGGER audit_events_append_only; COMMIT;"
+   ```
+
+   In native mode:
+
+   ```sh
+   uv run python -m hs_demo.native sql "BEGIN; ALTER TABLE audit_events DISABLE TRIGGER audit_events_append_only; UPDATE audit_events SET payload = payload - 'tampered' WHERE seq = (SELECT min(a.seq) FROM audit_events a JOIN clinics c ON c.id = a.clinic_id WHERE c.name = 'Saathi Demo Clinic A'); ALTER TABLE audit_events ENABLE TRIGGER audit_events_append_only; COMMIT;"
    ```
 
    If you are signed in as the admin of the other clinic, use `make demo-reset` and `make demo`

@@ -27,19 +27,37 @@ check their own access receipts in the browser.
 | Patient portal | Records, access log with plain-language reasons, "I do not recognise this", in-browser receipt verification, consent withdrawal, data download (JSON and FHIR), push notification opt-in |
 | FHIR | R4 export following the NRCeS ABDM profiles, validated offline with the HAPI validator. Not ABDM certified |
 | Security | Row level security per clinic in Postgres, role-based task views, append-only audit table, encryption of notes and TOTP secrets, CSP and security headers. OWASP ASVS level 1 checklist and threat model in `docs/` |
-| Local demo | `make demo` runs everything on one laptop: two clinics, 50 patients and about three weeks of simulated activity, including simulated insiders |
+| Local demo | `make demo` (Docker) or `make demo-native` (no Docker, database on Neon) runs everything on one laptop: two clinics, 50 patients and about three weeks of simulated activity, including simulated insiders |
 
 ## Test numbers
 
 | Suite | Result |
 |---|---|
-| Python (API, E2D core, simulator, experiments) | 760 passed; E2D core line coverage 99.7% |
+| Python (API, E2D core, simulator, experiments) | 807 passed (CI run 38441215530, 13 October 2026); E2D core line coverage 99.7% |
 | JavaScript (web app and receipt verification) | 82 passed |
 | Solidity contracts | 51 passed |
-| Browser tests against the demo stack (all 9 flows, a crawler of every screen at desktop width, phone width and in Hindi, offline use, accessibility, tamper demo) | 55 of 55 passed |
+| Browser tests against the demo stack (all 9 flows, a crawler of every screen at desktop width, phone width and in Hindi, offline use, accessibility, tamper demo) | 55 of 55 passed; on 13 October 2026 in native mode with the database on Neon, in 37.8 minutes |
 | FHIR bundles of 10 patients, HAPI validator | 10 of 10 with 0 errors |
 | OWASP ZAP baseline scan (web and API) | 0 failures |
 | axe accessibility (WCAG 2.1 A and AA, English and Hindi) | 0 violations |
+
+## Demo speed on Neon
+
+The demo on this laptop runs without Docker and keeps its database on Neon in Singapore, so every
+screen waits for round trips to it. In a deployment the API and the database sit in the same
+data centre. Timings per API request over the full browser test suite, from
+`infra/demo/request_stats.py` on the API log, 13 October 2026:
+
+| Request | Before batching (589 requests) | After batching (816 requests) |
+|---|---|---|
+| All requests, median and 95th percentile | 3.58 s and 39.65 s | 2.57 s and 8.99 s |
+| Reception day list, median | 40.97 s | 5.86 s |
+| Patient chart, median | 34.95 s | 8.28 s |
+| Queue, median | 15.72 s | 5.38 s |
+
+"Batching": list screens and charts used to record each patient's access, and each part of a
+chart, one by one; they now load the evidence for all of them at once and write the log rows in
+one insert per table. What is recorded did not change (`apps/api/tests/access/test_batch.py`).
 
 ## Research results
 
