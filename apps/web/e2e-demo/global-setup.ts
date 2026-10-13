@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
 import { DEMO_FIXTURE } from "../e2e/support";
@@ -17,10 +17,13 @@ interface DemoUser {
 /** Reads the demo logins from the running `make demo` stack. The flow specs use the first login
  * of each role in clinic A, in the same shape as the dev-stack fixture. */
 export default function globalSetup(): void {
-  const raw = execFileSync("docker", [...COMPOSE, "exec", "-T", "api", "cat", "/state/logins.json"], {
-    encoding: "utf-8",
-    env: { ...process.env, MSYS_NO_PATHCONV: "1" },
-  });
+  // Native mode (make demo-native) keeps the demo state in .demo/state of the repository.
+  const raw = process.env.E2E_NATIVE
+    ? readFileSync(new URL("../../../.demo/state/logins.json", import.meta.url), "utf-8")
+    : execFileSync("docker", [...COMPOSE, "exec", "-T", "api", "cat", "/state/logins.json"], {
+        encoding: "utf-8",
+        env: { ...process.env, MSYS_NO_PATHCONV: "1" },
+      });
   const data = JSON.parse(raw) as { password: string; users: DemoUser[] };
   const seen = new Set<string>();
   const users = data.users

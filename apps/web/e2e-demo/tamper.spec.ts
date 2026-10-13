@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 import { expect, test } from "@playwright/test";
 
@@ -11,6 +12,13 @@ import { signIn, user } from "../e2e/support";
 const COMPOSE = ["compose", "-f", "../../infra/docker-compose.demo.yml"];
 
 function sql(statement: string): string {
+  if (process.env.E2E_NATIVE) {
+    // Native mode: the database owner connection from .env.local (Neon).
+    return execFileSync("uv", ["run", "python", "-m", "hs_demo.native", "sql", statement], {
+      cwd: fileURLToPath(new URL("../../..", import.meta.url)),
+      encoding: "utf-8",
+    }).trim();
+  }
   return execFileSync(
     "docker",
     [...COMPOSE, "exec", "-T", "postgres", "psql", "-U", "healthsaathi", "-d", "healthsaathi", "-tAc", statement],

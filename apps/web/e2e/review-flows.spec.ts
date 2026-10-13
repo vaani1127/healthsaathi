@@ -65,7 +65,12 @@ test.describe.serial("review", () => {
   });
 
   test("flow 8: admin reviews the top alert with its explanation and features", async ({ page }) => {
-    if (DEMO) {
+    if (DEMO && process.env.E2E_NATIVE) {
+      execFileSync("uv", ["run", "python", "-m", "hs_demo.native", "run", "app.detect.job"], {
+        cwd: fileURLToPath(new URL("../../..", import.meta.url)),
+        stdio: "inherit",
+      });
+    } else if (DEMO) {
       execFileSync("docker", ["compose", "-f", "../../infra/docker-compose.demo.yml", "exec", "-T", "api", "demo-entrypoint", "python", "-m", "app.detect.job"], {
         stdio: "inherit",
       });
