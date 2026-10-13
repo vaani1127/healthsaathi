@@ -79,6 +79,39 @@ Other commands:
 Guides: [user guide](docs/USER_GUIDE.md), [10 minute demo script](docs/DEMO_SCRIPT.md),
 [security checklist](docs/SECURITY_CHECKLIST.md), [threat model](docs/THREAT_MODEL.md).
 
+## Quick start without Docker (native mode, database on Neon)
+
+The same demo runs as ordinary processes on the laptop, with the database on
+[Neon](https://neon.tech) (free tier, PostgreSQL 16). Use this when Docker is not available.
+
+Prerequisites: Python 3.12 with [uv](https://docs.astral.sh/uv/), Node 22 with pnpm,
+[Foundry](https://getfoundry.sh/) (for `anvil` and `forge`), GNU Make, and a Neon project with a
+branch for tests.
+
+1. `make install`
+2. Copy `.env.local.example` to `.env.local` and paste the Neon connection strings: the pooled
+   and direct strings of the main branch, and the strings of the `test` branch. `.env.local` is
+   gitignored; never commit it.
+3. `make demo-native`
+
+The first run migrates the Neon database, seeds the demo data, deploys the contracts to a local
+anvil chain and builds the web app (a few minutes); later runs start in under a minute. It prints
+the same login table as the Docker demo, on the same ports: the web app on
+http://localhost:8080 and the API on http://localhost:8081. Process logs are in `.demo/logs`.
+
+| Command | What |
+|---|---|
+| `make demo-native` | Start (or start again; the data is kept on Neon) |
+| `make demo-native-stop` | Stop every demo process |
+| `make demo-reset-native` | Empty the Neon database and the local demo state, then start fresh |
+| `make demo-code EMAIL=...` | Current authenticator code of a demo login |
+| `make demo-e2e`, `make demo-videos` | Browser tests and flow videos against the running demo |
+| `uv run python -m hs_demo.native smoke` | API and database smoke tests on the Neon `test` branch |
+
+Every request travels to the Neon region and back, so screens take about a second longer than
+with a local database. Neon pauses an idle database after a few minutes; the first request after
+that wakes it and takes a few seconds.
+
 ## Development setup
 
 Requirements: Docker, Python 3.12 with [uv](https://docs.astral.sh/uv/), Node 22 with pnpm,

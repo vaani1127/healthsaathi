@@ -47,10 +47,11 @@ def asyncpg_dsn(url: str) -> str:
 
 def engine_options(url: str, pooler_prepared: bool = False) -> dict[str, Any]:
     """Options for create_async_engine: check connections before use (a sleeping Neon compute
-    closes them) and recycle idle ones. Behind a pooler, prepared statements get unique names;
-    their caches stay on only when the pooler supports prepared statements (PgBouncer 1.21 and
-    later with max_prepared_statements, as Neon's does), which saves two round trips a query."""
-    options: dict[str, Any] = {"pool_pre_ping": True, "pool_recycle": 300}
+    closes them; the check replaces them) and recycle them after 30 minutes, so their prepared
+    statements stay warm. Behind a pooler, prepared statements get unique names; their caches
+    stay on only when the pooler supports prepared statements (PgBouncer 1.21 and later with
+    max_prepared_statements, as Neon's does), which saves two round trips a query."""
+    options: dict[str, Any] = {"pool_pre_ping": True, "pool_recycle": 1800}
     if is_pooled(url):
         connect_args: dict[str, Any] = {
             "prepared_statement_name_func": lambda: f"__hs_{uuid.uuid4().hex}__",

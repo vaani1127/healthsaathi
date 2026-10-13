@@ -62,7 +62,7 @@ async function hindi(page: Page, info: TestInfo): Promise<boolean> {
 /** Waits for the page to settle and checks what is on screen. */
 async function checkScreen(page: Page, where: string, inHindi: boolean): Promise<void> {
   await page.waitForLoadState("networkidle");
-  await expect(page.getByRole("status").filter({ hasText: /^(Loading\.\.\.|लोड हो रहा है)/ }), `${where}: loading never finished`).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByRole("status").filter({ hasText: /^(Loading\.\.\.|लोड हो रहा है)/ }), `${where}: loading never finished`).toHaveCount(0, { timeout: process.env.E2E_NATIVE ? 45_000 : 15_000 });
   const text = await page.locator("body").innerText();
   const leaked = KEYS.filter((k) => text.includes(k));
   expect(leaked, `${where}: untranslated keys on screen`).toEqual([]);
