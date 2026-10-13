@@ -737,7 +737,8 @@
     "mismatch": "The chain holds a different fingerprint for this log. Please report this to the clinic.",
     "notReady": "This access is not in a signed log yet. Try again in a few minutes.",
     "viewTx": "View on the chain explorer",
-    "download": "Download receipt"
+    "download": "Download receipt",
+    "pending": "Signed by the clinic. The public chain does not have this log fingerprint yet; check again in a few minutes."
   },
   "features": {
     "accesses_1h": "Records opened in the last hour",

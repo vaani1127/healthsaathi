@@ -20,17 +20,19 @@ export function ReceiptResultView({ result }: { result: ReceiptResult }) {
   const { t } = useTranslation();
   const { offline, anchor } = result;
   const anchored = anchor === null ? null : anchor.status === "anchored";
+  // Signed and in the log, but the chain has not caught up yet: not a failure, just not final.
+  const pending = offline.ok && anchor?.status === "not_anchored" && anchor.keyRegistered !== false;
   const verified = offline.ok && anchored !== false && anchor?.keyRegistered !== false;
   return (
     <div className="flex flex-col gap-2 text-sm" data-testid="receipt-result">
       <p className="font-semibold" role="status">
-        {verified ? t("verify.verified") : t("verify.notVerified")}
+        {verified ? t("verify.verified") : pending ? t("verify.pending") : t("verify.notVerified")}
       </p>
       <ul className="flex flex-col gap-1">
         <Line ok={offline.payload} label={t("verify.checkPayload")} />
         <Line ok={offline.inclusion} label={t("verify.checkInclusion")} />
         <Line ok={offline.signature && offline.clinic} label={t("verify.checkSignature")} />
-        <Line ok={anchored} label={t("verify.checkChain")} />
+        <Line ok={pending ? null : anchored} label={t("verify.checkChain")} />
         {anchor?.keyRegistered != null && <Line ok={anchor.keyRegistered} label={t("verify.checkKey")} />}
       </ul>
       {anchor === null && !result.anchorError && (
