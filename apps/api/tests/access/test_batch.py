@@ -235,26 +235,6 @@ async def test_record_many_equals_recording_one_by_one(
         prev = link
 
 
-async def test_record_many_refuses_the_whole_list_like_one_by_one(
-    admin_engine: AsyncEngine,
-) -> None:
-    """A patient account listing someone else's record is refused, and the denial is logged."""
-    graph = Graph(AT)
-    other = graph.add_patient()
-    await graph.write(admin_engine)
-    principal = await _principal(graph, "patient_user", Role.PATIENT)
-    with pytest.raises(access.AccessDeniedError):
-        async with access.access_session(principal) as db:
-            await access.record_many(
-                db, principal, [graph.patient, other], ResourceType.DEMOGRAPHICS, AccessAction.VIEW
-            )
-    async with AsyncSession(admin_engine) as s:
-        events = (
-            await s.scalars(select(m.AccessEvent).where(m.AccessEvent.clinic_id == graph.clinic))
-        ).all()
-    assert [(e.patient_id, e.decision.value) for e in events] == [(other, "deny")]
-
-
 async def _run_resources(
     principal: ClinicPrincipal,
     patient: uuid.UUID,

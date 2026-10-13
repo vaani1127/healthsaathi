@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.access.policy import get_policy
-from app.access.service import access_session, record_and_explain
+from app.access.service import access_session, record_and_explain, record_many
 from app.core.errors import ProblemError
 from app.db import models as m
 from app.db.enums import AccessAction, AccessDecision, ResourceType, Role
@@ -169,6 +169,30 @@ async def test_patient_reads_only_own_record(
 
 
 # Denials ------------------------------------------------------------------------------------------
+
+
+async def test_list_with_another_patient_is_denied_and_logged(
+    admin_engine: AsyncEngine, clinic: uuid.UUID, staff: dict[Role, Actor]
+) -> None:
+    """The batched list path refuses a patient account the whole list when one record is not
+    theirs, and logs the denial for that record, as recording one by one does."""
+    patient_actor = await make_actor(admin_engine, clinic, Role.PATIENT)
+    own = await make_patient(
+        admin_engine, clinic, staff[Role.RECEPTION].user_id, patient_actor.user_id
+    )
+    other = await make_patient(admin_engine, clinic, staff[Role.RECEPTION].user_id)
+    with pytest.raises(ProblemError) as exc:
+        async with access_session(patient_actor.principal) as db:
+            await record_many(
+                db,
+                patient_actor.principal,
+                [own, other],
+                ResourceType.DEMOGRAPHICS,
+                AccessAction.VIEW,
+            )
+    assert exc.value.status == 403
+    events = await access_events(admin_engine, clinic)
+    assert [(e.patient_id, e.decision) for e, _ in events] == [(other, AccessDecision.DENY)]
 
 
 async def test_reception_reading_notes_is_denied_and_logged(
