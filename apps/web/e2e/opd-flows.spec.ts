@@ -162,7 +162,7 @@ test.describe.serial("OPD day", () => {
     await expect(page.getByLabel(tx("auth.code"))).toBeVisible();
     let code: string | null = null;
     await expect
-      .poll(async () => (code = await emailCode(patientEmail, sentAfter)), { timeout: 10_000 })
+      .poll(async () => (code = await emailCode(patientEmail, sentAfter)), { timeout: process.env.E2E_NATIVE ? 60_000 : 10_000 })
       .not.toBeNull();
     await page.getByLabel(tx("auth.code")).fill(code ?? "");
     await page.getByRole("button", { name: tx("auth.signIn") }).click();

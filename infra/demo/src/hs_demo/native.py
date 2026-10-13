@@ -261,7 +261,7 @@ def start_api() -> None:
         API_DIR,
         demo_env(),
     )
-    wait_for(lambda: http_ok(f"http://127.0.0.1:{API_PORT}/api/v1/ready"), "api", 180)
+    wait_for(lambda: http_ok(f"http://127.0.0.1:{API_PORT}/api/v1/ready"), "api", 300)
 
 
 def up() -> None:

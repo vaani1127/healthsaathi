@@ -24,7 +24,7 @@ async function patientSignIn(page: Page, email: string): Promise<void> {
   await page.getByRole("button", { name: "Send code" }).click();
   await expect(page.getByRole("link", { name: /dev mailbox/ })).toBeVisible();
   let code: string | null = null;
-  await expect.poll(async () => (code = await emailCode(email, since)), { timeout: 15_000 }).not.toBeNull();
+  await expect.poll(async () => (code = await emailCode(email, since)), { timeout: process.env.E2E_NATIVE ? 60_000 : 15_000 }).not.toBeNull();
   await page.getByLabel("6 digit code").fill(code ?? "");
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("heading", { name: /^Hello, / })).toBeVisible();

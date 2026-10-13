@@ -57,7 +57,7 @@ for (const lang of ["en", "hi"]) {
       const since = Date.now() - 2000;
       await page.locator("form button[type=submit]").click();
       let code: string | null = null;
-      await expect.poll(async () => (code = await emailCode(email, since)), { timeout: 15_000 }).not.toBeNull();
+      await expect.poll(async () => (code = await emailCode(email, since)), { timeout: process.env.E2E_NATIVE ? 60_000 : 15_000 }).not.toBeNull();
       await page.locator("#p-code").fill(code ?? "");
       await page.locator("form button[type=submit]").click();
       await expect(page).toHaveURL(/\/patient/);

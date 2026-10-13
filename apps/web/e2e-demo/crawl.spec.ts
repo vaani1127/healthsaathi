@@ -62,7 +62,7 @@ async function hindi(page: Page, info: TestInfo): Promise<boolean> {
 /** Waits for the page to settle and checks what is on screen. */
 async function checkScreen(page: Page, where: string, inHindi: boolean): Promise<void> {
   await page.waitForLoadState("networkidle");
-  await expect(page.getByRole("status").filter({ hasText: /^(Loading\.\.\.|लोड हो रहा है)/ }), `${where}: loading never finished`).toHaveCount(0, { timeout: process.env.E2E_NATIVE ? 45_000 : 15_000 });
+  await expect(page.getByRole("status").filter({ hasText: /^(Loading\.\.\.|लोड हो रहा है)/ }), `${where}: loading never finished`).toHaveCount(0, { timeout: process.env.E2E_NATIVE ? 150_000 : 15_000 });
   const text = await page.locator("body").innerText();
   const leaked = KEYS.filter((k) => text.includes(k));
   expect(leaked, `${where}: untranslated keys on screen`).toEqual([]);
@@ -157,7 +157,7 @@ test("every screen of a patient", async ({ page }, info) => {
   const since = Date.now() - 2000;
   await page.locator("form button[type=submit]").click();
   let code: string | null = null;
-  await expect.poll(async () => (code = await emailCode(email, since)), { timeout: 15_000 }).not.toBeNull();
+  await expect.poll(async () => (code = await emailCode(email, since)), { timeout: process.env.E2E_NATIVE ? 60_000 : 15_000 }).not.toBeNull();
   await page.locator("#p-code").fill(code ?? "");
   await page.locator("form button[type=submit]").click();
   await expect(page).toHaveURL(/\/patient/);
