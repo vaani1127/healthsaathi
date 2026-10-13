@@ -94,7 +94,9 @@ export const useAuth = create<AuthState>((set, get) => ({
 
   restore: async () => {
     try {
-      if (await get().refresh()) {
+      // Only someone who signed in on this browser can have a refresh cookie; skipping the call
+      // otherwise keeps every anonymous page load free of a 401.
+      if (readScope() && (await get().refresh())) {
         const me = await call(() => api.GET("/api/v1/auth/me"));
         set({ me });
       }
