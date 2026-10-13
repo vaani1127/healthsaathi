@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 import polars as pl
-from sqlalchemy import Table, insert, select
+from sqlalchemy import Table, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.access.service import audit_payload
@@ -35,15 +35,18 @@ from app.consent.service import commitment
 from app.core.db import TenantContext, tenant_session
 from app.db.base import Base
 from app.db.enums import AccessAction, AccessDecision, ResourceType, Role
-from app.db.models import AccessEvent, AccessExplanation, Clinic, ConsentNotice
+from app.db.models import AccessEvent, AuditEvent, Clinic, ConsentNotice
+from app.db.models.audit import AUDIT_SEQ
 from app.identity import totp
 from app.identity.passwords import hash_password
-from app.ledger.writer import append_audit_event
+from app.ledger.writer import lock_clinic
 from app.scripts.seed import CONSENT_TEXT_EN, CONSENT_TEXT_HI, EMAIL_DOMAIN
 from e2d_core.explain import AccessEvent as CoreAccessEvent
 from e2d_core.explain import EvidenceQuery, explain
 from e2d_core.ids import uuid7
-from e2d_core.repo.sql import SqlRepository
+from e2d_core.ledger import GENESIS, chain_hash, payload_hash
+from e2d_core.repo.memory import COLUMNS as MEMORY_TABLES
+from e2d_core.repo.memory import MemoryRepository
 from saathibench.schema import TABLES
 
 PATIENTS_PER_CLINIC = 25
@@ -440,8 +443,9 @@ async def load(
 
     # Accesses, in time order, explained and chained -------------------------------------------
     events = tables["access_events"].sort(["clinic_id", "at", "id"])
+    repo = MemoryRepository({k: v for k, v in tables.items() if k in MEMORY_TABLES})
     for cid in clinic_ids:
-        await _load_accesses(cid, events.filter(pl.col("clinic_id") == cid))
+        await _load_accesses(cid, events.filter(pl.col("clinic_id") == cid), repo)
 
     attack_ids = labels_kept.filter(pl.col("is_attack"))
     report.attacks = {
@@ -581,63 +585,105 @@ async def _load_clinic(cid: str, tables: dict[str, pl.DataFrame], logins: dict[s
     del logins  # emails were applied to the users table already
 
 
-async def _load_accesses(cid: str, events: pl.DataFrame) -> None:
+BATCH = 500
+
+
+async def _load_accesses(cid: str, events: pl.DataFrame, repo: MemoryRepository) -> None:
+    """Explain each access with the shared engine over the loaded rows (the in-memory backend,
+    tested to give the same evidence as the SQL one), then write the access events, their
+    explanations and the audit chain in batches. Per-access round trips would make a remote
+    database (Neon) take most of an hour."""
     clinic_id = uuid.UUID(cid)
+    timezone = "Asia/Kolkata"
+    access_rows: list[dict[str, Any]] = []
+    explanation_rows: list[dict[str, Any]] = []
+    payloads: list[dict[str, Any]] = []
+    for row in events.iter_rows(named=True):
+        event = AccessEvent(
+            id=uuid.UUID(row["id"]),
+            clinic_id=clinic_id,
+            user_id=uuid.UUID(row["user_id"]),
+            role=Role(row["role"]),
+            patient_id=uuid.UUID(row["patient_id"]),
+            resource_type=ResourceType(row["resource_type"]),
+            action=AccessAction(row["action"]),
+            at=row["at"],
+            session_id=uuid.UUID(row["session_id"]) if row["session_id"] else None,
+            device_id=uuid.UUID(row["device_id"]) if row["device_id"] else None,
+            ip_hash=row["ip_hash"],
+            request_id=row["request_id"],
+            policy_version=row["policy_version"],
+            decision=AccessDecision(row["decision"]),
+            break_glass_id=uuid.UUID(row["break_glass_id"]) if row["break_glass_id"] else None,
+        )
+        core = CoreAccessEvent(
+            id=event.id,
+            clinic_id=clinic_id,
+            user_id=event.user_id,
+            role=event.role.value,
+            patient_id=event.patient_id,
+            resource=event.resource_type.value,
+            action=event.action.value,
+            at=event.at,
+            break_glass_id=event.break_glass_id,
+        )
+        bundle = repo.evidence_for_sync(
+            EvidenceQuery(
+                clinic_id,
+                event.user_id,
+                event.patient_id,
+                event.at,
+                timezone,
+                role=event.role.value,
+            )
+        )
+        explanation = explain(core, bundle, timezone=timezone)
+        access_rows.append({c.name: getattr(event, c.name) for c in AccessEvent.__table__.columns})
+        explanation_rows.append(
+            {
+                "access_event_id": event.id,
+                "clinic_id": clinic_id,
+                "template_code": explanation.template_code,
+                "evidence": explanation.evidence_json(),
+                "strength": explanation.strength,
+                "forgery_flags": explanation.forgery_flags,
+            }
+        )
+        payloads.append(audit_payload(event, explanation))
+
     ctx = TenantContext(clinic_id=clinic_id, role="system")
     async with tenant_session(ctx) as db:
-        timezone = await db.scalar(select(Clinic.timezone).where(Clinic.id == clinic_id))
-        timezone = timezone or "Asia/Kolkata"
-        repo = SqlRepository(db)
-        for row in events.iter_rows(named=True):
-            event = AccessEvent(
-                id=uuid.UUID(row["id"]),
-                clinic_id=clinic_id,
-                user_id=uuid.UUID(row["user_id"]),
-                role=Role(row["role"]),
-                patient_id=uuid.UUID(row["patient_id"]),
-                resource_type=ResourceType(row["resource_type"]),
-                action=AccessAction(row["action"]),
-                at=row["at"],
-                session_id=uuid.UUID(row["session_id"]) if row["session_id"] else None,
-                device_id=uuid.UUID(row["device_id"]) if row["device_id"] else None,
-                ip_hash=row["ip_hash"],
-                request_id=row["request_id"],
-                policy_version=row["policy_version"],
-                decision=AccessDecision(row["decision"]),
-                break_glass_id=uuid.UUID(row["break_glass_id"]) if row["break_glass_id"] else None,
+        await lock_clinic(db, "audit-chain", clinic_id)
+        prev = await db.scalar(
+            select(AuditEvent.chain_hash)
+            .where(AuditEvent.clinic_id == clinic_id)
+            .order_by(AuditEvent.seq.desc())
+            .limit(1)
+        )
+        prev = prev if prev is not None else GENESIS
+        series = func.generate_series(1, len(payloads))
+        seqs = (await db.scalars(select(AUDIT_SEQ.next_value()).select_from(series))).all()
+        audit_rows = []
+        for seq, payload in zip(sorted(seqs), payloads, strict=True):
+            digest = payload_hash(payload)
+            link = chain_hash(prev, digest, seq, clinic_id)
+            audit_rows.append(
+                {
+                    "seq": seq,
+                    "id": uuid7(),
+                    "clinic_id": clinic_id,
+                    "kind": "access",
+                    "payload": payload,
+                    "payload_hash": digest,
+                    "prev_hash": prev,
+                    "chain_hash": link,
+                }
             )
-            core = CoreAccessEvent(
-                id=event.id,
-                clinic_id=clinic_id,
-                user_id=event.user_id,
-                role=event.role.value,
-                patient_id=event.patient_id,
-                resource=event.resource_type.value,
-                action=event.action.value,
-                at=event.at,
-                break_glass_id=event.break_glass_id,
-            )
-            bundle = await repo.evidence_for(
-                EvidenceQuery(
-                    clinic_id,
-                    event.user_id,
-                    event.patient_id,
-                    event.at,
-                    timezone,
-                    role=event.role.value,
-                )
-            )
-            explanation = explain(core, bundle, timezone=timezone)
-            db.add(event)
-            db.add(
-                AccessExplanation(
-                    access_event_id=event.id,
-                    clinic_id=clinic_id,
-                    template_code=explanation.template_code,
-                    evidence=explanation.evidence_json(),
-                    strength=explanation.strength,
-                    forgery_flags=explanation.forgery_flags,
-                )
-            )
-            await db.flush()
-            await append_audit_event(db, clinic_id, "access", audit_payload(event, explanation))
+            prev = link
+        for table, rows in (
+            ("access_events", access_rows),
+            ("access_explanations", explanation_rows),
+            ("audit_events", audit_rows),
+        ):
+            for i in range(0, len(rows), BATCH):
+                await _insert(db, table, rows[i : i + BATCH])
