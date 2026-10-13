@@ -515,7 +515,9 @@
     "downloadExplain": "Get a copy of your record and the log of who opened it.",
     "downloadJson": "Download file (JSON)",
     "printRecord": "Print my record",
-    "downloadFailed": "The file could not be opened. Try again."
+    "downloadFailed": "The file could not be opened. Try again.",
+    "downloadFhir": "Download as FHIR (for other health apps)",
+    "fhirNote": "FHIR R4 export follows NRCeS ABDM profiles, validated offline. Not ABDM certified."
   },
   "billing": {
     "title": "Billing",

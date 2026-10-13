@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### P17 FHIR export
+
+- `app.fhir.bundle` builds a FHIR R4 `collection` Bundle of the patient's record: Patient,
+  Organization, Practitioner, Encounter, Observation (vital signs with LOINC codes, lab values),
+  MedicationRequest, DiagnosticReport, Consent and AuditEvent, using the NRCeS ABDM profiles
+  (ndhm.in 6.5.0) where they exist. The patient download (`GET /patients/{id}/export`) includes it
+  as `fhir`, and the portal has a "Download as FHIR" button.
+- `make fhir-validate` and the `fhir` CI job export the bundles of 10 seeded patients
+  (`hs_demo.fhir_samples`) and run the HAPI FHIR validator 7.0.1 with the IG and no terminology
+  server (`infra/fhir/validate.sh`). FHIR R4 export follows NRCeS ABDM profiles, validated
+  offline. Not ABDM certified.
+
 ### One-command local demo (make demo)
 
 - `make demo` builds and starts `infra/docker-compose.demo.yml`: postgres, anvil with the contracts

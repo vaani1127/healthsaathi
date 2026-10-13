@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.access.service import RequestInfo, db_now, record_and_explain
 from app.chart.service import patient_chart
+from app.clinic.schemas import ClinicOut
 from app.consent.service import history as consent_history
 from app.core.config import get_settings
 from app.core.errors import ProblemError
@@ -21,14 +22,17 @@ from app.db.models import (
     AccessEvent,
     AccessExplanation,
     Appointment,
+    Clinic,
     LabOrder,
     Membership,
     Patient,
     PatientAccessQuery,
     QueueToken,
     Referral,
+    StaffProfile,
     User,
 )
+from app.fhir.bundle import StaffRef, build_bundle
 from app.identity.deps import ClinicPrincipal
 from app.notify.email import Email, send_email
 from app.portal import schemas
@@ -232,13 +236,40 @@ async def export(
         entries.extend(page)
         if cursor is None:
             break
+    exported_at = await db_now(db)
     return schemas.PatientExport(
-        exported_at=await db_now(db),
+        exported_at=exported_at,
         record=record,
         consents=consents,
         access_log=entries,
         note=EXPORT_NOTE,
+        fhir=build_bundle(
+            patient=record.patient,
+            clinic=ClinicOut.model_validate(await db.get(Clinic, principal.clinic_id)),
+            staff=await staff_refs(db, principal.clinic_id),
+            appointments=record.appointments,
+            vitals=record.vitals,
+            prescriptions=record.prescriptions,
+            lab_orders=record.lab_orders,
+            consents=consents,
+            access_log=entries,
+            exported_at=exported_at,
+        ),
     )
+
+
+async def staff_refs(db: AsyncSession, clinic_id: uuid.UUID) -> dict[uuid.UUID, StaffRef]:
+    """Names and registration numbers of the clinic's staff, for FHIR Practitioner resources."""
+    rows = await db.execute(
+        select(User.id, User.name, StaffProfile.registration_no)
+        .join(Membership, Membership.user_id == User.id)
+        .outerjoin(
+            StaffProfile,
+            and_(StaffProfile.user_id == User.id, StaffProfile.clinic_id == clinic_id),
+        )
+        .where(Membership.clinic_id == clinic_id, Membership.role != Role.PATIENT)
+    )
+    return {uid: StaffRef(uid, name, reg) for uid, name, reg in rows}
 
 
 async def grant_portal_access(

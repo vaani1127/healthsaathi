@@ -245,6 +245,10 @@ async def test_export_contains_record_consents_and_log(
     assert body["record"]["patient"]["id"] == str(patient)
     assert body["consents"] == []
     assert any(e["role"] == "nurse" for e in body["access_log"])
+    bundle = body["fhir"]
+    assert bundle["resourceType"] == "Bundle" and bundle["type"] == "collection"
+    kinds = {e["resource"]["resourceType"] for e in bundle["entry"]}
+    assert {"Patient", "Organization", "AuditEvent"} <= kinds
 
 
 async def test_reception_gives_portal_access_and_patient_signs_in(

@@ -2975,6 +2975,10 @@ export interface components {
              * Format: date-time
              */
             exported_at: string;
+            /** Fhir */
+            fhir: {
+                [key: string]: unknown;
+            };
             /** Note */
             note: string;
             record: components["schemas"]["PatientChart"];

@@ -368,20 +368,29 @@ function ConsentTab({ patientId }: { patientId: string }) {
   );
 }
 
+function saveJson(value: unknown, name: string, type: string): void {
+  const blob = new Blob([JSON.stringify(value, null, 2)], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function Download({ patientId }: { patientId: string }) {
   const { t } = useTranslation();
   const download = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (format: "json" | "fhir") => {
       const data = await call(() =>
         api.GET("/api/v1/patients/{patient_id}/export", { params: { path: { patient_id: patientId } } }),
       );
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `healthsaathi-record-${data.record.patient.mrn}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const mrn = data.record.patient.mrn;
+      if (format === "fhir") {
+        saveJson(data.fhir, `healthsaathi-fhir-${mrn}.json`, "application/fhir+json");
+      } else {
+        saveJson(data, `healthsaathi-record-${mrn}.json`, "application/json");
+      }
     },
   });
   return (
@@ -390,13 +399,19 @@ function Download({ patientId }: { patientId: string }) {
         <CardTitle>{t("portal.downloadTitle")}</CardTitle>
         <p className="text-sm text-muted-foreground">{t("portal.downloadExplain")}</p>
       </CardHeader>
-      <CardContent className="flex flex-wrap gap-2">
-        <Button onClick={() => download.mutate()} disabled={download.isPending}>
-          {t("portal.downloadJson")}
-        </Button>
-        <Link to="/patient/print" className="inline-flex h-10 items-center rounded-md border px-4 text-sm">
-          {t("portal.printRecord")}
-        </Link>
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => download.mutate("json")} disabled={download.isPending}>
+            {t("portal.downloadJson")}
+          </Button>
+          <Button variant="outline" onClick={() => download.mutate("fhir")} disabled={download.isPending}>
+            {t("portal.downloadFhir")}
+          </Button>
+          <Link to="/patient/print" className="inline-flex h-10 items-center rounded-md border px-4 text-sm">
+            {t("portal.printRecord")}
+          </Link>
+        </div>
+        <p className="text-xs text-muted-foreground">{t("portal.fhirNote")}</p>
         {download.isError && <Alert tone="error">{errorMessage(download.error)}</Alert>}
       </CardContent>
     </Card>

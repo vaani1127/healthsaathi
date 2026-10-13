@@ -130,6 +130,56 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report
 
+  fhir:
+    # P17: FHIR bundles of 10 seeded patients must pass the HAPI validator (NRCeS ABDM IG).
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: healthsaathi
+          POSTGRES_PASSWORD: healthsaathi
+          POSTGRES_DB: healthsaathi
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U healthsaathi"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      APP_ENV: local
+      DATABASE_URL: postgresql+asyncpg://healthsaathi:healthsaathi@localhost:5432/healthsaathi
+      MIGRATOR_DATABASE_URL: postgresql+asyncpg://healthsaathi:healthsaathi@localhost:5432/healthsaathi
+      DEMO_STATE_DIR: ${{ github.workspace }}/.demo/state
+    steps:
+      - uses: actions/checkout@v5
+      - name: Throwaway secrets for this run
+        run: |
+          echo "JWT_SECRET=$(openssl rand -base64 48)" >> "$GITHUB_ENV"
+          echo "OTP_HMAC_KEY=$(openssl rand -base64 48)" >> "$GITHUB_ENV"
+          echo "LEDGER_SIGNING_SEED=$(openssl rand -base64 48)" >> "$GITHUB_ENV"
+          echo "DATA_KEYS=ci:$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+          echo "SEED_DEMO_PASSWORD=ci-$(openssl rand -hex 8)" >> "$GITHUB_ENV"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --python 3.12
+      - name: Migrate
+        working-directory: apps/api
+        run: uv run alembic upgrade head
+      - name: Seed the demo clinics
+        run: uv run python -m hs_demo.seed
+      - name: Export 10 bundles
+        run: uv run python -m hs_demo.fhir_samples .demo/fhir 10
+      - name: HAPI FHIR validator
+        run: sh infra/fhir/validate.sh .demo/fhir
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fhir-bundles
+          path: .demo/fhir
+
   contracts:
     runs-on: ubuntu-24.04
     defaults:

@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -68,3 +69,5 @@ class PatientExport(BaseModel):
     consents: list[ConsentOut]
     access_log: list[AccessLogEntry]
     note: str
+    # The same record as a FHIR R4 Bundle (NRCeS ABDM profiles), for other health apps.
+    fhir: dict[str, Any]
