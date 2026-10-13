@@ -86,6 +86,36 @@ async def _anchors(db: AsyncSession, checkpoint_id: uuid.UUID) -> list[AnchorRef
     ]
 
 
+CHAIN_BACKENDS = (AnchorBackend.AMOY, AnchorBackend.BESU)
+
+
+async def _anchored_checkpoint(
+    db: AsyncSession, clinic_id: uuid.UUID, index: int
+) -> MerkleCheckpoint | None:
+    """The newest checkpoint that contains this leaf and is confirmed on a chain. The latest
+    checkpoint may still be waiting for its transaction, and a receipt the patient cannot check
+    on chain yet is less useful than one for a slightly older, anchored head."""
+    confirmed = (
+        select(AnchorReceipt.id)
+        .where(
+            AnchorReceipt.checkpoint_id == MerkleCheckpoint.id,
+            AnchorReceipt.backend.in_(CHAIN_BACKENDS),
+            AnchorReceipt.status == AnchorStatus.CONFIRMED,
+        )
+        .exists()
+    )
+    return await db.scalar(
+        select(MerkleCheckpoint)
+        .where(
+            MerkleCheckpoint.clinic_id == clinic_id,
+            MerkleCheckpoint.tree_size > index,
+            confirmed,
+        )
+        .order_by(MerkleCheckpoint.tree_size.desc())
+        .limit(1)
+    )
+
+
 async def receipt_for(
     db: AsyncSession, principal: ClinicPrincipal, access_event_id: uuid.UUID, req: RequestInfo
 ) -> Receipt:
@@ -109,9 +139,11 @@ async def receipt_for(
     )
     if audit is None:
         raise ProblemError(404, "audit-not-found")
-    checkpoint = await latest_checkpoint(db, principal.clinic_id)
     tree, seqs = await load_tree(db, principal.clinic_id)
     index = seqs.index(audit.seq)
+    checkpoint = await _anchored_checkpoint(db, principal.clinic_id, index)
+    if checkpoint is None:
+        checkpoint = await latest_checkpoint(db, principal.clinic_id)
     if checkpoint is None or index >= checkpoint.tree_size:
         raise ProblemError(
             409, "receipt-not-ready", "This access is not in a signed checkpoint yet. Try later."

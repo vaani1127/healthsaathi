@@ -1,16 +1,18 @@
 import json
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 from httpx import AsyncClient
 from pydantic import SecretStr
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.anchor import job
 from app.anchor.receipts import Receipt
 from app.core.config import get_settings
-from app.db.enums import Role
+from app.db import models as m
+from app.db.enums import AnchorBackend, AnchorStatus, Role
 from app.ledger.checkpoint import build_checkpoint
 from e2d_core.ledger import TreeHead, leaf_hash, payload_hash, verify, verify_inclusion
 from tests.helpers import Actor, make_actor, make_clinic, make_patient
@@ -89,6 +91,37 @@ async def test_receipt_verifies_against_the_signed_tree_head(
     assert verify(head, bytes.fromhex(body["signature"]), bytes.fromhex(body["public_key"]))
     assert body["clinic_id_bytes32"] == "0x" + uuid.UUID(str(clinic)).bytes.hex() + "00" * 16
     assert body["anchors"] == []
+
+
+async def test_receipt_prefers_the_newest_anchored_checkpoint(
+    client: AsyncClient,
+    admin_engine: AsyncEngine,
+    clinic: uuid.UUID,
+    reception: Actor,
+    patient_actor: Actor,
+    patient: uuid.UUID,
+) -> None:
+    event_id = await staff_read(client, reception, patient_actor, patient)
+    url = f"/api/v1/access-events/{event_id}/receipt"
+    first = await build_checkpoint(clinic)
+    async with AsyncSession(admin_engine) as s, s.begin():
+        s.add(
+            m.AnchorReceipt(
+                clinic_id=clinic,
+                checkpoint_id=first.checkpoint.id,
+                backend=AnchorBackend.BESU,
+                status=AnchorStatus.CONFIRMED,
+                tx_ref="0x" + "ab" * 32,
+                submitted_at=datetime.now(UTC),
+            )
+        )
+    await staff_read(client, reception, patient_actor, patient)
+    second = await build_checkpoint(clinic)
+    assert second.head.tree_size > first.head.tree_size
+
+    body = (await client.get(url, headers=patient_actor.headers)).json()
+    assert body["sth"]["tree_size"] == first.head.tree_size, "the anchored head, not the newest"
+    assert [a["backend"] for a in body["anchors"]] == ["besu"]
 
 
 async def test_receipt_is_only_for_the_patient_it_is_about(
