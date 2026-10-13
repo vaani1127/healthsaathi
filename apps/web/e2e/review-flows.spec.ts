@@ -92,6 +92,8 @@ test.describe.serial("review", () => {
     await detail.getByLabel("Note (optional)").fill("Not asked for a second opinion");
     await detail.getByRole("button", { name: "Misuse" }).click();
     await expect(detail.getByRole("status")).toHaveText("Reviewed: Misuse");
-    await expect(first).toContainText("Misuse");
+    // A reviewed alert leaves the open queue; the day view still lists it with its outcome.
+    await page.getByRole("button", { name: "One day" }).click();
+    await expect(page.getByTestId("alert").filter({ hasText: "Misuse" }).first()).toBeVisible();
   });
 });
