@@ -20,10 +20,12 @@ from collections.abc import AsyncIterator, Iterable, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any
 
-from sqlalchemy import select, text
+from sqlalchemy import func, insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.access.evidence import load_evidence
 from app.access.policy import Policy, Requirement, get_policy
 from app.core.config import get_settings
 from app.core.db import tenant_session
@@ -38,7 +40,7 @@ from app.db.models import (
     UserSession,
 )
 from app.identity.deps import ClinicPrincipal
-from app.ledger.writer import append_audit_event
+from app.ledger.writer import append_audit_event, append_audit_events
 from app.notify import push
 from e2d_core.explain import AccessEvent as CoreAccessEvent
 from e2d_core.explain import EvidenceQuery, Explanation, default_config, explain
@@ -100,6 +102,14 @@ async def clinic_timezone(db: AsyncSession, clinic_id: uuid.UUID) -> str:
     return tz or "Asia/Kolkata"
 
 
+async def clock_and_timezone(db: AsyncSession, clinic_id: uuid.UUID) -> tuple[datetime, str]:
+    """db_now() and clinic_timezone() in one round trip."""
+    tz = select(Clinic.timezone).where(Clinic.id == clinic_id).scalar_subquery()
+    row = (await db.execute(select(func.clock_timestamp(), tz))).one()
+    assert isinstance(row[0], datetime)
+    return row[0], row[1] or "Asia/Kolkata"
+
+
 def audit_payload(
     event: AccessEvent, explanation: Explanation | None, detail: dict[str, str] | None = None
 ) -> dict[str, object]:
@@ -122,22 +132,19 @@ def audit_payload(
     return payload
 
 
-async def _write(
-    db: AsyncSession,
+def _event(
     principal: ClinicPrincipal,
     patient_id: uuid.UUID,
     resource: ResourceType,
     action: AccessAction,
     decision: AccessDecision,
-    explanation: Explanation,
     policy: Policy,
     request: RequestInfo,
     at: datetime,
     break_glass_id: uuid.UUID | None,
-    detail: dict[str, str] | None = None,
+    session: SessionRef,
 ) -> AccessEvent:
-    session = await current_session(db, principal.session_id)
-    event = AccessEvent(
+    return AccessEvent(
         id=uuid7(),
         at=at,
         clinic_id=principal.clinic_id,
@@ -154,17 +161,50 @@ async def _write(
         decision=decision,
         break_glass_id=break_glass_id,
     )
-    db.add(event)
-    db.add(
-        AccessExplanation(
-            access_event_id=event.id,
-            clinic_id=principal.clinic_id,
-            template_code=explanation.template_code,
-            evidence=explanation.evidence_json(),
-            strength=explanation.strength,
-            forgery_flags=explanation.forgery_flags,
-        )
+
+
+def _explanation_row(
+    clinic_id: uuid.UUID, event_id: uuid.UUID, explanation: Explanation
+) -> dict[str, Any]:
+    return {
+        "access_event_id": event_id,
+        "clinic_id": clinic_id,
+        "template_code": explanation.template_code,
+        "evidence": explanation.evidence_json(),
+        "strength": explanation.strength,
+        "forgery_flags": explanation.forgery_flags,
+    }
+
+
+async def _write(
+    db: AsyncSession,
+    principal: ClinicPrincipal,
+    patient_id: uuid.UUID,
+    resource: ResourceType,
+    action: AccessAction,
+    decision: AccessDecision,
+    explanation: Explanation,
+    policy: Policy,
+    request: RequestInfo,
+    at: datetime,
+    break_glass_id: uuid.UUID | None,
+    detail: dict[str, str] | None = None,
+) -> AccessEvent:
+    session = await current_session(db, principal.session_id)
+    event = _event(
+        principal,
+        patient_id,
+        resource,
+        action,
+        decision,
+        policy,
+        request,
+        at,
+        break_glass_id,
+        session,
     )
+    db.add(event)
+    db.add(AccessExplanation(**_explanation_row(principal.clinic_id, event.id, explanation)))
     await db.flush()
     await append_audit_event(
         db, principal.clinic_id, "access", audit_payload(event, explanation, detail)
@@ -280,7 +320,7 @@ async def record_and_explain(
             Denial(principal, patient_id, resource, action, request, break_glass_id)
         )
 
-    at = await db_now(db)
+    at, timezone = await clock_and_timezone(db, principal.clinic_id)
     core_event = CoreAccessEvent(
         id=uuid7(),
         clinic_id=principal.clinic_id,
@@ -293,7 +333,6 @@ async def record_and_explain(
         reason=reason,
         break_glass_id=break_glass_id,
     )
-    timezone = await clinic_timezone(db, principal.clinic_id)
     bundle = await SqlRepository(db).evidence_for(
         EvidenceQuery(
             principal.clinic_id,
@@ -340,6 +379,92 @@ async def record_and_explain(
     return AccessRecord(event.id, patient_id, decision.requirement, explanation)
 
 
+async def _record_batch(
+    db: AsyncSession,
+    principal: ClinicPrincipal,
+    items: Sequence[tuple[uuid.UUID, ResourceType]],
+    action: AccessAction,
+    request: RequestInfo,
+    reason: AccessReason | None = None,
+) -> list[AccessRecord]:
+    """Record (patient, resource) accesses in order: what calling record_and_explain for each
+    item in turn records (same checks, explanations, rows and audit links), with set-based
+    reads and one insert per table. The accesses share one clock reading.
+    tests/access/test_batch.py checks the equivalence."""
+    if not items:
+        return []
+    policy = get_policy()
+    patient_ids = list(dict.fromkeys(pid for pid, _ in items))
+    found = await db.execute(
+        select(Patient.id, Patient.user_id).where(
+            Patient.clinic_id == principal.clinic_id, Patient.id.in_(patient_ids)
+        )
+    )
+    owners: dict[uuid.UUID, uuid.UUID | None] = {pid: user for pid, user in found.all()}
+    decisions = []
+    for patient_id, resource in items:
+        if patient_id not in owners:
+            raise ProblemError(404, "patient-not-found")
+        decision = policy.decide(principal.role, resource, action, break_glass=False)
+        allowed = decision.allowed
+        if principal.role == Role.PATIENT and owners[patient_id] != principal.user_id:
+            allowed = False
+        if not allowed:
+            raise AccessDeniedError(Denial(principal, patient_id, resource, action, request, None))
+        decisions.append(decision)
+
+    at, timezone = await clock_and_timezone(db, principal.clinic_id)
+    bundles = await load_evidence(
+        db, principal.clinic_id, principal.user_id, principal.role.value, at, timezone, patient_ids
+    )
+    session = await current_session(db, principal.session_id)
+    records: list[AccessRecord] = []
+    events: list[dict[str, Any]] = []
+    explanations: list[dict[str, Any]] = []
+    payloads: list[dict[str, Any]] = []
+    for (patient_id, resource), decision in zip(items, decisions, strict=True):
+        core_event = CoreAccessEvent(
+            id=uuid7(),
+            clinic_id=principal.clinic_id,
+            user_id=principal.user_id,
+            role=principal.role.value,
+            patient_id=patient_id,
+            resource=resource.value,
+            action=action.value,
+            at=at,
+            reason=reason,
+        )
+        explanation = explain(core_event, bundles[patient_id], timezone=timezone)
+        event = _event(
+            principal,
+            patient_id,
+            resource,
+            action,
+            AccessDecision.ALLOW,
+            policy,
+            request,
+            at,
+            None,
+            session,
+        )
+        events.append({c.name: getattr(event, c.name) for c in AccessEvent.__table__.columns})
+        explanations.append(_explanation_row(principal.clinic_id, event.id, explanation))
+        payloads.append(audit_payload(event, explanation))
+        records.append(AccessRecord(event.id, patient_id, decision.requirement, explanation))
+    await db.execute(insert(AccessEvent), events)
+    await db.execute(insert(AccessExplanation), explanations)
+    await append_audit_events(db, principal.clinic_id, "access", payloads)
+    await push.enqueue_accesses(
+        db,
+        [
+            (owner, record.access_event_id)
+            for record in records
+            if (owner := owners[record.patient_id]) is not None and owner != principal.user_id
+        ],
+    )
+    return records
+
+
 async def record_many(
     db: AsyncSession,
     principal: ClinicPrincipal,
@@ -349,13 +474,21 @@ async def record_many(
     request: RequestInfo | None = None,
 ) -> Sequence[AccessRecord]:
     """One access event per patient, for list screens that show several patients."""
-    seen: set[uuid.UUID] = set()
-    records = []
-    for patient_id in patient_ids:
-        if patient_id in seen:
-            continue
-        seen.add(patient_id)
-        records.append(
-            await record_and_explain(db, principal, patient_id, resource, action, request)
-        )
-    return records
+    items = [(pid, resource) for pid in dict.fromkeys(patient_ids)]
+    return await _record_batch(db, principal, items, action, request or RequestInfo())
+
+
+async def record_resources(
+    db: AsyncSession,
+    principal: ClinicPrincipal,
+    patient_id: uuid.UUID,
+    resources: Sequence[ResourceType],
+    action: AccessAction,
+    request: RequestInfo | None = None,
+    *,
+    reason: AccessReason | None = None,
+) -> Sequence[AccessRecord]:
+    """One access event per part of one patient's record, for screens that show several parts
+    (the chart). Same as record_and_explain for each resource in turn, without break-glass."""
+    items = [(patient_id, r) for r in dict.fromkeys(resources)]
+    return await _record_batch(db, principal, items, action, request or RequestInfo(), reason)

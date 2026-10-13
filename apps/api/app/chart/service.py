@@ -19,6 +19,7 @@ from app.access.service import (
     db_now,
     record_and_explain,
     record_many,
+    record_resources,
 )
 from app.chart import schemas
 from app.clinic.schemas import AppointmentOut, PatientOut, PatientSummary
@@ -249,11 +250,13 @@ async def build_chart(
             db, principal, patient_id, resource, VIEW, req, reason=reason, require_reason=ask_reason
         )
 
+    async def record_all(*resources: ResourceType) -> None:
+        await record_resources(db, principal, patient_id, resources, VIEW, req, reason=reason)
+
     role = principal.role
     if role == Role.DOCTOR:
         first = await record(R.DEMOGRAPHICS, ask_reason=True)
-        for resource in (R.VITALS, R.ALLERGIES, R.NOTES, R.PRESCRIPTIONS, R.LAB, R.DOCUMENTS):
-            await record(resource)
+        await record_all(R.VITALS, R.ALLERGIES, R.NOTES, R.PRESCRIPTIONS, R.LAB, R.DOCUMENTS)
         patient = await _patient(db, patient_id)
         return schemas.DoctorChart(
             patient=PatientOut.model_validate(patient),
@@ -268,8 +271,7 @@ async def build_chart(
             explanation=first.explanation.template_code,
         )
     if role == Role.NURSE:
-        for resource in (R.DEMOGRAPHICS, R.VITALS, R.ALLERGIES):
-            await record(resource)
+        await record_all(R.DEMOGRAPHICS, R.VITALS, R.ALLERGIES)
         patient = await _patient(db, patient_id)
         return schemas.NurseChart(
             patient=PatientSummary.model_validate(patient),
@@ -278,8 +280,7 @@ async def build_chart(
             allergies=await _allergies(db, patient_id),
         )
     if role == Role.LAB_TECH:
-        for resource in (R.DEMOGRAPHICS, R.LAB):
-            await record(resource)
+        await record_all(R.DEMOGRAPHICS, R.LAB)
         patient = await _patient(db, patient_id)
         cutoff = await db_now(db) - LAB_RELEASED_GRACE
         return schemas.LabChart(
@@ -287,8 +288,7 @@ async def build_chart(
             worklist=await _lab_orders(db, patient_id, worklist_after=cutoff),
         )
     if role == Role.RECEPTION:
-        for resource in (R.DEMOGRAPHICS, R.BILLING, R.CONSENT):
-            await record(resource)
+        await record_all(R.DEMOGRAPHICS, R.BILLING, R.CONSENT)
         patient = await _patient(db, patient_id)
         return schemas.ReceptionChart(
             patient=PatientOut.model_validate(patient),
@@ -324,8 +324,7 @@ async def patient_chart(
     req: RequestInfo,
     action: AccessAction = VIEW,
 ) -> schemas.PatientChart:
-    for resource in PATIENT_RESOURCES:
-        await record_and_explain(db, principal, patient_id, resource, action, req)
+    await record_resources(db, principal, patient_id, PATIENT_RESOURCES, action, req)
     patient = await _patient(db, patient_id)
     orders = [o for o in await _lab_orders(db, patient_id) if o.result and o.result.released_at]
     released_docs = {o.result.document_id for o in orders if o.result and o.result.document_id}

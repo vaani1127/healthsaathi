@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Fewer database round trips for list screens and charts
+
+- List screens (day list, queue, lab worklist, invoices, review queues) recorded each patient's
+  access one by one, about 25 database round trips per patient. `record_many` now loads the
+  workflow evidence of all listed patients with set-based queries, explains each access with
+  the in-memory evidence backend (the engine the seed already uses, checked against the SQL one
+  by the shared backend tests), and writes the access events, explanations and audit events with
+  one insert per table, under the same per-clinic lock, with the hash chain built in order.
+- Charts record their parts (vitals, notes, lab and so on) the same way (`record_resources`);
+  the doctor's first part is still recorded on its own, since it may ask for a typed reason.
+- Every access takes two round trips fewer: the clock and the clinic timezone come in one query,
+  and the chain head and sequence number in one (after the lock, as before).
+- What is recorded does not change; accesses recorded together share one clock reading.
+  `tests/access/test_batch.py` checks that the batched path gives the same evidence bundles as
+  SqlRepository on every template case, and the same access events, explanations, template
+  codes, strengths, forgery flags, audit payloads and chain links as recording one by one.
+- `infra/demo/request_stats.py` prints request timings (p50, p95 per endpoint) from the API log.
+- The web app shows a thin progress bar while any request takes longer than 0.3 s. List loading
+  and empty messages sit outside `<ul>` (axe flagged them on slow loads).
+
 ### Native demo with the database on Neon
 
 - `make demo-native`, `make demo-native-stop`, `make demo-reset-native`: the whole demo without

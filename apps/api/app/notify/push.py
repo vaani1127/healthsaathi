@@ -100,6 +100,30 @@ async def enqueue_access(
     return True
 
 
+async def enqueue_accesses(db: AsyncSession, accesses: list[tuple[uuid.UUID, uuid.UUID]]) -> None:
+    """enqueue_access for several (patient user, access event) pairs with one lookup."""
+    if not enabled() or not accesses:
+        return
+    users = {user for user, _ in accesses}
+    subscribed = set(
+        (
+            await db.scalars(
+                select(PushSubscription.user_id)
+                .where(PushSubscription.user_id.in_(users))
+                .distinct()
+            )
+        ).all()
+    )
+    for user, event in accesses:
+        if user in subscribed:
+            db.add(
+                Job(
+                    kind=ACCESS_JOB,
+                    payload={"user_id": str(user), "access_event_id": str(event)},
+                )
+            )
+
+
 def _send(subscription: PushSubscription, data: str) -> None:
     s = get_settings()
     assert s.vapid_private_key is not None
