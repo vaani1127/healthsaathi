@@ -21,5 +21,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "test", "e2e", "e2e-pwa", "vite.config.ts", "eslint.config.js", "playwright.config.ts", "playwright.pwa.config.ts"]
+  "include": ["src", "test", "e2e", "e2e-pwa", "e2e-demo", "vite.config.ts", "eslint.config.js", "playwright.config.ts", "playwright.pwa.config.ts", "playwright.demo.config.ts"]
 }

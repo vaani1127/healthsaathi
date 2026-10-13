@@ -7,6 +7,10 @@ import { TOTP } from "otpauth";
 import { OUTBOX } from "../playwright.config";
 import { FIXTURE } from "./global-setup";
 
+/** The same specs run against the dev stack (Vite + API) or the `make demo` stack. */
+export const DEMO = process.env.E2E_TARGET === "demo";
+export const DEMO_FIXTURE = FIXTURE.replace("e2e-fixture.json", "demo-fixture.json");
+
 interface FixtureUser {
   role: string;
   email: string;
@@ -22,7 +26,7 @@ interface Fixture {
 }
 
 export function fixture(): Fixture {
-  return JSON.parse(readFileSync(FIXTURE, "utf-8")) as Fixture;
+  return JSON.parse(readFileSync(DEMO ? DEMO_FIXTURE : FIXTURE, "utf-8")) as Fixture;
 }
 
 export function user(role: string): FixtureUser {
@@ -35,7 +39,7 @@ export function user(role: string): FixtureUser {
 
 // Steps already used per secret. Kept in a file because a retry runs in a new worker process,
 // while the API remembers every step it has accepted.
-const USED = join(dirname(FIXTURE), "totp-steps.json");
+const USED = join(dirname(FIXTURE), DEMO ? "demo-totp-steps.json" : "totp-steps.json");
 
 function usedSteps(): Record<string, number> {
   return existsSync(USED) ? (JSON.parse(readFileSync(USED, "utf-8")) as Record<string, number>) : {};
@@ -56,20 +60,34 @@ async function freshCode(secret: string): Promise<string> {
   return new TOTP({ secret, digits: 6, period: 30 }).generate({ timestamp: next * 30_000 });
 }
 
-export async function signIn(page: Page, role: string): Promise<FixtureUser> {
-  const u = user(role);
+export async function signIn(page: Page, role: string, who?: FixtureUser): Promise<FixtureUser> {
+  const u = who ?? user(role);
   await page.goto("/login");
-  await page.getByLabel("Email").fill(u.email);
-  await page.getByLabel("Password").fill(fixture().password);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await page.getByLabel("6 digit code").fill(await freshCode(u.totp_secret));
-  await page.getByRole("button", { name: "Verify" }).click();
-  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+  // Ids, not labels, so the same sign-in works when the page is in Hindi.
+  await page.locator("#email").fill(u.email);
+  await page.locator("#password").fill(fixture().password);
+  await page.locator("form button[type=submit]").click();
+  await page.locator("#code").fill(await freshCode(u.totp_secret));
+  await page.locator("form button[type=submit]").click();
+  await expect(page).not.toHaveURL(/\/login/);
+  await expect(page.locator("header")).toBeVisible();
   return u;
 }
 
-/** A sign-in code emailed to this address after `sinceMs` (test runs write emails as files). */
-export function emailCode(email: string, sinceMs: number): string | null {
+/** A sign-in code emailed to this address after `sinceMs`: from the files the test API writes,
+ * or from the dev mailbox of the demo stack. */
+export async function emailCode(email: string, sinceMs: number, baseURL = "http://localhost:8080"): Promise<string | null> {
+  if (DEMO) {
+    const resp = await fetch(`${baseURL}/api/v1/dev/mailbox?to=${encodeURIComponent(email)}`);
+    const mails = (await resp.json()) as { text: string; sent_at: string | null }[];
+    for (const mail of mails) {
+      const match = /\b(\d{6})\b/.exec(mail.text);
+      if (match?.[1] && mail.sent_at && Date.parse(mail.sent_at) >= sinceMs) {
+        return match[1];
+      }
+    }
+    return null;
+  }
   const key = `${email.replace("@", "_at_")}.json`;
   const files = readdirSync(OUTBOX)
     .filter((f) => f.endsWith(key) && Number(f.split("-")[0]) / 1e6 >= sinceMs)

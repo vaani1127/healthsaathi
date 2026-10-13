@@ -27,6 +27,12 @@ test.describe.serial("OPD day", () => {
     await expect(page.getByText("Given (notice v1)")).toBeVisible();
 
     await page.getByLabel("Doctor").first().selectOption({ label: user("doctor").name });
+    // A time of its own, so a rerun on a stack that already has bookings does not hit a taken slot.
+    const at = new Date(Date.now() + (20 + (Number(stamp) % 50) * 5) * 60_000);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    await page
+      .locator("#book-when")
+      .fill(`${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`);
     await page.getByRole("button", { name: "Book appointment" }).click();
     await expect(page.getByText("Appointment booked.")).toBeVisible();
 
@@ -139,7 +145,7 @@ test.describe.serial("OPD day", () => {
     await expect(page.getByLabel("6 digit code")).toBeVisible();
     let code: string | null = null;
     await expect
-      .poll(() => (code = emailCode(patientEmail, sentAfter)), { timeout: 10_000 })
+      .poll(async () => (code = await emailCode(patientEmail, sentAfter)), { timeout: 10_000 })
       .not.toBeNull();
     await page.getByLabel("6 digit code").fill(code ?? "");
     await page.getByRole("button", { name: "Sign in" }).click();

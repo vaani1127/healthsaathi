@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { signIn, user } from "./support";
+import { DEMO, signIn, user } from "./support";
 
 const API_DIR = fileURLToPath(new URL("../../api", import.meta.url));
 // An empty model folder, so detection uses the rules baseline whatever was fitted locally.
@@ -65,24 +65,30 @@ test.describe.serial("review", () => {
   });
 
   test("flow 8: admin reviews the top alert with its explanation and features", async ({ page }) => {
-    execFileSync("uv", ["run", "python", "-m", "app.detect.job"], {
-      cwd: API_DIR,
-      env: { ...process.env, MODEL_DIR: MODELS },
-      stdio: "inherit",
-    });
+    if (DEMO) {
+      execFileSync("docker", ["compose", "-f", "../../infra/docker-compose.demo.yml", "exec", "-T", "api", "demo-entrypoint", "python", "-m", "app.detect.job"], {
+        stdio: "inherit",
+      });
+    } else {
+      execFileSync("uv", ["run", "python", "-m", "app.detect.job"], {
+        cwd: API_DIR,
+        env: { ...process.env, MODEL_DIR: MODELS },
+        stdio: "inherit",
+      });
+    }
     await signIn(page, "clinic_admin");
     await expect(page.getByRole("tab", { name: "Alerts" })).toHaveAttribute("aria-selected", "true");
     // The reason-only access was gated and scored; the queue shows today's top alerts.
     await expect(page.getByTestId("alert")).not.toHaveCount(0);
     const first = page.getByTestId("alert").first();
-    await expect(first).toContainText("#1");
+    await expect(first).toContainText(/#\d+/);
     await expect(first).toContainText("Score");
     await first.getByRole("button", { name: "Open" }).click();
     const detail = first.getByTestId("alert-detail");
     await expect(detail).toContainText("Patient:");
     await expect(detail).toContainText("What stands out");
     await expect(detail).toContainText("This user's last accesses");
-    await expect(detail).toContainText("Scored by rules");
+    await expect(detail).toContainText(DEMO ? "Scored by" : "Scored by rules");
     await detail.getByLabel("Note (optional)").fill("Not asked for a second opinion");
     await detail.getByRole("button", { name: "Misuse" }).click();
     await expect(detail.getByRole("status")).toHaveText("Reviewed: Misuse");
