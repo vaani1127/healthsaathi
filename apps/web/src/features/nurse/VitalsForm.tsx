@@ -40,10 +40,15 @@ export function VitalsForm({ patientId }: { patientId: string }) {
 
   const drafts = useQuery({
     queryKey: ["drafts", patientId],
+    // Drafts live in this browser (IndexedDB), so reading them must not wait for the network.
+    networkMode: "always",
     queryFn: async () => (await listDrafts()).filter((d) => d.patientId === patientId),
   });
 
   const save = useMutation({
+    // Run even when the browser reports no connection: that is when the draft must be saved.
+    // The default ("online") would pause the mutation until the connection comes back.
+    networkMode: "always",
     mutationFn: async () => {
       const body = toBody(values);
       try {

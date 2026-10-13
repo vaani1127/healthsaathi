@@ -87,10 +87,10 @@ function Staff() {
         <CardContent>
           <ul className="divide-y text-sm">
             {members.data?.map((m) => (
-              <li key={m.membership_id} className="flex items-center justify-between gap-2 py-2">
-                <div>
+              <li key={m.membership_id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <div className="min-w-0">
                   <p className={cn(!m.is_active && "line-through")}>{m.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="break-all text-xs text-muted-foreground">
                     {t(`roles.${m.role}`)} · {m.email}
                   </p>
                 </div>
