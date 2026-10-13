@@ -52,7 +52,9 @@
     "enrolManual": "If you cannot scan, type this key into the app:",
     "activate": "Turn on and continue",
     "selectClinic": "Choose a clinic",
-    "noClinics": "You are not a member of any clinic yet. Ask your clinic admin."
+    "noClinics": "You are not a member of any clinic yet. Ask your clinic admin.",
+    "showPassword": "Show",
+    "hidePassword": "Hide"
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -165,7 +167,9 @@
       "422": "Some fields are not valid. Check them and try again.",
       "429": "Too many requests. Wait a minute and try again.",
       "500": "Something went wrong on the server. Please try again."
-    }
+    },
+    "same-password": "Choose a password you have not used here.",
+    "push-off": "Notifications are not available here."
   },
   "sex": {
     "female": "Female",
@@ -818,5 +822,13 @@
     "turnOn": "Turn on notifications",
     "turnOff": "Turn off notifications",
     "denied": "Notifications are blocked for this site. Allow them in your browser settings and try again."
+  },
+  "password": {
+    "title": "Change password",
+    "explain": "You need your current password. Your other devices are signed out and you get an email about the change.",
+    "current": "Current password",
+    "new": "New password",
+    "save": "Change password",
+    "changed": "Password changed. Other devices were signed out."
   }
 }

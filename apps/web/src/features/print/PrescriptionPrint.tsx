@@ -43,7 +43,7 @@ export function PrescriptionPrint() {
   const label = (key: keyof typeof en.print) => `${en.print[key]} / ${hi.print[key]}`;
 
   return (
-    <article className="mx-auto max-w-2xl bg-white p-6 text-black print:p-0" style={{ fontFamily: '"Noto Sans", "Noto Sans Devanagari", sans-serif' }}>
+    <article className="print-font mx-auto max-w-2xl bg-white p-6 text-black print:p-0">
       <div className="mb-4 flex justify-end print:hidden">
         <Button onClick={() => window.print()}>{t("rx.printNow")}</Button>
       </div>

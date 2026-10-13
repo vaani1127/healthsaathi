@@ -65,6 +65,13 @@ async def mailbox(to: str | None = None) -> list[MailOut]:
 
 
 push_router = APIRouter(tags=["push"])
+# Push services of Chrome, Firefox, Edge and Safari.
+PUSH_SERVICES = (
+    "fcm.googleapis.com",
+    "push.services.mozilla.com",
+    "notify.windows.com",
+    "push.apple.com",
+)
 
 
 class PushKeyOut(BaseModel):
@@ -95,8 +102,12 @@ async def push_key() -> PushKeyOut:
 async def push_subscribe(principal: CurrentPrincipal, body: PushSubscriptionIn) -> Response:
     if not push.enabled():
         raise ProblemError(404, "push-off", "Notifications are not available here.")
-    if body.endpoint.scheme != "https":
-        raise ProblemError(422, "validation-error", "The push endpoint must use https.")
+    host = (body.endpoint.host or "").lower()
+    if body.endpoint.scheme != "https" or not any(
+        host == h or host.endswith("." + h) for h in PUSH_SERVICES
+    ):
+        # The worker posts to this URL, so only the browsers' own push services are accepted.
+        raise ProblemError(422, "validation-error", "This is not a browser push service.")
     async with tenant_session(TenantContext(user_id=principal.user_id)) as db:
         await push.subscribe(
             db, principal.user_id, str(body.endpoint), body.keys.p256dh, body.keys.auth

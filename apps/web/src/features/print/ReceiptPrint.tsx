@@ -37,7 +37,7 @@ export function ReceiptPrint() {
   const { receipt, patient, clinic } = data.data;
   const label = (key: keyof typeof en.receipt) => `${en.receipt[key]} / ${hi.receipt[key]}`;
   return (
-    <article className="mx-auto max-w-md bg-white p-6 text-black" style={{ fontFamily: '"Noto Sans", "Noto Sans Devanagari", sans-serif' }}>
+    <article className="print-font mx-auto max-w-md bg-white p-6 text-black">
       <div className="mb-4 flex justify-end print:hidden">
         <Button onClick={() => window.print()}>{t("rx.printNow")}</Button>
       </div>

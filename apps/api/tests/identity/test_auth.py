@@ -758,3 +758,46 @@ async def test_new_device_alert_only_after_the_first_device(
         user.user_id, "mfa", service.DeviceInfo(fingerprint=None, user_agent=None)
     )
     assert alerts() == 1, "a sign-in without a device id is not a new device"
+
+
+# Password change ---------------------------------------------------------------------------------
+
+
+async def test_change_password_needs_the_current_one_and_ends_other_sessions(
+    client: AsyncClient, clinic: ClinicGraph, admin_engine: AsyncEngine
+) -> None:
+    user = await make_user(admin_engine, clinic.clinic_id, Role.DOCTOR)
+    other = await service.create_session(
+        user.user_id, "mfa", service.DeviceInfo(fingerprint="old-laptop", user_agent="Old")
+    )
+    current = await service.create_session(
+        user.user_id, "mfa", service.DeviceInfo(fingerprint="old-laptop", user_agent="Old")
+    )
+    url = "/api/v1/auth/password"
+    headers = bearer(current.access_token)
+    wrong = await client.post(
+        url,
+        json={"current_password": "not-it-at-all", "new_password": "a-new-long-pass"},
+        headers=headers,
+    )
+    assert wrong.status_code == 401
+    weak = await client.post(
+        url, json={"current_password": PASSWORD, "new_password": "short"}, headers=headers
+    )
+    assert weak.status_code == 422
+    ok = await client.post(
+        url,
+        json={"current_password": PASSWORD, "new_password": "a-new-long-passphrase"},
+        headers=headers,
+    )
+    assert ok.status_code == 204
+    assert (
+        await client.get("/api/v1/auth/me", headers=bearer(other.access_token))
+    ).status_code == 401
+    assert (await client.get("/api/v1/auth/me", headers=headers)).status_code == 200
+    sent = outbox.last_to(user.email)
+    assert sent is not None and "password was changed" in sent.subject
+    login = await client.post(
+        "/api/v1/auth/login", json={"email": user.email, "password": "a-new-long-passphrase"}
+    )
+    assert login.status_code == 200

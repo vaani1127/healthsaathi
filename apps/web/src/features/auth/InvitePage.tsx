@@ -4,7 +4,8 @@ import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import { Alert, Field, Input } from "@/components/ui/form";
+import { Alert, Field } from "@/components/ui/form";
+import { PasswordInput } from "@/components/ui/password";
 import { AuthCard } from "@/features/auth/AuthCard";
 import { api, call } from "@/lib/api/client";
 import { errorMessage } from "@/lib/format";
@@ -61,9 +62,8 @@ export function InvitePage() {
           hint={t("invite.rules", { n: MIN_LENGTH })}
           error={touched && tooShort ? t("invite.tooShort", { n: MIN_LENGTH }) : undefined}
         >
-          <Input
+          <PasswordInput
             id="new-password"
-            type="password"
             autoComplete="new-password"
             required
             value={password}
@@ -75,9 +75,8 @@ export function InvitePage() {
           htmlFor="repeat-password"
           error={touched && mismatch ? t("invite.mismatch") : undefined}
         >
-          <Input
+          <PasswordInput
             id="repeat-password"
-            type="password"
             autoComplete="new-password"
             required
             value={repeat}

@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### P18 hardening
+
+- `POST /auth/password`: change the password with the current one; other sessions are signed
+  out and the user gets an email. "Change password" card on the account page; every password
+  field has a show and hide button.
+- Web push subscriptions accept only the browsers' push services (the worker posts to that URL).
+- Uploaded lab files must start with the bytes of their declared type (PDF, PNG, JPEG).
+- Receipts use the newest checkpoint that is already anchored on chain; a pending anchor is shown
+  as pending, not as a failure.
+- CSP without `'unsafe-inline'` styles (print views use a class), `Cross-Origin-Resource-Policy`,
+  HSTS and the same headers for the hosted web app (`public/_headers`), the demo (Caddy) and the
+  API. `docs/THREAT_MODEL.md` and `docs/SECURITY_CHECKLIST.md`.
+- Offline vitals drafts are saved and listed while the browser is offline (they were paused by
+  the query library until the connection came back).
+
 ### P17 FHIR export
 
 - `app.fhir.bundle` builds a FHIR R4 `collection` Bundle of the patient's record: Patient,

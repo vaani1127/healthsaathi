@@ -49,3 +49,9 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+/* Bilingual print views (prescription, lab report, receipt): Latin and Devanagari in one font
+   family. A class, not an inline style, so the CSP needs no 'unsafe-inline' for styles. */
+.print-font {
+  font-family: "Noto Sans", "Noto Sans Devanagari", sans-serif;
+}

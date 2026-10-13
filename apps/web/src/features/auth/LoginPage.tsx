@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { AuthCard } from "@/features/auth/AuthCard";
 import { Button } from "@/components/ui/button";
 import { Alert, Field, Input } from "@/components/ui/form";
+import { PasswordInput } from "@/components/ui/password";
 import { api, call } from "@/lib/api/client";
 import { errorMessage } from "@/lib/format";
 import { useAuth } from "@/stores/auth";
@@ -44,9 +45,8 @@ export function LoginPage() {
           />
         </Field>
         <Field label={t("auth.password")} htmlFor="password">
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="current-password"
             required
             value={password}

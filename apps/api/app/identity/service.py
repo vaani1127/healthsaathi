@@ -509,6 +509,47 @@ async def revoke_session(user_id: uuid.UUID, family: uuid.UUID) -> bool:
 INVITABLE_ROLES = frozenset(STAFF_ROLES - {Role.PLATFORM_ADMIN})
 
 
+async def change_password(
+    user_id: uuid.UUID, current_family: uuid.UUID, current: str, new: str
+) -> None:
+    """ASVS 2.1.5 and 2.1.6: change with the current password. Every other session of the user
+    is signed out and the user gets an email about the change (2.2.3)."""
+    async with tenant_session(ANONYMOUS) as db:
+        user = await db.scalar(select(User).where(User.id == user_id).with_for_update())
+        if user is None or not user.password_hash:
+            raise ProblemError(400, "use-email-code", "Patients sign in with a code sent by email.")
+        if not passwords.verify_password(user.password_hash, current):
+            raise ProblemError(401, "invalid-credentials", "The current password is not right.")
+        password_policy.check_password(new, user.email)
+        if passwords.verify_password(user.password_hash, new):
+            raise ProblemError(422, "same-password", "Choose a password you have not used here.")
+        user.password_hash = passwords.hash_password(new)
+        await db.execute(
+            update(UserSession)
+            .where(
+                UserSession.user_id == user_id,
+                UserSession.family_id != current_family,
+                UserSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=_now())
+        )
+        email = user.email
+    try:
+        await send_email(
+            Email(
+                to=email,
+                subject="Your HealthSaathi password was changed",
+                text=(
+                    f"The password of your account was changed at {_now():%d %b %Y %H:%M} UTC "
+                    "and your other devices were signed out. If this was not you, contact your "
+                    "clinic admin straight away."
+                ),
+            )
+        )
+    except Exception:
+        logger.exception("password change email not sent")
+
+
 async def invite_staff(
     ctx: TenantContext, email: str, name: str, role: Role
 ) -> tuple[uuid.UUID, uuid.UUID]:

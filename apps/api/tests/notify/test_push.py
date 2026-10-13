@@ -15,7 +15,7 @@ from app.db.enums import Role
 from app.notify import push
 from tests.helpers import Actor, make_actor, make_clinic, make_patient
 
-ENDPOINT = "https://push.example.test/send/"
+ENDPOINT = "https://fcm.googleapis.com/fcm/send/"
 
 
 @pytest.fixture
@@ -64,7 +64,8 @@ async def test_staff_access_queues_and_sends_a_push(
     assert key and len(key) == 87, "uncompressed P-256 point, base64url"
     reception, patient_user, patient_id = await setup_patient(admin_engine)
     endpoint = ENDPOINT + uuid.uuid4().hex
-    assert await subscribe(client, patient_user, "http://insecure.test/x") == 422
+    assert await subscribe(client, patient_user, "http://fcm.googleapis.com/x") == 422
+    assert await subscribe(client, patient_user, "https://internal.example.test/x") == 422
     assert await subscribe(client, patient_user, endpoint) == 204
 
     # The patient reading their own record does not notify them.

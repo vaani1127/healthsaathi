@@ -179,6 +179,17 @@ async def revoke_session(principal: CurrentPrincipal, session_id: uuid.UUID) -> 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(LOGIN, key_func=client_ip)
+async def change_password(
+    request: Request, principal: CurrentPrincipal, body: schemas.ChangePasswordRequest
+) -> Response:
+    await service.change_password(
+        principal.user_id, principal.session_id, body.current_password, body.new_password
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(principal: CurrentPrincipal) -> Response:
     await service.revoke_session(principal.user_id, principal.session_id)
