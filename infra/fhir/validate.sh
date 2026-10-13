@@ -8,10 +8,12 @@
 set -eu
 VERSION=7.0.1
 IG=ndhm.in#6.5.0
-ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+# pwd -W gives a Windows path under Git Bash, which Docker Desktop can mount.
+winpwd() { pwd -W 2>/dev/null || pwd; }
+ROOT=$(cd "$(dirname "$0")/../.." && winpwd)
 CACHE="$ROOT/.cache"
 JAR="validator_cli-$VERSION.jar"
-DIR=$(cd "$1" && pwd)
+DIR=$(cd "$1" && winpwd)
 
 mkdir -p "$CACHE/fhir-packages"
 if [ ! -f "$CACHE/$JAR" ]; then

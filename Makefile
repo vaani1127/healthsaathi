@@ -3,7 +3,7 @@ DEMO := docker compose -f infra/docker-compose.demo.yml
 UV := uv run
 PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests experiments/src experiments/tests \n	infra/demo/src infra/demo/tests
 
-.PHONY: help env install demo demo-code demo-logs demo-down demo-reset dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
+.PHONY: help env install demo demo-code demo-e2e fhir-validate demo-logs demo-down demo-reset dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
 	test-sol migrate seed sim sim-coverage sim-audit sim-splits exp prereg-audit prereg-stamp audit
 
 help:
@@ -11,6 +11,8 @@ help:
 	@echo "install   install Python, JS and Solidity dependencies"
 	@echo "demo      run the whole app locally in Docker with demo data, then print the logins"
 	@echo "demo-code print the current authenticator code of a demo login, EMAIL=..."
+	@echo "demo-e2e  Playwright suite against the running demo (flows, crawler, PWA, tamper)"
+	@echo "fhir-validate  export FHIR bundles of 10 demo patients and run the HAPI validator"
 	@echo "demo-down stop the demo (keeps its data); demo-reset deletes the demo data"
 	@echo "dev       start postgres, api and web with docker compose"
 	@echo "lint      ruff, mypy, eslint, tsc, forge fmt --check"
@@ -51,6 +53,19 @@ demo-code:
 
 demo-logs:
 	$(DEMO) logs --follow api worker
+
+# Browser tests against the running demo (make demo first). Many sign-ins from one address in a
+# minute, so the API runs without rate limits for the test and gets them back afterwards.
+demo-e2e:
+	DEMO_RATE_LIMIT=false $(DEMO) up --detach --wait api
+	cd apps/web && pnpm exec playwright test -c playwright.demo.config.ts $(ARGS); 		status=$$?; cd ../.. && $(DEMO) up --detach --wait api; exit $$status
+
+# FHIR export (P17): bundles of the 10 most active demo patients, checked by the HAPI validator.
+fhir-validate:
+	rm -rf .demo/fhir && mkdir -p .demo/fhir
+	$(DEMO) exec -T api demo-entrypoint python -m hs_demo.fhir_samples /state/fhir 10
+	$(DEMO) cp api:/state/fhir/. .demo/fhir
+	sh infra/fhir/validate.sh .demo/fhir
 
 demo-down:
 	$(DEMO) down
