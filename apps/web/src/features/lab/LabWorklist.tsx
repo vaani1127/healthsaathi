@@ -127,7 +127,7 @@ function ResultForm({ order, onReleased }: { order: Schemas["LabOrderOut"]; onRe
         const current = values[code] ?? { value: "", unit: "" };
         return (
           <div key={code} className="grid grid-cols-2 gap-2">
-            <Field label={t("lab.valueFor", { test: String(test.name ?? code) })} htmlFor={`val-${order.id}-${code}`}>
+            <Field label={t("lab.valueFor", { test: testLabel(t, test) })} htmlFor={`val-${order.id}-${code}`}>
               <Input
                 id={`val-${order.id}-${code}`}
                 required

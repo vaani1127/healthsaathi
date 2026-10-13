@@ -96,7 +96,7 @@ test.describe.serial("OPD day", () => {
     await page.getByLabel(tx("rx.instructionsHi")).fill("खाने के बाद लें");
     await page.getByLabel(tx("rx.adviceHi")).fill("आराम करें और पानी पिएँ");
     await page.getByRole("button", { name: tx("rx.save") }).click();
-    await expect(page.getByText("Prescription saved.")).toBeVisible();
+    await expect(page.getByText(tx("rx.saved"))).toBeVisible();
 
     await page.getByRole("checkbox", { name: tx("lab.tests.CBC") }).check();
     await page.getByRole("button", { name: tx("lab.placeOrder") }).click();

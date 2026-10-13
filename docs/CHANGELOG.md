@@ -21,6 +21,8 @@
 - `infra/demo/request_stats.py` prints request timings (p50, p95 per endpoint) from the API log.
 - The web app shows a thin progress bar while any request takes longer than 0.3 s. List loading
   and empty messages sit outside `<ul>` (axe flagged them on slow loads).
+- The lab result field is labelled with the test name in the reader's language (it used the
+  stored English name in Hindi). Flows 1 to 8 pass in Hindi (`E2E_LANG=hi`).
 
 ### Native demo with the database on Neon
 
