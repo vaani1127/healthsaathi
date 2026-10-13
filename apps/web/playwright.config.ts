@@ -19,6 +19,9 @@ export default defineConfig({
     baseURL: "http://localhost:5173",
     trace: "retain-on-failure",
     viewport: { width: 360, height: 780 },
+    // The browser runs on clinic time, as in an Indian clinic; the CI machine's clock is UTC,
+    // which shows a different date than the clinic's between 18:30 and 24:00 UTC.
+    timezoneId: "Asia/Kolkata",
   },
   projects: [
     {
