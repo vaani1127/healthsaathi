@@ -4,7 +4,7 @@ UV := uv run
 PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests experiments/src experiments/tests \
 	infra/demo/src infra/demo/tests
 
-.PHONY: help env install demo demo-code demo-e2e fhir-validate demo-logs demo-down demo-reset dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
+.PHONY: help env install demo demo-code demo-e2e demo-videos fhir-validate demo-logs demo-down demo-reset dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
 	test-sol migrate seed sim sim-coverage sim-audit sim-splits exp prereg-audit prereg-stamp audit
 
 help:
@@ -13,6 +13,7 @@ help:
 	@echo "demo      run the whole app locally in Docker with demo data, then print the logins"
 	@echo "demo-code print the current authenticator code of a demo login, EMAIL=..."
 	@echo "demo-e2e  Playwright suite against the running demo (flows, crawler, PWA, tamper)"
+	@echo "demo-videos  record a video of each of the 9 flows into demo-videos/"
 	@echo "fhir-validate  export FHIR bundles of 10 demo patients and run the HAPI validator"
 	@echo "demo-down stop the demo (keeps its data); demo-reset deletes the demo data"
 	@echo "dev       start postgres, api and web with docker compose"
@@ -58,8 +59,14 @@ demo-logs:
 # Browser tests against the running demo (make demo first). Many sign-ins from one address in a
 # minute, so the API runs without rate limits for the test and gets them back afterwards.
 demo-e2e:
-	DEMO_RATE_LIMIT=false $(DEMO) up --detach --wait api
-	cd apps/web && pnpm exec playwright test -c playwright.demo.config.ts $(ARGS); 		status=$$?; cd ../.. && $(DEMO) up --detach --wait api; exit $$status
+	DEMO_RATE_LIMIT=false $(DEMO) up --detach --wait --no-deps api
+	cd apps/web && pnpm exec playwright test -c playwright.demo.config.ts $(ARGS); 		status=$$?; cd ../.. && $(DEMO) up --detach --wait --no-deps api; exit $$status
+
+# Backup videos of the 9 flows (SPEC 1.3) against the running demo, in demo-videos/ (gitignored).
+demo-videos:
+	rm -rf apps/web/test-results/demo demo-videos && mkdir -p demo-videos
+	DEMO_RATE_LIMIT=false $(DEMO) up --detach --wait --no-deps api
+	cd apps/web && E2E_VIDEO=1 PLAYWRIGHT_JSON_OUTPUT_NAME=../../demo-videos/report.json pnpm exec playwright test -c playwright.demo.config.ts --project=flows-360 --reporter=list,json; 		status=$$?; cd ../.. && $(DEMO) up --detach --wait --no-deps api; 		$(UV) python infra/demo/collect_videos.py demo-videos/report.json demo-videos; exit $$status
 
 # FHIR export (P17): bundles of the 10 most active demo patients, checked by the HAPI validator.
 fhir-validate:

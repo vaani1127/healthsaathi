@@ -103,6 +103,7 @@ results-*.tar.gz
 
 # Local demo witness folder (make demo)
 .demo/
+demo-videos/
 
 # Downloaded tools (FHIR validator)
 .cache/

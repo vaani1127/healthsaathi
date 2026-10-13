@@ -4,7 +4,13 @@ import { defineConfig, devices } from "@playwright/test";
 // origin, anvil chain, local witness). Start it first: `make demo-e2e` does both.
 process.env.E2E_TARGET = "demo";
 
-const phone = { ...devices["Desktop Chrome"], viewport: { width: 360, height: 780 } };
+// E2E_LANG=hi opens the app in Hindi (the language the app stores in local storage).
+const BASE = "http://localhost:8080";
+const language =
+  process.env.E2E_LANG === "hi"
+    ? { storageState: { cookies: [], origins: [{ origin: BASE, localStorage: [{ name: "hs.lang", value: "hi" }] }] } }
+    : {};
+const phone = { ...devices["Desktop Chrome"], viewport: { width: 360, height: 780 }, ...language };
 
 export default defineConfig({
   testDir: ".",
@@ -17,7 +23,8 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report/demo" }]],
   outputDir: "test-results/demo",
   globalSetup: "./e2e-demo/global-setup.ts",
-  use: { baseURL: "http://localhost:8080", trace: "retain-on-failure" },
+  // E2E_VIDEO=1 records every test (make demo-videos keeps one video per flow).
+  use: { baseURL: BASE, trace: "retain-on-failure", video: process.env.E2E_VIDEO ? "on" : "off" },
   projects: [
     // SPEC 1.3 flows 1 to 9 at 360 px, then the demo-only checks.
     { name: "flows-360", testMatch: ["e2e/*.spec.ts", "e2e-demo/flows/*.spec.ts"], use: phone },
