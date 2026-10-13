@@ -9,13 +9,17 @@ from pathlib import Path
 import pytest
 from sqlalchemy.engine import make_url
 
+from app.core.dburl import asyncpg_dsn, asyncpg_url
+
 TEST_DB_NAME = "healthsaathi_test"
 _base_url = make_url(
     os.environ.get(
         "DATABASE_URL", "postgresql+asyncpg://healthsaathi:healthsaathi@localhost:5432/healthsaathi"
     )
 )
-TEST_DB_URL = _base_url.set(database=TEST_DB_NAME).render_as_string(hide_password=False)
+TEST_DB_URL = asyncpg_url(
+    _base_url.set(database=TEST_DB_NAME).render_as_string(hide_password=False)
+)
 os.environ["DATABASE_URL"] = TEST_DB_URL
 os.environ["MIGRATOR_DATABASE_URL"] = TEST_DB_URL
 os.environ["APP_ENV"] = "test"
@@ -41,8 +45,9 @@ ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
 
 async def _recreate_database() -> None:
-    admin_dsn = _base_url.set(drivername="postgresql", database="postgres").render_as_string(
-        hide_password=False
+    # Works for local Postgres and for hosted ones (Neon): SSL kept, libpq-only options dropped.
+    admin_dsn = asyncpg_dsn(
+        _base_url.set(database="postgres").render_as_string(hide_password=False)
     )
     conn = await asyncpg.connect(admin_dsn)
     try:

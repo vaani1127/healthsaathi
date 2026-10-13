@@ -8,8 +8,9 @@
     python -m hs_demo.native restart-api # restart the api (DEMO_RATE_LIMIT=false for tests)
     python -m hs_demo.native sql "..."   # one statement as the database owner (tamper demo)
 
-Database URLs come from .env.local (see .env.local.example): DATABASE_URL (pooled) for the api,
-DATABASE_DIRECT_URL for migrations, the seed and the worker (the worker holds a session-level
+Database URLs come from .env.local (see .env.local.example): CONNECT_CONNECTION_POOLING_ON
+(pooled) for the api, CONNECT_CONNECTION_POOLING_OFF (direct) for migrations, the seed and the
+worker (the worker holds a session-level
 advisory lock and LISTEN needs a session, which a transaction pooler does not keep). Secrets,
 logins, emails and models live in .demo/state; witness commits in .demo/witness; process logs in
 .demo/logs. Nothing here is committed.
@@ -60,9 +61,16 @@ def read_env_file(path: Path) -> dict[str, str]:
     return values
 
 
+# Names used in .env.local (see .env.local.example).
+POOLED = "CONNECT_CONNECTION_POOLING_ON"
+DIRECT = "CONNECT_CONNECTION_POOLING_OFF"
+TEST_POOLED = "TEST_BRANCH_CONNECTION_POOLING_ON"
+TEST_DIRECT = "TEST_BRANCH_CONNECTION_POOLING_OFF"
+
+
 def local_env() -> dict[str, str]:
     values = read_env_file(ROOT / ".env.local")
-    missing = [k for k in ("DATABASE_URL", "DATABASE_DIRECT_URL") if not values.get(k)]
+    missing = [k for k in (POOLED, DIRECT) if not values.get(k)]
     if missing:
         raise SystemExit(f".env.local is missing {', '.join(missing)} (see .env.local.example)")
     return values
@@ -76,9 +84,9 @@ def demo_env(*, direct: bool = False) -> dict[str, str]:
     env.update(
         {
             "APP_ENV": "local",
-            "DATABASE_URL": db["DATABASE_DIRECT_URL"] if direct else db["DATABASE_URL"],
-            "DATABASE_DIRECT_URL": db["DATABASE_DIRECT_URL"],
-            "MIGRATOR_DATABASE_URL": db["DATABASE_DIRECT_URL"],
+            "DATABASE_URL": db[DIRECT] if direct else db[POOLED],
+            "DATABASE_DIRECT_URL": db[DIRECT],
+            "MIGRATOR_DATABASE_URL": db[DIRECT],
             "DEMO_STATE_DIR": str(STATE),
             "SIM_PROFILES_DIR": str(ROOT / "sim" / "profiles"),
             "CORS_ORIGINS": f'["http://localhost:{WEB_PORT}"]',
@@ -342,6 +350,29 @@ def wipe_db() -> None:
     asyncio.run(main())
 
 
+SMOKE_TESTS = [
+    "tests/test_health.py",
+    "tests/test_dburl.py",
+    "tests/db/test_roles.py",
+    "tests/db/test_rls.py",
+    "tests/identity/test_auth.py",
+    "tests/anchor/test_receipts.py",
+]
+
+
+def smoke(extra: list[str]) -> int:
+    """API and database smoke tests against the Neon branch "test" (the full suite runs in CI).
+    The test setup creates and migrates its own database there, healthsaathi_test."""
+    values = read_env_file(ROOT / ".env.local")
+    if not values.get(TEST_DIRECT):
+        raise SystemExit(f".env.local is missing {TEST_DIRECT}")
+    env = dict(os.environ)
+    env["DATABASE_URL"] = values[TEST_DIRECT]
+    env.pop("MIGRATOR_DATABASE_URL", None)
+    args = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *(extra or SMOKE_TESTS)]
+    return subprocess.run(args, cwd=API_DIR, env=env, check=False).returncode  # noqa: S603
+
+
 def main(argv: list[str]) -> int:
     command = argv[0] if argv else "up"
     if command == "up":
@@ -352,6 +383,8 @@ def main(argv: list[str]) -> int:
         reset()
     elif command == "wipe-db":
         wipe_db()
+    elif command == "smoke":
+        return smoke(argv[1:])
     elif command == "restart-api":
         start_api()
     elif command == "sql":

@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Native demo with the database on Neon
+
+- `make demo-native`, `make demo-native-stop`, `make demo-reset-native`: the whole demo without
+  Docker. anvil, the api, the worker and the production web build run as local processes; the
+  database is Neon. Connection strings come from `.env.local` (names in `.env.local.example`):
+  the pooled one for the api, the direct one for migrations, the seed and the worker.
+- The app accepts hosted Postgres URLs (`postgresql://...?sslmode=require`), turns off prepared
+  statement caches behind a transaction pooler, checks and recycles pooled connections, and
+  retries the first connection while a sleeping Neon compute wakes up. LISTEN uses the direct URL.
+- Database roles on hosted Postgres: the login role there is not a superuser, and PostgreSQL 16
+  does not let it switch into roles it created, so revision 0001 failed at `SET ROLE migrator`.
+  Before any revision runs, `migrations/env.py` now creates `migrator`, `app_rw`, `anchor_job` and
+  `researcher_ro` if missing and grants them to the login role with SET and INHERIT. It does
+  nothing for a superuser, and no applied revision was changed.
+- The demo seed explains past accesses with the in-memory evidence backend (the same engine;
+  a test checks both backends give the same evidence) and writes them in batches.
+- `python -m hs_demo.native smoke` runs the API and database smoke tests on the Neon branch
+  "test": 242 passed.
+
 ### P18 hardening
 
 - Detection fits its models up to the database clock, the clock that stamps accesses; a host
