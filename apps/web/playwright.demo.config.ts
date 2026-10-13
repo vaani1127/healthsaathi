@@ -9,6 +9,7 @@ const phone = { ...devices["Desktop Chrome"], viewport: { width: 360, height: 78
 export default defineConfig({
   testDir: ".",
   timeout: 90_000,
+  globalTimeout: 45 * 60_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,
   workers: 1,
