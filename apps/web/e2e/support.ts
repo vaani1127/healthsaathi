@@ -9,6 +9,33 @@ import { FIXTURE } from "./global-setup";
 
 /** The same specs run against the dev stack (Vite + API) or the `make demo` stack. */
 export const DEMO = process.env.E2E_TARGET === "demo";
+
+/** The language the flows run in: E2E_LANG=hi runs the same flows in Hindi. */
+export type Lang = "en" | "hi";
+export const LANG: Lang = process.env.E2E_LANG === "hi" ? "hi" : "en";
+export const OTHER_LANG: Lang = LANG === "hi" ? "en" : "hi";
+
+const LOCALES: Record<Lang, Record<string, unknown>> = {
+  en: JSON.parse(readFileSync(new URL("../src/locales/en.json", import.meta.url), "utf-8")) as Record<string, unknown>,
+  hi: JSON.parse(readFileSync(new URL("../src/locales/hi.json", import.meta.url), "utf-8")) as Record<string, unknown>,
+};
+
+/** A UI text in the given language, from the app's own locale files, with {{vars}} filled in. */
+export function txIn(lang: Lang, key: string, vars: Record<string, string | number> = {}): string {
+  let node: unknown = LOCALES[lang];
+  for (const part of key.split(".")) {
+    node = (node as Record<string, unknown> | undefined)?.[part];
+  }
+  if (typeof node !== "string") {
+    throw new Error(`no ${lang} text for ${key}`);
+  }
+  return node.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(vars[name] ?? ""));
+}
+
+/** A UI text in the language of this run. */
+export function tx(key: string, vars: Record<string, string | number> = {}): string {
+  return txIn(LANG, key, vars);
+}
 export const DEMO_FIXTURE = FIXTURE.replace("e2e-fixture.json", "demo-fixture.json");
 
 interface FixtureUser {

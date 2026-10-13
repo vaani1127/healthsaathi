@@ -20,7 +20,24 @@ export default defineConfig({
     trace: "retain-on-failure",
     viewport: { width: 360, height: 780 },
   },
-  projects: [{ name: "mobile-chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 360, height: 780 } } }],
+  projects: [
+    {
+      name: "mobile-chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 360, height: 780 },
+        // E2E_LANG=hi runs the same flows with the app in Hindi.
+        ...(process.env.E2E_LANG === "hi"
+          ? {
+              storageState: {
+                cookies: [],
+                origins: [{ origin: "http://localhost:5173", localStorage: [{ name: "hs.lang", value: "hi" }] }],
+              },
+            }
+          : {}),
+      },
+    },
+  ],
   webServer: [
     {
       command: "uv run uvicorn app.main:app --port 8000",
