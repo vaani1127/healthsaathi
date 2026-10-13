@@ -343,9 +343,7 @@ class BundleBuilder:
                     "id": str(result.id),
                     "meta": {"profile": [NRCES + "DiagnosticReportLab"]},
                     "status": "final",
-                    "category": [
-                        {"coding": [_coding(SNOMED, "15220000", "Laboratory test")]}
-                    ],
+                    "category": [{"coding": [_coding(SNOMED, "15220000", "Laboratory test")]}],
                     "code": {"coding": [_coding(LOINC, *panel)], "text": ", ".join(names)},
                     "subject": self.patient_ref,
                     "effectiveDateTime": _instant(result.resulted_at),
