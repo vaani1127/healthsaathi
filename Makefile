@@ -6,7 +6,7 @@ PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests experiments/src exp
 	infra/demo/src infra/demo/tests
 
 .PHONY: help env install demo demo-code demo-e2e demo-e2e-docker demo-e2e-native demo-videos \
-	demo-native demo-native-stop demo-reset-native fhir-validate demo-logs demo-down demo-reset dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
+	demo-native demo-native-stop demo-reset-native demo-screenshots fhir-validate demo-logs demo-down demo-reset dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
 	test-sol migrate seed sim sim-coverage sim-audit sim-splits exp prereg-audit prereg-stamp audit
 
 help:
@@ -18,6 +18,7 @@ help:
 	@echo "demo-code print the current authenticator code of a demo login, EMAIL=..."
 	@echo "demo-e2e  Playwright suite against the running demo (flows, crawler, PWA, tamper)"
 	@echo "demo-videos  record a video of each of the 9 flows into demo-videos/"
+	@echo "demo-screenshots  desktop and phone screenshots of every screen into demo-screenshots/"
 	@echo "fhir-validate  export FHIR bundles of 10 demo patients and run the HAPI validator"
 	@echo "demo-down stop the demo (keeps its data); demo-reset deletes the demo data"
 	@echo "dev       start postgres, api and web with docker compose"
@@ -89,6 +90,13 @@ demo-e2e-native:
 demo-videos:
 	rm -rf apps/web/test-results/demo demo-videos && mkdir -p demo-videos
 	@if [ -f .demo/pids/api.pid ]; then 		DEMO_RATE_LIMIT=false $(NATIVE) restart-api; native=1; 	else DEMO_RATE_LIMIT=false $(DEMO) up --detach --wait --no-deps api; native=; fi; 	cd apps/web && E2E_NATIVE=$$native E2E_VIDEO=1 		PLAYWRIGHT_JSON_OUTPUT_NAME=../../demo-videos/report.json pnpm exec playwright test 		-c playwright.demo.config.ts --project=flows-360 --reporter=list,json; status=$$?; 	cd ../..; if [ -n "$$native" ]; then $(NATIVE) restart-api; 	else $(DEMO) up --detach --wait --no-deps api; fi; 	$(UV) python infra/demo/collect_videos.py demo-videos/report.json demo-videos; exit $$status
+
+# Screenshots of every screen of the running demo, in demo-screenshots/ (gitignored), with an
+# index.html and screens.pdf. Rate limits are off while it signs in as every role.
+demo-screenshots:
+	rm -rf demo-screenshots && mkdir -p demo-screenshots
+	DEMO_RATE_LIMIT=false $(NATIVE) restart-api
+	node infra/demo/screenshots.ts; status=$$?; $(NATIVE) restart-api; exit $$status
 
 # FHIR export (P17): bundles of the 10 most active demo patients, checked by the HAPI validator.
 fhir-validate:
