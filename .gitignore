@@ -109,3 +109,4 @@ demo-screenshots/
 
 # Downloaded tools (FHIR validator)
 .cache/
+contracts/broadcast/**/*.lock
