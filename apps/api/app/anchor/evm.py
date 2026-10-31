@@ -6,6 +6,7 @@ from typing import Any
 
 from eth_account import Account
 from web3 import AsyncHTTPProvider, AsyncWeb3
+from web3.middleware import ExtraDataToPOAMiddleware
 
 ZERO32 = b"\x00" * 32
 
@@ -95,6 +96,9 @@ class EvmAnchor:
         tx_timeout: float = 120,
     ) -> None:
         self.w3 = AsyncWeb3(AsyncHTTPProvider(rpc_url))
+        # Polygon and Besu QBFT blocks carry more than 32 bytes of extraData (signer data), which
+        # web3 refuses to parse without this. It changes nothing on anvil.
+        self.w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
         self.anchor = self.w3.eth.contract(
             address=AsyncWeb3.to_checksum_address(anchor_address), abi=AUDIT_ANCHOR_ABI
         )
