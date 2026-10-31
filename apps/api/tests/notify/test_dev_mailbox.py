@@ -29,3 +29,15 @@ async def test_mailbox_lists_console_emails_in_local(
 
     monkeypatch.setattr(settings, "email_backend", "brevo")
     assert (await client.get("/api/v1/dev/mailbox")).status_code == 404
+
+
+async def test_brevo_never_sends_to_the_reserved_test_domain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "email_backend", "brevo")
+    # No API key either, so reaching Brevo would raise.
+    monkeypatch.setattr(settings, "brevo_api_key", None)
+    await send_email(Email(to="doctor1.a@demo.healthsaathi.test", subject="s", text="t"))
+    with pytest.raises(RuntimeError, match="BREVO_API_KEY"):
+        await send_email(Email(to="someone@example.org", subject="s", text="t"))

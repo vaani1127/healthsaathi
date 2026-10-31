@@ -58,6 +58,11 @@ async def send_email(email: Email) -> None:
             await asyncio.to_thread(_write_outbox, Path(settings.email_outbox_dir), email)
         return
 
+    if email.to.lower().endswith(".test"):
+        # Staff in a hosted demo keep their reserved .test logins, which no mail server can reach.
+        # Sending would only bounce and count against the Brevo daily limit.
+        logger.info("email skipped: reserved domain", extra={"subject": email.subject})
+        return
     if settings.brevo_api_key is None:
         raise RuntimeError("BREVO_API_KEY is not set")
     payload = {
