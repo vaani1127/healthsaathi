@@ -1,0 +1,13 @@
+{
+  "AuditAnchor": "0xc91469B874baBA2c1312b9045A2466824af92d74",
+  "ClinicRegistry": "0x9d3fecC413F532DD1D931650FD1966dBE4CA06c2",
+  "ConsentRegistry": "0xE607c5e747B0e70554a956d29b37E82bD982695e",
+  "admins": [
+    "0x78f1c8c13Fa321e1C6263D21A1E505Ba12ebea36",
+    "0x49450eAAFC4dF324468CbD1194E417254684e4e3",
+    "0x66aD700847fC6b1C5dd8c1485912C9A91f6e2F6A"
+  ],
+  "chainId": 80002,
+  "network": "amoy",
+  "startBlock": 51642720
+}
