@@ -45,8 +45,11 @@ Notes:
   deploy key works and fail2ban blocks repeat attempts.
 - Today's appointments are booked only when the seed runs. On later days book new ones from
   reception.
-- `VM_SIZE=Standard_B1s make prod-azure` picks the smaller VM. If a region is refused, the student
-  subscription's allowed regions are under Policy, Assignments; change `AZURE_LOCATION`.
+- `VM_SIZE=Standard_B1s make prod-azure` picks the smaller VM. Trial and student subscriptions
+  block small sizes in some regions ("SkuNotAvailable", "NotAvailableForSubscription"). Check with
+  `az vm list-skus --size Standard_B2ats_v2 --all` and try the database first, then set
+  `AZURE_LOCATION` and a new `AZURE_SUFFIX` (a deleted server name stays reserved for a while).
+  The project's demo runs in `eastasia`.
 
 ## GitHub settings
 

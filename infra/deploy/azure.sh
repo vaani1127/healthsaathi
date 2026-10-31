@@ -26,11 +26,16 @@ provision() {
   [ -f "$STATE/deploy_key" ] ||
     ssh-keygen -q -t ed25519 -N "" -C healthsaathi-deploy -f "$STATE/deploy_key"
 
-  az group create --name "$GROUP" --location "$LOCATION" --output none
+  # A new subscription must register each service before first use.
+  for ns in Microsoft.Compute Microsoft.Network Microsoft.DBforPostgreSQL Microsoft.Storage; do
+    az provider register --namespace "$ns" --wait --output none
+  done
+  az group show --name "$GROUP" --output none 2>/dev/null ||
+    az group create --name "$GROUP" --location "$LOCATION" --output none
 
   echo "creating the VM"
   if ! az vm show -g "$GROUP" -n "$VM" --output none 2>/dev/null; then
-    az vm create -g "$GROUP" -n "$VM" --image Ubuntu2404 --size "$VM_SIZE" \
+    az vm create -g "$GROUP" -n "$VM" --location "$LOCATION" --image Ubuntu2404 --size "$VM_SIZE" \
       --admin-username "$ADMIN_USER" --ssh-key-values "$STATE/deploy_key.pub" \
       --authentication-type ssh --public-ip-sku Standard --os-disk-size-gb 64 \
       --storage-sku Premium_LRS --custom-data infra/deploy/cloud-init.yaml --output none
@@ -47,11 +52,13 @@ provision() {
     az postgres flexible-server create -g "$GROUP" -n "$PG" --location "$LOCATION" \
       --admin-user hsadmin --admin-password "$(value DB_ADMIN_PASSWORD)" \
       --tier Burstable --sku-name Standard_B1ms --storage-size 32 --version 16 \
-      --high-availability Disabled --public-access None --yes --output none
+      --zonal-resiliency Disabled --public-access None --yes --output none
     az postgres flexible-server db create -g "$GROUP" --server-name "$PG" \
-      --database-name healthsaathi --output none
+      --name healthsaathi --output none
   fi
-  az postgres flexible-server firewall-rule create -g "$GROUP" -n "$PG" --rule-name vm \
+  # Public endpoint on, but only the firewall rules below may connect.
+  az postgres flexible-server update -g "$GROUP" -n "$PG" --public-access Enabled --output none
+  az postgres flexible-server firewall-rule create -g "$GROUP" --server-name "$PG" --name vm \
     --start-ip-address "$IP" --end-ip-address "$IP" --output none
 
   echo "creating blob storage"
@@ -76,14 +83,14 @@ provision() {
 
 open_db() {
   HERE="$(curl -fsS https://api.ipify.org)"
-  az postgres flexible-server firewall-rule create -g "$GROUP" -n "$PG" \
-    --rule-name setup-laptop --start-ip-address "$HERE" --end-ip-address "$HERE" --output none
+  az postgres flexible-server firewall-rule create -g "$GROUP" --server-name "$PG" \
+    --name setup-laptop --start-ip-address "$HERE" --end-ip-address "$HERE" --output none
   echo "database open to $HERE"
 }
 
 close_db() {
-  az postgres flexible-server firewall-rule delete -g "$GROUP" -n "$PG" \
-    --rule-name setup-laptop --yes --output none
+  az postgres flexible-server firewall-rule delete -g "$GROUP" --server-name "$PG" \
+    --name setup-laptop --yes --output none
   echo "database closed to this computer"
 }
 
