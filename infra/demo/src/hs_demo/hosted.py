@@ -392,11 +392,16 @@ def cloudflare() -> None:
 
 
 def gh(args: list[str], stdin: str | None = None, *, check: bool = True) -> int:
+    # Bytes, not text: text mode on Windows writes CRLF line ends, and ssh cannot load a private
+    # key that has them.
     done = subprocess.run(  # noqa: S603
-        [tool("gh"), *args], input=stdin, text=True, capture_output=True, check=False
+        [tool("gh"), *args],
+        input=stdin.encode() if stdin is not None else None,
+        capture_output=True,
+        check=False,
     )
     if check and done.returncode != 0:
-        raise SystemExit(f"gh {args[0]} {args[1]} failed: {done.stderr.strip()}")
+        raise SystemExit(f"gh {args[0]} {args[1]} failed: {done.stderr.decode().strip()}")
     return done.returncode
 
 
@@ -407,8 +412,8 @@ def github_settings(values: dict[str, str]) -> tuple[dict[str, str], dict[str, s
     stored = {
         "VM_HOST": values.get("VM_HOST", ""),
         "VM_USER": values.get("VM_USER", ""),
-        "VM_SSH_KEY": deploy_key.read_text(encoding="utf-8") if deploy_key.exists() else "",
-        "VM_KNOWN_HOSTS": known_hosts.read_text(encoding="utf-8") if known_hosts.exists() else "",
+        "VM_SSH_KEY": deploy_key.read_bytes().decode() if deploy_key.exists() else "",
+        "VM_KNOWN_HOSTS": known_hosts.read_bytes().decode() if known_hosts.exists() else "",
         "BACKUP_PASSPHRASE": values["BACKUP_PASSPHRASE"],
         "BACKUP_REPO_TOKEN": values.get("BACKUP_REPO_TOKEN", ""),
         "ANCHOR_API_URL": api_url,
