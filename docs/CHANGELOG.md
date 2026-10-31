@@ -12,6 +12,10 @@
   anchor run at the end of the seed are for anvil only, and `DEMO_PATIENT_EMAIL` gives demo patients
   a real inbox, since `.test` addresses cannot receive sign-in codes.
 - Brevo no longer receives email for the reserved `.test` domain.
+- Anchoring works on Polygon Amoy: `EvmAnchor` reads blocks with long `extraData` (signer data on
+  Polygon and Besu QBFT), which web3 refused before. The local anvil chain never showed this.
+- The hosted demo uses `https://polygon-amoy-bor-rpc.publicnode.com`; the old public Amoy RPC host
+  no longer resolves.
 - The VM has 2 GB of swap: API, worker and Caddy used about 500 MB at idle on the production image.
 
 ### Fewer database round trips for list screens and charts

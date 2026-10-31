@@ -35,6 +35,7 @@ import httpx
 from eth_account import Account
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
+from web3.exceptions import ContractCustomError
 
 from app.anchor import job
 from app.anchor.evm import EvmAnchor
@@ -51,9 +52,12 @@ REPO = f"{OWNER}/healthsaathi"
 WITNESS_REPO = f"{OWNER}/healthsaathi-witness"
 BACKUP_REPO = f"{OWNER}/healthsaathi-backups"
 PAGES_PROJECT = "healthsaathi"
-AMOY_RPC = "https://rpc-amoy.polygon.technology"
+AMOY_RPC = "https://polygon-amoy-bor-rpc.publicnode.com"
 EXPLORER = "https://amoy.polygonscan.com"
-ADMIN_GAS = "0.05ether"
+# Registering one clinic costs an admin up to about 0.006 POL at Amoy gas prices.
+ADMIN_GAS = "0.015ether"
+# ClinicRegistry.AlreadyConfirmed()
+ALREADY_CONFIRMED = "0x5f8a9c0b"
 
 # Needed for setup or by GitHub Actions, never on the VM.
 SETUP_ONLY = {
@@ -300,7 +304,12 @@ async def register_clinics() -> None:
             for admin in wallets["admins"][:2]:
                 if await is_registered(evm, clinic):
                     break
-                await confirm(evm, admin["key"], reg)
+                try:
+                    await confirm(evm, admin["key"], reg)
+                except ContractCustomError as exc:
+                    # A rerun after a failure: this admin confirmed already, ask the next one.
+                    if exc.data != ALREADY_CONFIRMED:
+                        raise
             say(f"clinic {clinic} registered")
     finally:
         await evm.close()
@@ -315,7 +324,8 @@ def register() -> None:
 
 
 def ssh_options() -> list[str]:
-    known_hosts = f"UserKnownHostsFile={STATE / 'known_hosts'}"
+    # Quoted: ssh reads a space in this option as a list of files ("My Workspace").
+    known_hosts = f'UserKnownHostsFile="{(STATE / "known_hosts").as_posix()}"'
     return ["-i", str(STATE / "deploy_key"), "-o", known_hosts, "-o", "StrictHostKeyChecking=yes"]
 
 
@@ -347,11 +357,38 @@ def cloudflare() -> None:
             body = {"name": PAGES_PROJECT, "production_branch": "main"}
             client.post(base, json=body).raise_for_status()
             say(f"created the Pages project {PAGES_PROJECT}")
+        project = client.get(f"{base}/{PAGES_PROJECT}").raise_for_status().json()["result"]
         domain = f"app.{values['DOMAIN']}"
         known = client.get(f"{base}/{PAGES_PROJECT}/domains").raise_for_status().json()["result"]
         if domain not in [d["name"] for d in known]:
             client.post(f"{base}/{PAGES_PROJECT}/domains", json={"name": domain}).raise_for_status()
-    say(f"point {domain} (CNAME) at {PAGES_PROJECT}.pages.dev")
+        # When the domain's DNS is on Cloudflare too (and the token may edit it), add the records.
+        zones = client.get(
+            "https://api.cloudflare.com/client/v4/zones", params={"name": values["DOMAIN"]}
+        ).json()
+        if not zones.get("result"):
+            say(f"add DNS: {domain} CNAME {project['subdomain']}, {values['API_DOMAIN']} A VM_HOST")
+            return
+        records = (
+            f"https://api.cloudflare.com/client/v4/zones/{zones['result'][0]['id']}/dns_records"
+        )
+        # The API record is not proxied, so Caddy on the VM gets its own certificate.
+        wanted = [
+            {"type": "CNAME", "name": domain, "content": project["subdomain"], "proxied": True},
+            {
+                "type": "A",
+                "name": values["API_DOMAIN"],
+                "content": values["VM_HOST"],
+                "proxied": False,
+            },
+        ]
+        for record in wanted:
+            found = client.get(records, params={"name": record["name"]}).json()["result"]
+            if found:
+                client.put(f"{records}/{found[0]['id']}", json=record).raise_for_status()
+            else:
+                client.post(records, json=record).raise_for_status()
+            say(f"DNS {record['type']} {record['name']} -> {record['content']}")
 
 
 def gh(args: list[str], stdin: str | None = None, *, check: bool = True) -> int:
