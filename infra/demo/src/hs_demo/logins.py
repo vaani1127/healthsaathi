@@ -1,4 +1,7 @@
-"""The demo login table that `make demo` prints, and current authenticator codes for demo users."""
+"""The demo login table that `make demo` prints, and current authenticator codes for demo users.
+
+A hosted demo stores its address as `web_url` in logins.json; it has no dev mailbox or local chain.
+"""
 
 import json
 import os
@@ -22,14 +25,22 @@ ROLE_LABELS = {
 
 
 def render(data: dict[str, Any]) -> str:
+    hosted = data.get("web_url")
+    addresses = (
+        [f"Web app            {hosted}"]
+        if hosted
+        else [
+            f"Web app            {WEB}",
+            f"API and docs       {API}/docs",
+            f"Dev mailbox        {WEB}/dev/mailbox   (email codes, local only)",
+            f"Local chain        {CHAIN}   (anvil)",
+        ]
+    )
     lines = [
         "",
-        "HealthSaathi local demo",
+        "HealthSaathi hosted demo" if hosted else "HealthSaathi local demo",
         "=======================",
-        f"Web app            {WEB}",
-        f"API and docs       {API}/docs",
-        f"Dev mailbox        {WEB}/dev/mailbox   (email codes, local only)",
-        f"Local chain        {CHAIN}   (anvil)",
+        *addresses,
         "",
         f"Staff password     {data['password']}   (the same for every staff login)",
         f"Demo data          {data['patients']} patients, {data['access_events']} record accesses "
@@ -71,8 +82,10 @@ def render(data: dict[str, Any]) -> str:
         "  6 digit code from an authenticator app. To set the app up once per login: in Google or",
         "  Microsoft Authenticator choose 'Enter a setup key', paste the key above, keep",
         "  'Time based'. Or print the current code without an app:",
-        "      make demo-code EMAIL=doctor1.a@demo.healthsaathi.test",
-        "  Patients: open /patient/login, type the email, and read the code in the dev mailbox.",
+        f"      make {'prod-code' if hosted else 'demo-code'} "
+        "EMAIL=doctor1.a@demo.healthsaathi.test",
+        "  Patients: open /patient/login, type the email, and read the code in "
+        + ("that inbox." if hosted else "the dev mailbox."),
         "",
     ]
     return "\n".join(lines)

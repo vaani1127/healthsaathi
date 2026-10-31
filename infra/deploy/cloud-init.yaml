@@ -1,0 +1,18 @@
+#cloud-config
+# First boot of the prod-demo VM (infra/deploy/azure.sh). B2ats v2 and B1s have 1 GB of RAM, so swap
+# keeps a model refit from killing the API.
+package_update: true
+packages:
+  - ca-certificates
+  - curl
+  - fail2ban
+swap:
+  filename: /swapfile
+  size: 2G
+  maxsize: 2G
+runcmd:
+  - curl -fsSL https://get.docker.com | sh
+  - usermod -aG docker azureuser
+  - mkdir -p /opt/healthsaathi
+  - chown azureuser:azureuser /opt/healthsaathi
+  - systemctl enable --now fail2ban

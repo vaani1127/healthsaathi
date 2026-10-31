@@ -7,7 +7,7 @@ PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests experiments/src exp
 
 .PHONY: help env install demo demo-code demo-e2e demo-e2e-docker demo-e2e-native demo-videos \
 	demo-native demo-native-stop demo-reset-native demo-screenshots fhir-validate demo-logs demo-down demo-reset dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
-	test-sol migrate seed sim sim-coverage sim-audit sim-splits exp prereg-audit prereg-stamp audit
+	test-sol migrate seed prod-init prod-azure prod-open-db prod-close-db prod-status prod-db \n	prod-seed prod-chain prod-register prod-vm-env prod-cloudflare prod-github prod-logins prod-code \n	sim sim-coverage sim-audit sim-splits exp prereg-audit prereg-stamp audit
 
 help:
 	@echo "env       create .env with fresh local secrets"
@@ -20,6 +20,7 @@ help:
 	@echo "demo-videos  record a video of each of the 9 flows into demo-videos/"
 	@echo "demo-screenshots  desktop and phone screenshots of every screen into demo-screenshots/"
 	@echo "fhir-validate  export FHIR bundles of 10 demo patients and run the HAPI validator"
+	@echo "prod-init ... prod-github  set up the hosted public demo (docs/RUNBOOK.md)"
 	@echo "demo-down stop the demo (keeps its data); demo-reset deletes the demo data"
 	@echo "dev       start postgres, api and web with docker compose"
 	@echo "lint      ruff, mypy, eslint, tsc, forge fmt --check"
@@ -112,6 +113,27 @@ demo-reset:
 	$(DEMO) down --volumes
 
 # CI provides its own postgres service, so it sets SKIP_DB_UP=1.
+# Hosted public demo (docs/RUNBOOK.md, "Public demo set-up"). Settings live in .env.prod.
+PROD := uv run python -m hs_demo.hosted
+
+prod-init:
+	$(PROD) init --domain "$(DOMAIN)" --sender "$(SENDER)" --inbox "$(INBOX)"
+
+prod-azure:
+	sh infra/deploy/azure.sh provision
+
+prod-open-db:
+	sh infra/deploy/azure.sh open-db
+
+prod-close-db:
+	sh infra/deploy/azure.sh close-db
+
+prod-status prod-db prod-seed prod-chain prod-register prod-vm-env prod-cloudflare prod-github prod-logins:
+	$(PROD) $(patsubst prod-%,%,$@)
+
+prod-code:
+	$(PROD) code $(EMAIL)
+
 db-up:
 ifndef SKIP_DB_UP
 	$(COMPOSE) up -d --wait postgres

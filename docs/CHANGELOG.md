@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Public demo set-up
+
+- `make prod-init` to `make prod-github` (`hs_demo.hosted`, `infra/deploy/azure.sh`,
+  `infra/deploy/cloud-init.yaml`) set up prod-demo from one gitignored `.env.prod`: Azure resources,
+  migrations and the `hs_app` login, demo seed, contract deployment, clinic registration, VM
+  settings, Cloudflare Pages and GitHub secrets. Steps are in `docs/RUNBOOK.md`.
+- The demo seed works on a hosted database: registering clinics by unlocked anvil accounts and the
+  anchor run at the end of the seed are for anvil only, and `DEMO_PATIENT_EMAIL` gives demo patients
+  a real inbox, since `.test` addresses cannot receive sign-in codes.
+- Brevo no longer receives email for the reserved `.test` domain.
+- The VM has 2 GB of swap: API, worker and Caddy used about 500 MB at idle on the production image.
+
 ### Fewer database round trips for list screens and charts
 
 - List screens (day list, queue, lab worklist, invoices, review queues) recorded each patient's

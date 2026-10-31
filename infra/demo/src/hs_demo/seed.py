@@ -1,8 +1,9 @@
-"""Seed the local demo database (make demo). Runs once; later runs only print the logins.
+"""Seed the demo database (make demo, make prod-seed). Runs once; later runs only print the logins.
 
 1. Simulate two clinics with SaathiBench (unchanged simulator, config `sim-demo.yaml`).
 2. Load 50 of their patients and all their activity into the product tables (`hs_demo.load`).
-3. Register both clinics' signing keys in ClinicRegistry on the local anvil chain.
+3. Register both clinics' signing keys in ClinicRegistry on the local anvil chain. A hosted demo
+   on Polygon Amoy does this and the first anchor run afterwards, with `make prod-register`.
 4. Run the detector over every past day, as the worker would have done each day.
 5. Book a few of today's appointments and issue queue tokens through the normal services.
 6. Run the anchor job once, so receipts can be verified straight away.
@@ -74,7 +75,9 @@ async def register_on_chain(clinic_ids: list[uuid.UUID]) -> bool:
     """Register each clinic with two of the three registry admins (unlocked anvil accounts) and
     give the poster wallet test ETH. Only for the local anvil chain."""
     s = get_settings()
-    if not (s.anchor_rpc_url and s.clinic_registry_address and s.audit_anchor_address):
+    if s.anchor_chain != "anvil" or not (
+        s.anchor_rpc_url and s.clinic_registry_address and s.audit_anchor_address
+    ):
         say("no local chain configured; skipping on-chain registration")
         return False
     key = s.anchor_poster_private_key
@@ -229,11 +232,14 @@ async def insider_cases(report: LoadReport) -> list[dict[str, Any]]:
     return cases
 
 
-def write_logins(report: LoadReport, password: str, cases: list[dict[str, Any]]) -> str:
+def write_logins(
+    report: LoadReport, password: str, cases: list[dict[str, Any]], clinic_ids: list[uuid.UUID]
+) -> str:
     folder = state_dir()
     folder.mkdir(parents=True, exist_ok=True)
     data: dict[str, Any] = {
         "password": password,
+        "clinic_ids": [str(x) for x in clinic_ids],
         "clinics": report.clinics,
         "first_day": str(report.first_day),
         "last_day": str(report.last_day),
@@ -245,6 +251,8 @@ def write_logins(report: LoadReport, password: str, cases: list[dict[str, Any]])
         "users": [asdict(x) for x in report.logins],
         "cases": cases,
     }
+    if web_url := os.environ.get("DEMO_WEB_URL"):
+        data["web_url"] = web_url
     (folder / "logins.json").write_bytes(json.dumps(data, indent=2).encode())
     text = render(data)
     (folder / "logins.txt").write_bytes(text.encode())
@@ -278,9 +286,10 @@ async def main() -> int:
         await register_on_chain(clinic_ids)
         say(f"detector raised {await detect_history(report)} alerts over the past days")
         say(f"booked {await todays_queue()} appointments for today")
-        runs = await job.run()
-        say(f"anchor job: {json.dumps([asdict(r) for r in runs or []])}")
-        print(write_logins(report, password, await insider_cases(report)))
+        if get_settings().anchor_chain == "anvil":
+            runs = await job.run()
+            say(f"anchor job: {json.dumps([asdict(r) for r in runs or []])}")
+        print(write_logins(report, password, await insider_cases(report), clinic_ids))
     finally:
         await get_engine().dispose()
     return 0

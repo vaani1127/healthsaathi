@@ -11,10 +11,46 @@ accounts and resources themselves are listed in `docs/MANUAL_TASKS.md` ("Before 
 | staging | Render free web service | Neon free | Cloudflare Pages preview (`staging` branch) | after CI passes on `main` |
 | prod-demo | Azure VM, Docker Compose with Caddy | Azure PostgreSQL Flexible B1MS | Cloudflare Pages production | on a `v*` tag |
 
+Staging is optional. Its steps are skipped while its secrets are not set.
+
 Workflows: `.github/workflows/deploy.yml`, `anchor.yml` (every 15 minutes), `nightly.yml`
 (backup and schema drift check). Each step is skipped while its secrets are not set.
 
+## Public demo set-up
+
+The hosted demo holds synthetic data only. `make prod-*` does the work; every setting lives in
+`.env.prod` (gitignored, keep a private copy: it is the only copy of its secrets) and the wallets
+and deploy key in `.demo/hosted`. `make prod-status` shows what is still missing.
+
+| Step | Command | Does |
+|---|---|---|
+| 1 | `make prod-init DOMAIN=... SENDER=... INBOX=...` | Creates `.env.prod`, all secrets and four test wallets |
+| 2 | `az login`, then `make prod-azure` | Creates the VM, database and storage in `rg-healthsaathi` |
+| 3 | `make prod-open-db`, `make prod-db`, `make prod-seed` | Migrates, creates `hs_app`, loads the demo clinics |
+| 4 | Fund the poster wallet, `make prod-chain`, `make prod-register` | Deploys contracts, registers both clinics, first anchor run |
+| 5 | `make prod-close-db`, `make prod-vm-env` | Closes the database to this computer, copies settings to the VM |
+| 6 | `make prod-cloudflare`, `make prod-github` | Pages project and app domain; GitHub secrets, variables, repositories |
+| 7 | Add DNS records, then `git tag v0.1.0 && git push origin v0.1.0` | First deploy |
+
+Notes:
+
+- `SENDER` must be verified in Brevo. `INBOX` is a real address: demo patients become
+  `inbox+patient1.a@...`, so all their sign-in codes arrive there. Staff keep their `.test` logins;
+  email to `.test` is skipped.
+- `make prod-logins` prints every login and authenticator key. `make prod-code EMAIL=...` prints a
+  current code. Do not publish this table: it also lists the simulated insiders.
+- The wallets are generated here and hold test POL only. Admin keys for the 2-of-3 registry all sit
+  on one computer, which is enough for a demo and is not the separation a real deployment needs.
+- SSH stays open on port 22 because GitHub-hosted runners deploy from changing addresses. Only the
+  deploy key works and fail2ban blocks repeat attempts.
+- Today's appointments are booked only when the seed runs. On later days book new ones from
+  reception.
+- `VM_SIZE=Standard_B1s make prod-azure` picks the smaller VM. If a region is refused, the student
+  subscription's allowed regions are under Policy, Assignments; change `AZURE_LOCATION`.
+
 ## GitHub settings
+
+`make prod-github` sets all of these. Staging needs its own values set by hand.
 
 Repository secrets:
 

@@ -15,6 +15,7 @@ This module only:
 
 import hashlib
 import json
+import os
 import random
 import re
 import secrets
@@ -351,6 +352,13 @@ def _table(name: str) -> Table:
     return Base.metadata.tables[name]
 
 
+def patient_email(key: str) -> str:
+    """Hosted demo: DEMO_PATIENT_EMAIL (for example team+{login}@gmail.com) is a real inbox, so the
+    sign-in code can be read. The reserved .test domain cannot receive mail."""
+    template = os.environ.get("DEMO_PATIENT_EMAIL")
+    return template.format(login=key) if template else f"{key}@{EMAIL_DOMAIN}"
+
+
 def assign_emails(tables: dict[str, pl.DataFrame], codes: dict[str, str]) -> dict[str, Login]:
     """Demo email for each staff member and each patient account, by clinic and role."""
     logins: dict[str, Login] = {}
@@ -376,7 +384,7 @@ def assign_emails(tables: dict[str, pl.DataFrame], codes: dict[str, str]) -> dic
                 continue  # a staff member who is also a patient keeps the staff email
             n += 1
             logins[user_id] = Login(
-                code, "patient", names[user_id], f"patient{n}.{code}@{EMAIL_DOMAIN}"
+                code, "patient", names[user_id], patient_email(f"patient{n}.{code}")
             )
     return logins
 
