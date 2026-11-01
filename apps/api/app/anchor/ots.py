@@ -4,9 +4,10 @@ pending proof once the calendars have committed it to Bitcoin.
 
 import io
 import logging
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from typing import Protocol
+from urllib.parse import urlsplit
 
 from opentimestamps.calendar import RemoteCalendar
 from opentimestamps.core.notary import BitcoinBlockHeaderAttestation, PendingAttestation
@@ -15,6 +16,21 @@ from opentimestamps.core.serialize import BytesDeserializationContext, StreamSer
 from opentimestamps.core.timestamp import DetachedTimestampFile, Timestamp
 
 logger = logging.getLogger(__name__)
+
+# The pool servers that stamps are submitted to answer with pending attestations that name the
+# calendar that will commit to Bitcoin (for example alice.btc.calendar.opentimestamps.org). Like the
+# official client, ask those calendars too, but only on these well-known domains.
+TRUSTED_CALENDAR_DOMAINS = (
+    ".calendar.opentimestamps.org",
+    ".calendar.eternitywall.com",
+    ".calendar.catallaxy.com",
+)
+
+
+def trusted_calendar(url: str) -> bool:
+    parts = urlsplit(url)
+    host = parts.hostname or ""
+    return parts.scheme == "https" and host.endswith(TRUSTED_CALENDAR_DOMAINS)
 
 
 class Calendar(Protocol):
@@ -54,11 +70,21 @@ def _nodes(timestamp: Timestamp) -> Iterator[Timestamp]:
 
 
 class OtsStamper:
-    def __init__(self, calendars: Sequence[Calendar] | Sequence[str], timeout: float = 10) -> None:
-        self.calendars: list[Calendar] = [
-            RemoteCalendar(c) if isinstance(c, str) else c for c in calendars
-        ]
+    def __init__(
+        self,
+        calendars: Sequence[Calendar] | Sequence[str],
+        timeout: float = 10,
+        remote: Callable[[str], Calendar] = RemoteCalendar,
+    ) -> None:
+        self.calendars: list[Calendar] = [remote(c) if isinstance(c, str) else c for c in calendars]
         self.timeout = timeout
+        self.remote = remote
+
+    def _calendar_for(self, uri: str) -> Calendar | None:
+        for calendar in self.calendars:
+            if calendar.url.rstrip("/") == uri.rstrip("/"):
+                return calendar
+        return self.remote(uri) if trusted_calendar(uri) else None
 
     def stamp(self, digest: bytes) -> OtsProof:
         """Submit to every calendar that answers; at least one must succeed."""
@@ -77,13 +103,13 @@ class OtsStamper:
     def upgrade(self, proof: bytes) -> OtsProof:
         """Ask the calendars for the completed path to Bitcoin for each pending attestation."""
         stamp = DetachedTimestampFile.deserialize(BytesDeserializationContext(proof))
-        by_url = {c.url.rstrip("/"): c for c in self.calendars}
         for node in list(_nodes(stamp.timestamp)):
             for attestation in list(node.attestations):
                 if not isinstance(attestation, PendingAttestation):
                     continue
-                calendar = by_url.get(attestation.uri.rstrip("/"))
+                calendar = self._calendar_for(attestation.uri)
                 if calendar is None:
+                    logger.warning("untrusted calendar in proof", extra={"url": attestation.uri})
                     continue
                 try:
                     node.merge(calendar.get_timestamp(node.msg, timeout=self.timeout))
