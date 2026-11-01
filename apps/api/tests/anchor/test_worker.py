@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select
@@ -64,5 +64,14 @@ async def test_fallback_runs_only_when_enabled_and_overdue(
         return True
 
     monkeypatch.setattr(worker, "anchor_is_overdue", late)
-    assert await worker.anchor_fallback_tick() == []
+    monkeypatch.setattr(worker.FallbackState, "last_run", None)
+    start = datetime(2026, 11, 1, 6, 0, tzinfo=UTC)
+    assert await worker.anchor_fallback_tick(now=start) == []
     assert calls == ["run"]
+    # A quiet clinic writes no new checkpoint, so the job still looks late a minute later. It must
+    # not run again until the fallback interval has passed.
+    assert await worker.anchor_fallback_tick(now=start + timedelta(minutes=1)) is None
+    assert await worker.anchor_fallback_tick(now=start + timedelta(minutes=29)) is None
+    assert calls == ["run"]
+    assert await worker.anchor_fallback_tick(now=start + timedelta(minutes=30)) == []
+    assert calls == ["run", "run"]

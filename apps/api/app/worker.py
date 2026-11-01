@@ -45,10 +45,24 @@ async def anchor_is_overdue(after: timedelta, now: datetime | None = None) -> bo
     return last is None or now - last >= after
 
 
-async def anchor_fallback_tick() -> list[job.ClinicRun] | None:
+class FallbackState:
+    """When this worker last ran the job itself. A quiet clinic makes no new checkpoint, so without
+    this the job would run again every minute once the schedule was late."""
+
+    last_run: datetime | None = None
+
+
+async def anchor_fallback_tick(now: datetime | None = None) -> list[job.ClinicRun] | None:
     minutes = get_settings().anchor_fallback_minutes
-    if minutes == 0 or not await anchor_is_overdue(timedelta(minutes=minutes)):
+    if minutes == 0:
         return None
+    after = timedelta(minutes=minutes)
+    now = now or datetime.now(UTC)
+    if FallbackState.last_run is not None and now - FallbackState.last_run < after:
+        return None
+    if not await anchor_is_overdue(after):
+        return None
+    FallbackState.last_run = now
     logger.warning("anchor schedule is late; running the anchor job from the worker")
     backends = job.backends_from_settings()
     try:
