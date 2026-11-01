@@ -835,5 +835,21 @@
     "new": "New password",
     "save": "Change password",
     "changed": "Password changed. Other devices were signed out."
+  },
+  "bench": {
+    "title": "Receipt check timing",
+    "explain": "For the research study. This page checks sample receipts in your browser and times each step. It uses no patient data and sends nothing; you can download the timings.",
+    "device": "Device name (for example, phone model)",
+    "run": "Start timing",
+    "running": "Timing...",
+    "stepOffline": "Checking receipts from a log of {{size}} entries",
+    "stepChain": "Reading the public chain",
+    "failed": "The timing could not run. Check the connection and try again.",
+    "treeSize": "Log size",
+    "median": "Median (ms)",
+    "p95": "95th percentile (ms)",
+    "chainReads": "Chain reads",
+    "notVerified": "A sample receipt did not verify. These timings are not valid.",
+    "download": "Download timings"
   }
 }
