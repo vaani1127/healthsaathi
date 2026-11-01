@@ -13,6 +13,21 @@
 - GitHub runs the 15 minute anchor schedule only every few hours, so the hosted demo sets
   `ANCHOR_FALLBACK_MINUTES=15` and the worker keeps the 15 minute interval.
 
+### Anchoring study (P16, part 2)
+
+- `make besu-up`, `make besu-bench N=200`, `make besu-down` (`hs_demo.besu`): a local
+  4-validator Besu QBFT network (Cancun, 2 second blocks, zero base fee), the contracts deployed
+  with the normal deploy script, a bench clinic registered by 2 of 3 admins, and N anchors sent
+  with the app's EvmAnchor client. Results in `experiments/results/anchoring/besu`; keys and chain
+  data stay in the gitignored `.demo/besu`. The report adds Besu to the finality and gas tables.
+- Receipt timing page `/bench/receipt` (public, no patient data): times the offline receipt checks
+  on signed bench receipts for logs of 1,000 to 1,000,000 entries (longest proof each), and the two
+  chain reads of a real check against the live Amoy contracts. Timings download as JSON;
+  `make bench-receipt-browser` saves this computer's run to `experiments/results/anchoring/browser`,
+  and the report turns every saved device into a table.
+- Bench receipts: `python -m e2d_experiments.anchoring bench-receipts` writes
+  `apps/web/public/bench/receipts.json` from e2d-core.
+
 ### Anchoring study (P16, part 1)
 
 - `python -m e2d_experiments.anchoring snapshot|enrich|bench|report`: timestamps from the database

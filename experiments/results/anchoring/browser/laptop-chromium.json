@@ -1,0 +1,47 @@
+{
+  "label": "Laptop (Chromium)",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36",
+  "cpus": 12,
+  "memory_gb": 16,
+  "started_at": "2026-11-01T18:18:40.430Z",
+  "offline": [
+    {
+      "tree_size": 1000,
+      "proof_hashes": 10,
+      "runs": 30,
+      "median_ms": 4.05,
+      "p95_ms": 8.2,
+      "verified": true
+    },
+    {
+      "tree_size": 10000,
+      "proof_hashes": 14,
+      "runs": 30,
+      "median_ms": 4.75,
+      "p95_ms": 13.6,
+      "verified": true
+    },
+    {
+      "tree_size": 100000,
+      "proof_hashes": 17,
+      "runs": 30,
+      "median_ms": 3.15,
+      "p95_ms": 6.7,
+      "verified": true
+    },
+    {
+      "tree_size": 1000000,
+      "proof_hashes": 20,
+      "runs": 30,
+      "median_ms": 4,
+      "p95_ms": 10.9,
+      "verified": true
+    }
+  ],
+  "chain": {
+    "runs": 10,
+    "median_ms": 563.6,
+    "p95_ms": 1122.4,
+    "errors": 0
+  }
+}
