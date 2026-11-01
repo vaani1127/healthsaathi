@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert as Notice, Badge, Field, Input, Textarea } from "@/components/ui/form";
 import { Empty, Loading, LoadError, QueryStatus } from "@/components/ui/state";
 import { api, call, type Schemas } from "@/lib/api/client";
+import { useClinicToday } from "@/lib/clinicDay";
 import { errorMessage, formatDate, formatDateTime, formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -34,17 +35,15 @@ function Why({ code, strength }: { code: string | null | undefined; strength: nu
   );
 }
 
-function localDay(d = new Date()): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
 type View = "open" | "day";
 
 export function Alerts() {
   const { t } = useTranslation();
   const [view, setView] = useState<View>("open");
-  const [day, setDay] = useState(() => localDay());
+  // Alerts are dated in the clinic's timezone, so the day view starts on the clinic's today.
+  const today = useClinicToday();
+  const [picked, setDay] = useState<string | null>(null);
+  const day = picked ?? today;
   const [selected, setSelected] = useState<string | null>(null);
   const alerts = useQuery({
     queryKey: ["alerts", view, view === "day" ? day : null],

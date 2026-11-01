@@ -10,6 +10,7 @@ import { Alerts } from "@/features/admin/Alerts";
 import { AuditStatus } from "@/features/admin/AuditStatus";
 import { Shifts } from "@/features/admin/Shifts";
 import { api, call, type Role, type Schemas } from "@/lib/api/client";
+import { useClinicToday } from "@/lib/clinicDay";
 import { errorMessage, formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -477,7 +478,10 @@ function AccessReports() {
 
 function Revenue() {
   const { t } = useTranslation();
-  const [day, setDay] = useState(() => new Date().toISOString().slice(0, 10));
+  // The day was the UTC date, which is yesterday in India before 05:30.
+  const today = useClinicToday();
+  const [picked, setDay] = useState<string | null>(null);
+  const day = picked ?? today;
   const report = useQuery({
     queryKey: ["revenue", day],
     queryFn: () => call(() => api.GET("/api/v1/reports/daily-revenue", { params: { query: { day } } })),

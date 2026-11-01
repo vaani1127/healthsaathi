@@ -13,6 +13,14 @@
 - GitHub runs the 15 minute anchor schedule only every few hours, so the hosted demo sets
   `ANCHOR_FALLBACK_MINUTES=15` and the worker keeps the 15 minute interval.
 
+### Clinic date in the admin screens
+
+- The alert day view and the revenue report start on today's date in the clinic's timezone
+  (`useClinicToday`, from `GET /clinic`). The alert view used the device's date and the revenue
+  report the UTC date, so on a device that is not on clinic time (and in CI, which runs on UTC)
+  they showed the wrong day around midnight in India. This was why flow 8 failed in CI between
+  18:30 and 24:00 UTC; reproduced with the browser on UTC and fixed.
+
 ### Anchoring study (P16, part 2)
 
 - `make besu-up`, `make besu-bench N=200`, `make besu-down` (`hs_demo.besu`): a local
