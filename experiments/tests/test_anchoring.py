@@ -142,3 +142,89 @@ def test_report_writes_tables_and_figure(tmp_path: Path) -> None:
     text = (tmp_path / "tables" / "anchoring_windows.tex").read_text(encoding="utf-8")
     assert "Polygon Amoy" in text and "Do not edit by hand" in text
     assert "estimate" in (tmp_path / "tables" / "anchoring_gas.tex").read_text(encoding="utf-8")
+
+
+def test_bench_receipt_is_valid_and_has_the_longest_proof() -> None:
+    import math
+
+    from e2d_core.ledger.merkle import verify_inclusion
+    from e2d_core.ledger.sth import TreeHead, verify
+
+    for n in (1, 5, 1000, 1025):
+        receipt = bench.bench_receipt(n)
+        head = TreeHead.from_json(receipt["sth"])
+        public = bytes.fromhex(receipt["public_key"])
+        assert verify(head, bytes.fromhex(receipt["signature"]), public)
+        proof = [bytes.fromhex(h) for h in receipt["proof"]]
+        assert verify_inclusion(
+            bytes.fromhex(receipt["leaf_hash"]), 0, n, proof, bytes.fromhex(head.root_hex)
+        )
+        assert len(proof) == math.ceil(math.log2(n))
+
+
+def test_besu_bench_has_no_job_delay_but_keeps_finality() -> None:
+    _, checkpoints, receipts = frames()
+    besu = receipts.filter(pl.col("checkpoint_id") == "k2").with_columns(
+        pl.lit("besu").alias("backend")
+    )
+    parts = analysis.checkpoint_parts(checkpoints, pl.concat([receipts, besu]))
+    row = parts.filter(pl.col("backend") == "besu").to_dicts()[0]
+    assert row["job_delay_s"] is None and row["finality_s"] == 0.5 * 60
+
+
+def test_report_adds_besu_and_browser_results(tmp_path: Path) -> None:
+    import json
+
+    events, checkpoints, receipts = frames()
+    snap = tmp_path / "live"
+    snap.mkdir()
+    events.write_parquet(snap / "events.parquet")
+    checkpoints.write_parquet(snap / "checkpoints.parquet")
+    receipts.write_parquet(snap / "enriched.parquet")
+    besu = tmp_path / "besu"
+    besu.mkdir()
+    checkpoints.with_columns(pl.col("checkpoint_id") + "-b").write_parquet(
+        besu / "checkpoints.parquet"
+    )
+    receipts.filter(pl.col("backend") == "amoy").with_columns(
+        pl.col("checkpoint_id") + "-b", pl.lit("besu").alias("backend")
+    ).write_parquet(besu / "enriched.parquet")
+    browser = tmp_path / "browser"
+    browser.mkdir()
+    result = {
+        "label": "Laptop",
+        "offline": [
+            {
+                "tree_size": 1000,
+                "proof_hashes": 10,
+                "median_ms": 1.5,
+                "p95_ms": 2.0,
+                "runs": 30,
+                "verified": True,
+            }
+        ],
+        "chain": {"runs": 10, "median_ms": 250.0, "p95_ms": 400.0, "errors": 0},
+    }
+    (browser / "laptop.json").write_text(json.dumps(result), encoding="utf-8")
+
+    report.write(snap, tmp_path / "tables", tmp_path / "figures", [1.0])
+    gas = (tmp_path / "tables" / "anchoring_gas.tex").read_text(encoding="utf-8")
+    assert "Besu QBFT (4 nodes)" in gas and "Polygon Amoy" in gas
+    windows = (tmp_path / "tables" / "anchoring_windows.tex").read_text(encoding="utf-8")
+    assert "Besu" not in windows  # the bench has no live events
+    times = (tmp_path / "tables" / "anchoring_browser.tex").read_text(encoding="utf-8")
+    assert "Laptop" in times and "1.50" in times and "250" in times
+
+
+def test_browser_table_refuses_unverified_timings() -> None:
+    row = {
+        "device": "x",
+        "tree_size": 1,
+        "proof_hashes": 0,
+        "median_ms": 1.0,
+        "p95_ms": 1.0,
+        "verified": False,
+        "chain_median_ms": None,
+    }
+    with pytest.raises(ValueError, match="did not verify"):
+        report.browser_table([row])

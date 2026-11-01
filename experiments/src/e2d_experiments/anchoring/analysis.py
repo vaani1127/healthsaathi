@@ -16,6 +16,8 @@ from datetime import datetime
 import polars as pl
 
 INTERVAL_MINUTES = 15
+# Backends measured by a bench run (anchors sent back to back), not by the 15 minute schedule.
+BENCH_BACKENDS = ("besu",)
 WINDOW_COLUMNS = ("backend", "events", "censored", "median_min", "p90_min", "p95_min", "max_min")
 
 
@@ -111,7 +113,10 @@ def checkpoint_parts(checkpoints: pl.DataFrame, receipts: pl.DataFrame) -> pl.Da
         .select(
             "checkpoint_id",
             "backend",
-            (pl.col("signed_at") - slot).dt.total_milliseconds().truediv(1000).alias("job_delay_s"),
+            pl.when(pl.col("backend").is_in(BENCH_BACKENDS))
+            .then(None)
+            .otherwise((pl.col("signed_at") - slot).dt.total_milliseconds().truediv(1000))
+            .alias("job_delay_s"),
             (pl.col("final_at") - pl.col("signed_at"))
             .dt.total_milliseconds()
             .truediv(1000)

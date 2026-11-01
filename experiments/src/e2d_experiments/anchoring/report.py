@@ -1,7 +1,9 @@
 """LaTeX tables and figures for the anchoring study, from the committed snapshot and bench files."""
 
+import json
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import matplotlib
 
@@ -125,6 +127,50 @@ def proofs_table(proofs: pl.DataFrame, builds: pl.DataFrame, machine: str) -> st
     return _tabular(header, rows, caption, "tab:proof-size")
 
 
+def browser_rows(folder: Path) -> list[dict[str, Any]]:
+    """Results downloaded from /bench/receipt, one JSON file per device."""
+    rows = []
+    for path in sorted(folder.glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        chain = data.get("chain") or {}
+        for r in data["offline"]:
+            rows.append(
+                {
+                    "device": data["label"] or path.stem,
+                    "tree_size": r["tree_size"],
+                    "proof_hashes": r["proof_hashes"],
+                    "median_ms": r["median_ms"],
+                    "p95_ms": r["p95_ms"],
+                    "verified": r["verified"],
+                    "chain_median_ms": chain.get("median_ms"),
+                }
+            )
+    return rows
+
+
+def browser_table(rows: list[dict[str, Any]]) -> str:
+    if any(not r["verified"] for r in rows):
+        raise ValueError("a bench receipt did not verify; the timings are not valid")
+    body = [
+        [
+            r["device"],
+            f"{r['tree_size']:,}",
+            str(r["proof_hashes"]),
+            _num(r["median_ms"], 2),
+            _num(r["p95_ms"], 2),
+            _num(r["chain_median_ms"], 0),
+        ]
+        for r in rows
+    ]
+    header = ["Device", "Leaves", "Proof hashes", "Offline (median ms)", "Offline (P95 ms)",
+              "Chain reads (median ms)"]  # fmt: skip
+    caption = (
+        "Receipt check time in the browser: offline checks (payload, inclusion proof, tree head "
+        "signature) and the chain reads of a real check against Polygon Amoy (/bench/receipt)."
+    )
+    return _tabular(header, body, caption, "tab:receipt-time")
+
+
 def window_figure(windows: pl.DataFrame, out: Path) -> None:
     fig, ax = plt.subplots(figsize=(5.5, 3.2))
     for backend in sorted(windows["backend"].unique().to_list()):
@@ -155,6 +201,15 @@ def write(snapshot: Path, tables: Path, figures: Path, mainnet_gwei: list[float]
     receipts = pl.read_parquet(snapshot / "enriched.parquet")
     period = _period(*analysis.study_period(events))
     windows = analysis.event_windows(events, checkpoints, receipts)
+    # The Besu bench has no live events, so it adds to finality and gas only.
+    besu = snapshot.parent / "besu"
+    if (besu / "enriched.parquet").exists():
+        checkpoints = pl.concat(
+            [checkpoints, pl.read_parquet(besu / "checkpoints.parquet")], how="vertical_relaxed"
+        )
+        receipts = pl.concat(
+            [receipts, pl.read_parquet(besu / "enriched.parquet")], how="diagonal_relaxed"
+        )
     parts = analysis.checkpoint_parts(checkpoints, receipts)
     tables.mkdir(parents=True, exist_ok=True)
     figures.mkdir(parents=True, exist_ok=True)
@@ -173,6 +228,9 @@ def write(snapshot: Path, tables: Path, figures: Path, mainnet_gwei: list[float]
             pl.read_parquet(bench / "builds.parquet"),
             machine,
         )
+    browser = browser_rows(snapshot.parent / "browser")
+    if browser:
+        written[tables / "anchoring_browser.tex"] = browser_table(browser)
     for path, text in written.items():
         path.write_text(text, encoding="utf-8")
     window_figure(windows, figures)
