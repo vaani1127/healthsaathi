@@ -1,0 +1,20 @@
+# Anchoring study (SPEC 8, C3). Read by `python -m e2d_experiments.anchoring`.
+# The database URL comes from ANCHOR_STUDY_DATABASE_URL (admin login, read-only transaction).
+
+# Snapshot folder, relative to the repo root. Committed: it holds no patient data.
+snapshot_dir: experiments/results/anchoring/live
+# Events before this moment were loaded by the demo seed with past timestamps, not written live.
+# The prod-demo v0.1.0 deploy finished at this time.
+since: "2026-10-31T17:20:00+00:00"
+
+rpc:
+  amoy: https://polygon-amoy-bor-rpc.publicnode.com
+  besu: http://127.0.0.1:8545
+bitcoin_api: https://blockstream.info/api
+
+# Stated gas prices for the Ethereum mainnet cost ESTIMATE (gwei). Assumptions, not measurements.
+mainnet_gwei: [1, 10]
+
+bench:
+  tree_sizes: [1000, 10000, 100000, 1000000]
+  repeats: 5

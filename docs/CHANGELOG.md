@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Anchoring fixes found on the live demo
+
+- OpenTimestamps proofs now complete. The pool servers answer with pending attestations naming
+  another calendar (for example `alice.btc.calendar.opentimestamps.org`), which the upgrade never
+  asked; it now asks the calendar in the attestation when its domain is a well-known calendar
+  domain, as the official client does (`app/anchor/ots.py`, `tests/anchor/test_ots.py`).
+- The worker fallback runs the anchor job at most once per `ANCHOR_FALLBACK_MINUTES`. With no new
+  events nothing marks a run, so it used to run every minute and ask the public calendars each time.
+- GitHub runs the 15 minute anchor schedule only every few hours, so the hosted demo sets
+  `ANCHOR_FALLBACK_MINUTES=15` and the worker keeps the 15 minute interval.
+
+### Anchoring study (P16, part 1)
+
+- `python -m e2d_experiments.anchoring snapshot|enrich|bench|report`: timestamps from the database
+  (read-only, no patient data), gas and block times from the chains, proof sizes and tree build
+  time, then LaTeX tables and a figure. Settings in `experiments/configs/anchoring.yaml`.
+- Demo activity bot (`app/scripts/demo_activity.py`, `make prod-activity`): signs in as demo staff
+  and does walk-ins, vitals and chart reads through the normal API during OPD hours, so the live
+  demo writes audit events for the two-week study. Synthetic, and reported as synthetic.
+
 ### Public demo set-up
 
 - `make prod-init` to `make prod-github` (`hs_demo.hosted`, `infra/deploy/azure.sh`,
