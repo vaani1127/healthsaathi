@@ -7,7 +7,9 @@ PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests experiments/src exp
 
 .PHONY: help env install demo demo-code demo-e2e demo-e2e-docker demo-e2e-native demo-videos \
 	demo-native demo-native-stop demo-reset-native demo-screenshots fhir-validate demo-logs demo-down demo-reset dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
-	test-sol migrate seed prod-init prod-azure prod-open-db prod-close-db prod-status prod-db \n	prod-seed prod-chain prod-register prod-vm-env prod-cloudflare prod-github prod-logins prod-code \n	sim sim-coverage sim-audit sim-splits exp prereg-audit prereg-stamp audit
+	test-sol migrate seed prod-init prod-azure prod-open-db prod-close-db prod-status prod-db \
+	prod-seed prod-chain prod-register prod-vm-env prod-cloudflare prod-github prod-activity prod-logins prod-code \
+	sim sim-coverage sim-audit sim-splits exp prereg-audit prereg-stamp audit
 
 help:
 	@echo "env       create .env with fresh local secrets"
@@ -128,7 +130,8 @@ prod-open-db:
 prod-close-db:
 	sh infra/deploy/azure.sh close-db
 
-prod-status prod-db prod-seed prod-chain prod-register prod-vm-env prod-cloudflare prod-github prod-logins:
+prod-status prod-db prod-seed prod-chain prod-register prod-vm-env prod-cloudflare prod-github \
+	prod-activity prod-logins:
 	$(PROD) $(patsubst prod-%,%,$@)
 
 prod-code:

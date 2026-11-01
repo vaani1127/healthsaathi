@@ -10,6 +10,7 @@
     python -m hs_demo.hosted vm-env          # make prod-vm-env: copy the settings to the VM
     python -m hs_demo.hosted cloudflare      # make prod-cloudflare: Pages project and app domain
     python -m hs_demo.hosted github          # make prod-github: secrets, variables, repositories
+    python -m hs_demo.hosted activity        # make prod-activity: start the demo activity bot
     python -m hs_demo.hosted code EMAIL      # make prod-code: current authenticator code
     python -m hs_demo.hosted logins          # make prod-logins: print the login table
 
@@ -347,6 +348,51 @@ def vm_env() -> None:
     say("settings copied to the VM")
 
 
+# The container runs as this user (infra/api.Dockerfile); only it may read the logins file.
+CONTAINER_UID = 10001
+ACTIVITY_ROLES = ("reception", "nurse", "doctor")
+
+
+def activity_config(logins_data: dict[str, Any], mean_gap_minutes: float = 6) -> dict[str, Any]:
+    """The demo activity bot's settings: one reception, nurse and doctor login per clinic."""
+    clinics = []
+    for code in sorted(logins_data["clinics"]):
+        users = [u for u in logins_data["users"] if u["clinic"] == code]
+        clinics.append(
+            {
+                role: next(
+                    {"email": u["email"], "totp_secret": u["totp_secret"]}
+                    for u in users
+                    if u["role"] == role
+                )
+                for role in ACTIVITY_ROLES
+            }
+        )
+    return {
+        "api_url": "http://api:8000",
+        "password": logins_data["password"],
+        "mean_gap_minutes": mean_gap_minutes,
+        "clinics": clinics,
+    }
+
+
+def activity() -> None:
+    values = read_values()
+    data = json.loads((STATE / "logins.json").read_text(encoding="utf-8"))
+    upload = STATE / "activity.json"
+    upload.write_bytes(json.dumps(activity_config(data), indent=2).encode())
+    target = f"{values['VM_USER']}@{values['VM_HOST']}"
+    remote = "/opt/healthsaathi/activity.json"
+    env = dict(os.environ)
+    try:
+        run([tool("scp"), *ssh_options(), str(upload), f"{target}:{remote}"], ROOT, env)
+        fix = f"sudo chown {CONTAINER_UID} {remote} && sudo chmod 400 {remote}"
+        run([tool("ssh"), *ssh_options(), target, fix], ROOT, env)
+    finally:
+        upload.unlink()
+    say("activity bot settings copied; the next deploy starts the bot")
+
+
 def cloudflare() -> None:
     values = read_values()
     account = values["CLOUDFLARE_ACCOUNT_ID"]
@@ -470,6 +516,7 @@ COMMANDS = {
     "vm-env": vm_env,
     "cloudflare": cloudflare,
     "github": github,
+    "activity": activity,
 }
 
 

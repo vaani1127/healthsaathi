@@ -121,3 +121,35 @@ def test_hosted_login_table_has_no_local_addresses() -> None:
     assert "localhost" not in text
     assert "dev mailbox" not in text.lower()
     assert "make prod-code" in text
+
+
+def test_activity_config_takes_one_login_per_role_and_clinic() -> None:
+    def user(clinic: str, role: str, n: int) -> dict[str, str | None]:
+        secret = None if role == "patient" else f"S{clinic}{role}{n}"
+        return {
+            "clinic": clinic,
+            "role": role,
+            "email": f"{role}{n}.{clinic}@x.test",
+            "totp_secret": secret,
+        }
+
+    data = {
+        "password": "Saathi-1234abcd",
+        "clinics": {"b": "Clinic B", "a": "Clinic A"},
+        "users": [
+            user(c, r, n)
+            for c in "ab"
+            for r in ("clinic_admin", "reception", "nurse", "doctor", "patient")
+            for n in (1, 2)
+        ],
+    }
+    config = hosted.activity_config(data)
+    assert config["api_url"] == "http://api:8000"
+    assert config["password"] == "Saathi-1234abcd"
+    assert [c["doctor"]["email"] for c in config["clinics"]] == [
+        "doctor1.a@x.test",
+        "doctor1.b@x.test",
+    ]
+    assert all(set(c) == {"reception", "nurse", "doctor"} for c in config["clinics"])
+    # Admins and patients are never handed to the bot.
+    assert "admin" not in json.dumps(config) and "patient" not in json.dumps(config)

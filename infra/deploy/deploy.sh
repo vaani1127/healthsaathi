@@ -21,8 +21,15 @@ rm -f "$IMAGE_TAR"
 echo "running migrations"
 HS_TAG="$TAG" $COMPOSE --profile migrate run --rm migrate
 
+SERVICES="api worker caddy"
+# The hosted demo's activity bot runs only where its logins file was copied (make prod-activity).
+if [ -f "$APP_DIR/activity.json" ]; then
+  COMPOSE="$COMPOSE --profile activity"
+  SERVICES="$SERVICES activity"
+fi
+
 echo "starting $TAG"
-HS_TAG="$TAG" $COMPOSE up -d --remove-orphans api worker caddy
+HS_TAG="$TAG" $COMPOSE up -d --remove-orphans $SERVICES
 
 healthy=0
 for _ in $(seq 1 30); do
@@ -39,7 +46,7 @@ if [ "$healthy" -ne 1 ]; then
     # Migrations are additive (expand first, contract in a later release), so the previous
     # version still runs against the migrated schema.
     echo "rolling back to $PREVIOUS" >&2
-    HS_TAG="$PREVIOUS" $COMPOSE up -d --remove-orphans api worker caddy
+    HS_TAG="$PREVIOUS" $COMPOSE up -d --remove-orphans $SERVICES
   fi
   exit 1
 fi

@@ -43,6 +43,19 @@ services:
       disable: true
     profiles: ["migrate"]
 
+  # Hosted demo only: synthetic clinic activity through the API (app/scripts/demo_activity.py).
+  # deploy.sh starts it when /opt/healthsaathi/activity.json exists (make prod-activity).
+  activity:
+    <<: *api
+    command: ["python", "-m", "app.scripts.demo_activity", "/run/activity.json"]
+    volumes:
+      - ./activity.json:/run/activity.json:ro
+    depends_on:
+      - api
+    healthcheck:
+      disable: true
+    profiles: ["activity"]
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
