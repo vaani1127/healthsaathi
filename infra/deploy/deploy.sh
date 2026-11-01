@@ -29,6 +29,7 @@ if [ -f "$APP_DIR/activity.json" ]; then
 fi
 
 echo "starting $TAG"
+# shellcheck disable=SC2086 # one word per service
 HS_TAG="$TAG" $COMPOSE up -d --remove-orphans $SERVICES
 
 healthy=0
@@ -46,6 +47,7 @@ if [ "$healthy" -ne 1 ]; then
     # Migrations are additive (expand first, contract in a later release), so the previous
     # version still runs against the migrated schema.
     echo "rolling back to $PREVIOUS" >&2
+    # shellcheck disable=SC2086 # one word per service
     HS_TAG="$PREVIOUS" $COMPOSE up -d --remove-orphans $SERVICES
   fi
   exit 1
