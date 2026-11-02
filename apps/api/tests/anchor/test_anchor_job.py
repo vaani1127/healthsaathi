@@ -180,7 +180,9 @@ async def test_anchor_job_end_to_end(
 
     witness = github.files[f"/repos/demo/witness/contents/witness/{clinic}/5.json"]
     assert witness["sth"]["root_hex"] == checkpoint.root.hex()
-    assert calendar.submitted == [bytes.fromhex(witness["sth_digest"])]
+    # The run covers every clinic in the shared test database, so other tests' clinics may be
+    # stamped too; this clinic's tree head is stamped exactly once.
+    assert calendar.submitted.count(bytes.fromhex(witness["sth_digest"])) == 1
 
     rows = await receipts(admin_engine, clinic)
     assert rows["amoy"][0].status == AnchorStatus.CONFIRMED
