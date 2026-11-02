@@ -1,0 +1,60 @@
+{
+  "run_at": "2026-11-02T09:38:43.411445+00:00",
+  "setup": "local anvil chain and local git witness; 3 checkpoints of 4 events anchored and published before the attack",
+  "results": {
+    "control": {
+      "audit_page": {
+        "detected": false,
+        "detail": "log matches stored checkpoints"
+      },
+      "next_checkpoint": {
+        "detected": false,
+        "detail": "new checkpoint signed"
+      },
+      "chain": {
+        "detected": false,
+        "detail": "anchored: confirmed"
+      },
+      "witness": {
+        "detected": false,
+        "detail": "all 3 published heads match"
+      }
+    },
+    "events": {
+      "audit_page": {
+        "detected": true,
+        "detail": "the log no longer matches the latest checkpoint"
+      },
+      "next_checkpoint": {
+        "detected": true,
+        "detail": "audit log changed since the last checkpoint"
+      },
+      "chain": {
+        "detected": true,
+        "detail": "log differs from the root on chain"
+      },
+      "witness": {
+        "detected": true,
+        "detail": "3 of 3 published heads no longer match"
+      }
+    },
+    "events_and_checkpoints": {
+      "audit_page": {
+        "detected": false,
+        "detail": "log matches stored checkpoints"
+      },
+      "next_checkpoint": {
+        "detected": false,
+        "detail": "new checkpoint signed"
+      },
+      "chain": {
+        "detected": true,
+        "detail": "audit log does not match the anchored root"
+      },
+      "witness": {
+        "detected": true,
+        "detail": "3 of 3 published heads no longer match"
+      }
+    }
+  }
+}
