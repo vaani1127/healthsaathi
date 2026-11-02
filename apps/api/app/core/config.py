@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.dburl import asyncpg_url
@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     cookie_domain: str | None = Field(default=None, alias="COOKIE_DOMAIN")
     cookie_secure: bool = Field(default=True, alias="COOKIE_SECURE")
     rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
+    # Load test only (SPEC 8, RQ5): authorise accesses but skip their explanation and logging, to
+    # measure what recording costs. Refused unless APP_ENV=test, so the live demo always records.
+    benchmark_skip_recording: bool = Field(default=False, alias="BENCHMARK_SKIP_RECORDING")
 
     # Detection (SPEC 5.5). Fitted models are files here; their sha256 is the model_version.
     model_dir: str | None = Field(default=None, alias="MODEL_DIR")
@@ -137,6 +140,12 @@ class Settings(BaseSettings):
     def _asyncpg_form(cls, value: str | None) -> str | None:
         # Hosted Postgres hands out postgresql://...?sslmode=require; see app.core.dburl.
         return asyncpg_url(value) if value else None
+
+    @model_validator(mode="after")
+    def _recording_only_off_in_test(self) -> "Settings":
+        if self.benchmark_skip_recording and self.env != "test":
+            raise ValueError("BENCHMARK_SKIP_RECORDING is only allowed with APP_ENV=test")
+        return self
 
     @field_validator("jwt_secret", "otp_hmac_key", "ledger_signing_seed")
     @classmethod

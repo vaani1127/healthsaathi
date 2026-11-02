@@ -212,6 +212,17 @@ async def _write(
     return event
 
 
+# Load test only: what an access returns when its explanation and logging are skipped.
+UNRECORDED = Explanation(template_code=None, strength=0.0)
+
+
+def skip_recording() -> bool:
+    """True only in a load-test copy (APP_ENV=test with BENCHMARK_SKIP_RECORDING). Authorisation
+    has already run when this is asked; only the explanation and the log writes are skipped."""
+    settings = get_settings()
+    return settings.benchmark_skip_recording and settings.env == "test"
+
+
 @dataclass(frozen=True)
 class Denial:
     principal: ClinicPrincipal
@@ -320,6 +331,9 @@ async def record_and_explain(
             Denial(principal, patient_id, resource, action, request, break_glass_id)
         )
 
+    if skip_recording():
+        return AccessRecord(uuid7(), patient_id, decision.requirement, UNRECORDED)
+
     at, timezone = await clock_and_timezone(db, principal.clinic_id)
     core_event = CoreAccessEvent(
         id=uuid7(),
@@ -412,6 +426,11 @@ async def _record_batch(
         if not allowed:
             raise AccessDeniedError(Denial(principal, patient_id, resource, action, request, None))
         decisions.append(decision)
+    if skip_recording():
+        return [
+            AccessRecord(uuid7(), patient_id, decision.requirement, UNRECORDED)
+            for (patient_id, _), decision in zip(items, decisions, strict=True)
+        ]
 
     at, timezone = await clock_and_timezone(db, principal.clinic_id)
     bundles = await load_evidence(
