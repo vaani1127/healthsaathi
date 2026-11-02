@@ -8,7 +8,7 @@ PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests experiments/src exp
 .PHONY: help env install demo demo-code demo-e2e demo-e2e-docker demo-e2e-native demo-videos \
 	demo-native demo-native-stop demo-reset-native demo-screenshots fhir-validate demo-logs demo-down demo-reset dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
 	test-sol migrate seed prod-init prod-azure prod-open-db prod-close-db prod-status prod-db \
-	prod-seed prod-chain prod-register prod-vm-env prod-cloudflare prod-github prod-activity prod-logins prod-code besu-up besu-bench besu-down bench-receipt-browser \
+	prod-seed prod-chain prod-register prod-vm-env prod-cloudflare prod-github prod-activity prod-logins prod-code besu-up besu-bench besu-down bench-receipt-browser tamper-study load-bench-db load-run \
 	sim sim-coverage sim-audit sim-splits exp prereg-audit prereg-stamp audit
 
 help:
@@ -144,6 +144,13 @@ besu-bench:
 besu-down:
 	uv run python -m hs_demo.besu down
 
+# Recording overhead load test on the prod-demo VM against a separate copy (hs_demo.loadtest).
+load-bench-db:
+	uv run python -m hs_demo.loadtest bench-db
+
+load-run:
+	uv run python -m hs_demo.loadtest run
+
 # Receipt check timing in a real browser (needs a production build in apps/web/dist, or BENCH_URL).
 bench-receipt-browser:
 	LABEL="$(or $(LABEL),Laptop (Chromium))" node infra/demo/receipt_bench.ts
@@ -210,6 +217,11 @@ contracts-deploy:
 # Local only: anchor a demo clinic on anvil, rewrite one audit row, and show verification fail.
 tamper-demo: contracts-local
 	cd apps/api && $(UV) python -m app.scripts.tamper_demo
+
+# Local only: which check catches a rewritten audit log (P16). Writes
+# experiments/results/anchoring/tamper/detection.json.
+tamper-study: contracts-local
+	cd apps/api && $(UV) python -m app.scripts.tamper_study
 
 # Regenerate the web app's typed API client from the API's OpenAPI document.
 api-types:
