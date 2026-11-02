@@ -13,6 +13,23 @@
 - GitHub runs the 15 minute anchor schedule only every few hours, so the hosted demo sets
   `ANCHOR_FALLBACK_MINUTES=15` and the worker keeps the 15 minute interval.
 
+### Anchoring study (P16, part 3): tampering and load
+
+- Witness check: `e2d_core.ledger.witness.check_log` checks a log against published signed tree
+  heads (clinic signature, same root at each head's size). `app.scripts.verify_witness` runs it
+  for one clinic against a local witness folder or the public GitHub witness repository.
+- `make tamper-study` (local anvil and witness folder): two attacks by the database owner, each
+  after three anchored and published checkpoints. Rows rewritten with the hash chain recomputed:
+  caught by the admin audit page, the next checkpoint, the chain and the witness check. Rows
+  rewritten and the stored checkpoints deleted: missed by the audit page and the next checkpoint,
+  caught by the chain (at the next anchor) and the witness check. Results in
+  `experiments/results/anchoring/tamper/detection.json`; the report adds a table.
+- Load test switch `BENCHMARK_SKIP_RECORDING`: authorises as usual but skips the explanation and
+  logging. The API refuses to start with it unless `APP_ENV=test`.
+- `make load-bench-db` and `make load-run` (`hs_demo.loadtest`, `infra/load/locustfile.py`): a
+  copy of the API on the VM with its own database `healthsaathi_bench`, loaded by Locust with and
+  without recording; `python -m e2d_experiments.load` writes the table.
+
 ### Clinic date in the admin screens
 
 - The alert day view and the revenue report start on today's date in the clinic's timezone

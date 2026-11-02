@@ -228,3 +228,23 @@ def test_browser_table_refuses_unverified_timings() -> None:
     }
     with pytest.raises(ValueError, match="did not verify"):
         report.browser_table([row])
+
+
+def test_tamper_table_from_the_committed_study() -> None:
+    import json
+
+    data = json.loads(
+        (
+            Path(__file__).resolve().parents[1]
+            / "results"
+            / "anchoring"
+            / "tamper"
+            / "detection.json"
+        ).read_text(encoding="utf-8")
+    )
+    text = report.tamper_table(data)
+    lines = {line.split(" & ")[0]: line for line in text.splitlines() if " & " in line}
+    # Columns: no attack, rows rewritten, rows rewritten and checkpoints deleted.
+    assert lines["Admin audit page"].endswith("-- & caught & -- \\\\")
+    assert lines["Root on chain"].endswith("-- & caught & caught \\\\")
+    assert lines[r"Published heads (verify\_witness)"].endswith("-- & caught & caught \\\\")

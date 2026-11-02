@@ -171,6 +171,37 @@ def browser_table(rows: list[dict[str, Any]]) -> str:
     return _tabular(header, body, caption, "tab:receipt-time")
 
 
+TAMPER_CHECKS = {
+    "audit_page": ("Admin audit page", "when an admin opens it"),
+    "next_checkpoint": ("Next checkpoint", "next anchor run after a new event"),
+    "chain": ("Root on chain", "next anchor run after a new event"),
+    "witness": ("Published heads (verify\\_witness)", "when an auditor runs it"),
+}
+TAMPER_COLUMNS = {
+    "control": "No attack",
+    "events": "Rows rewritten",
+    "events_and_checkpoints": "Rows rewritten, checkpoints deleted",
+}
+
+
+def tamper_table(data: dict[str, Any]) -> str:
+    results = data["results"]
+    rows = [
+        [
+            label,
+            when,
+            *("caught" if results[col][key]["detected"] else "--" for col in TAMPER_COLUMNS),
+        ]
+        for key, (label, when) in TAMPER_CHECKS.items()
+    ]
+    header = ["Check", "Runs", *TAMPER_COLUMNS.values()]
+    caption = (
+        "A database owner rewrites the audit log and recomputes the hash chain: which check "
+        f"catches it. Run of app.scripts.tamper\\_study ({data['setup']})."
+    )
+    return _tabular(header, rows, caption, "tab:tamper")
+
+
 def window_figure(windows: pl.DataFrame, out: Path) -> None:
     fig, ax = plt.subplots(figsize=(5.5, 3.2))
     for backend in sorted(windows["backend"].unique().to_list()):
@@ -227,6 +258,11 @@ def write(snapshot: Path, tables: Path, figures: Path, mainnet_gwei: list[float]
             pl.read_parquet(bench / "proofs.parquet"),
             pl.read_parquet(bench / "builds.parquet"),
             machine,
+        )
+    tamper = snapshot.parent / "tamper" / "detection.json"
+    if tamper.exists():
+        written[tables / "anchoring_tamper.tex"] = tamper_table(
+            json.loads(tamper.read_text(encoding="utf-8"))
         )
     browser = browser_rows(snapshot.parent / "browser")
     if browser:
