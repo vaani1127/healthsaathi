@@ -36,5 +36,7 @@ def test_each_variant_sets_the_switch_and_only_listens_on_localhost() -> None:
         assert "-p 127.0.0.1:8100:8000" in script
         assert "healthsaathi-api:v9.9.9" in script
         assert "--env-file /opt/healthsaathi/.env" in script and "bench.env" in script
-        assert "docker rm -f hs-bench" in script
+        assert "trap 'sudo docker rm -f hs-bench" in script
+        # Failed requests are counted in the table, not a reason to skip the other variant.
+        assert "--exit-code-on-error 0" in script
     assert loadtest.VARIANTS == {"recording": "false", "no-recording": "true"}

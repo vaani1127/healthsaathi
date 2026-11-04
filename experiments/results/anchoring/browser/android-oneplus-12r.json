@@ -1,0 +1,47 @@
+{
+  "label": "OnePlus 12R",
+  "user_agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
+  "cpus": 8,
+  "memory_gb": 8,
+  "started_at": "2026-11-04T16:52:37.882Z",
+  "offline": [
+    {
+      "tree_size": 1000,
+      "proof_hashes": 10,
+      "runs": 30,
+      "median_ms": 1,
+      "p95_ms": 2.8,
+      "verified": true
+    },
+    {
+      "tree_size": 10000,
+      "proof_hashes": 14,
+      "runs": 30,
+      "median_ms": 0.7,
+      "p95_ms": 1.4,
+      "verified": true
+    },
+    {
+      "tree_size": 100000,
+      "proof_hashes": 17,
+      "runs": 30,
+      "median_ms": 0.6,
+      "p95_ms": 1,
+      "verified": true
+    },
+    {
+      "tree_size": 1000000,
+      "proof_hashes": 20,
+      "runs": 30,
+      "median_ms": 0.7,
+      "p95_ms": 1.1,
+      "verified": true
+    }
+  ],
+  "chain": {
+    "runs": 10,
+    "median_ms": 836.7,
+    "p95_ms": 921.6,
+    "errors": 0
+  }
+}

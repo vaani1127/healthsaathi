@@ -29,6 +29,12 @@
 - `make load-bench-db` and `make load-run` (`hs_demo.loadtest`, `infra/load/locustfile.py`): a
   copy of the API on the VM with its own database `healthsaathi_bench`, loaded by Locust with and
   without recording; `python -m e2d_experiments.load` writes the table.
+- First load run against v0.1.3 (10 users, 240 s per variant, recording first): results in
+  `experiments/results/load`, table `paper/tables/load_overhead.tex`. Locust no longer stops the
+  run when a request fails (failures are a table column), and the copy is removed on any exit.
+  The switch check now passes the server's env file, since importing the service loads settings.
+- Receipt check timings from an Android phone (OnePlus 12R, Chrome) added to
+  `experiments/results/anchoring/browser`.
 
 ### Clinic date in the admin screens
 

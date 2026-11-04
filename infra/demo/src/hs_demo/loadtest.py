@@ -105,6 +105,7 @@ def remote_script(variant: str, skip: str, tag: str) -> str:
     return f"""set -eu
 cd {REMOTE}
 sudo docker rm -f hs-bench >/dev/null 2>&1 || true
+trap 'sudo docker rm -f hs-bench >/dev/null 2>&1 || true' EXIT
 sudo docker run -d --name hs-bench --env-file /opt/healthsaathi/.env \\
   --env-file {REMOTE}/bench.env -e BENCHMARK_SKIP_RECORDING={skip} \\
   -p 127.0.0.1:8100:8000 healthsaathi-api:{tag} >/dev/null
@@ -119,9 +120,8 @@ SAMPLER=$!
 sudo docker run --rm --network host -v {REMOTE}:/load --entrypoint sh {LOCUST_IMAGE} -c \\
   "pip install -q pyotp >/dev/null 2>&1 && locust -f /load/locustfile.py --headless -u {USERS} \\
   -r {SPAWN_RATE} -t {DURATION} --host http://127.0.0.1:8100 --csv /load/out/{variant} \\
-  --only-summary" > out/{variant}_locust.log 2>&1
+  --only-summary --exit-code-on-error 0" > out/{variant}_locust.log 2>&1
 kill $SAMPLER
-sudo docker rm -f hs-bench >/dev/null
 echo done {variant}
 """
 
@@ -161,8 +161,10 @@ def run() -> None:
             f.unlink()
     tag = ssh(target, "cat /opt/healthsaathi/current_tag").strip()
     # An image from before the switch would ignore it and record in the "no-recording" run.
+    # Importing the service loads the settings, so the probe needs the server's env file.
     probe = (
-        f"sudo docker run --rm --entrypoint python healthsaathi-api:{tag} -c "
+        "sudo docker run --rm --env-file /opt/healthsaathi/.env --entrypoint python "
+        f"healthsaathi-api:{tag} -c "
         "\"from app.access.service import skip_recording; print('switch present')\""
     )
     if "switch present" not in ssh(target, f"{probe} 2>/dev/null || true"):
