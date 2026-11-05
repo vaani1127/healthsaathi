@@ -9,7 +9,7 @@ Two attacks, each on its own fresh synthetic clinic with three anchored and publ
 
 After each attack (and once before it, as a control) four checks run, the way the system runs them:
 
-1. the admin audit page (log against the stored checkpoints),
+1. the admin audit page (log against the stored checkpoints and the newest head on the witness),
 2. the next checkpoint after a new event (consistency with the previous stored checkpoint),
 3. the next anchor on the chain (log against the root on chain),
 4. an auditor's witness check (`app.scripts.verify_witness`, log against the published heads).
@@ -35,13 +35,14 @@ from app.anchor import job
 from app.anchor.evm import EvmAnchor
 from app.anchor.local_witness import LocalWitness
 from app.anchor.receipts import audit_status
+from app.anchor.witness_check import heads_from_folder
 from app.core.config import REPO_ROOT, get_settings
 from app.core.db import TenantContext, get_engine, tenant_session
 from app.db.enums import AnchorBackend
 from app.ledger.checkpoint import LedgerIntegrityError, build_checkpoint, load_tree
 from app.ledger.writer import append_audit_event
 from app.scripts import tamper_demo
-from app.scripts.verify_witness import heads_from_folder, verify
+from app.scripts.verify_witness import verify
 
 OUT = REPO_ROOT / "experiments" / "results" / "anchoring" / "tamper" / "detection.json"
 ROUNDS = 3
@@ -88,9 +89,13 @@ async def run_checks(evm: EvmAnchor, witness: LocalWitness, clinic_id: uuid.UUID
     results: dict[str, Any] = {}
     ctx = TenantContext(clinic_id=clinic_id, role="system", db_role=job.JOB_ROLE)
     async with tenant_session(ctx) as db:
-        status = await audit_status(db, clinic_id)
-    page_failed = status.consistency_ok is False or not status.chain_ok
-    results["audit_page"] = outcome(page_failed, status.problem or "log matches stored checkpoints")
+        status = await audit_status(db, clinic_id, witness_folder=witness.folder)
+    page_failed = (
+        not status.chain_ok or status.consistency_ok is False or status.witness_ok is False
+    )
+    results["audit_page"] = outcome(
+        page_failed, status.problem or "log matches stored checkpoints and the witness"
+    )
 
     # Checks 2 and 3 run when the next event arrives and the anchor job checkpoints it.
     await add_events(clinic_id, 1, "after")

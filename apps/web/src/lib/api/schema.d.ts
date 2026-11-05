@@ -2119,6 +2119,10 @@ export interface components {
             sth: {
                 [key: string]: unknown;
             } | null;
+            /** Witness Ok */
+            witness_ok: boolean | null;
+            /** Witness Size */
+            witness_size: number | null;
         };
         /**
          * BackendState

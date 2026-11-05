@@ -900,6 +900,28 @@
               }
             ],
             "title": "Sth"
+          },
+          "witness_ok": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Witness Ok"
+          },
+          "witness_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Witness Size"
           }
         },
         "required": [
@@ -909,6 +931,8 @@
           "events",
           "chain_ok",
           "consistency_ok",
+          "witness_ok",
+          "witness_size",
           "problem",
           "anchors",
           "confirmed_backends",

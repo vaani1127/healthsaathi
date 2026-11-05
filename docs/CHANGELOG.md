@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Audit page checks the public witness
+
+- The admin audit page (`GET /api/v1/audit/status`) now also checks the log against the newest
+  signed tree head on the witness, the same check as `app.scripts.verify_witness`
+  (`app/anchor/witness_check.py`, shared by both). New fields `witness_ok` and `witness_size`,
+  and a new row on the page. Before, a database owner who rewrote rows and deleted the stored
+  checkpoints got a plain Pass; now the witness row fails and the page explains why. GitHub reads
+  are cached for 5 minutes per clinic; a witness that cannot be read shows Skipped, not Fail.
+  Tests: `tests/anchor/test_witness_check.py` (this exact attack, through the API).
+- Tamper study rerun (`make tamper-study`, `experiments/results/anchoring/tamper/detection.json`):
+  rows rewritten and the stored checkpoints deleted are now caught by the audit page, the chain
+  and the witness check; only the next checkpoint still misses it.
+
+### Load test in both orders
+
+- `make load-run-reversed` runs the variant without recording first and saves results with a
+  `_reversed` suffix; `python -m e2d_experiments.load` shows both orders in
+  `paper/tables/load_overhead.tex`. Medians match between the two orders; the P95 with recording
+  differs between them, so read the tail numbers with care.
+- `make load-clean` removes the benchmark copy: the `hs-bench` container, its files on the VM,
+  the `healthsaathi_bench` database and the local state. Done after this run.
+
 ### Anchoring fixes found on the live demo
 
 - OpenTimestamps proofs now complete. The pool servers answer with pending attestations naming

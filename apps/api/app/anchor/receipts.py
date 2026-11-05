@@ -7,6 +7,7 @@ clinic's public key, and where that tree head was anchored.
 
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel
@@ -16,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.access.service import RequestInfo, record_and_explain
 from app.anchor.evm import clinic_bytes32
 from app.anchor.job import chain_backend
+from app.anchor.witness_check import WitnessResult, check_newest
 from app.core.config import get_settings
 from app.core.errors import ProblemError
 from app.db.enums import AccessAction, AnchorBackend, AnchorStatus, ResourceType
@@ -244,13 +246,23 @@ class AuditStatus(BaseModel):
     events: int
     chain_ok: bool
     consistency_ok: bool | None
+    witness_ok: bool | None
+    witness_size: int | None
     problem: str | None
     anchors: list[AnchorRef]
     confirmed_backends: list[str]
     backends: list[BackendState]
 
 
-async def audit_status(db: AsyncSession, clinic_id: uuid.UUID) -> AuditStatus:
+async def audit_status(
+    db: AsyncSession, clinic_id: uuid.UUID, *, witness_folder: Path | None = None
+) -> AuditStatus:
+    """The log against its hash chain, the stored checkpoints and the newest head on the witness.
+
+    The stored checkpoints are in the same database as the log, so their owner can delete them
+    with the rows; the witness check still catches that rewrite. `witness_folder` overrides the
+    configured witness (the tamper study uses its own folder).
+    """
     problem = None
     events = 0
     chain_ok = True
@@ -283,6 +295,16 @@ async def audit_status(db: AsyncSession, clinic_id: uuid.UUID) -> AuditStatus:
             )
         else:
             consistency_ok = True
+    witness = (
+        await check_newest(tree, clinic_id, witness_folder)
+        if tree is not None
+        else WitnessResult(None)
+    )
+    if witness.ok is False and problem is None:
+        problem = (
+            f"the log no longer matches the head published on the witness at size "
+            f"{witness.tree_size}: {witness.reason}"
+        )
     anchors = await _anchors(db, latest.id) if latest else []
     return AuditStatus(
         sth=tree_head(clinic_id, latest).to_json() if latest else None,
@@ -291,6 +313,8 @@ async def audit_status(db: AsyncSession, clinic_id: uuid.UUID) -> AuditStatus:
         events=events,
         chain_ok=chain_ok,
         consistency_ok=consistency_ok,
+        witness_ok=witness.ok,
+        witness_size=witness.tree_size,
         problem=problem,
         anchors=anchors,
         confirmed_backends=[a.backend for a in anchors if a.status == AnchorStatus.CONFIRMED.value],

@@ -23,7 +23,7 @@ check their own access receipts in the browser.
 | Billing | Services, invoices, payments, receipt, daily revenue |
 | Access explanation (E2D) | Every read and write of patient data is recorded with its explanation in the same database transaction; doctors without an explanation must type a reason; break-glass with a 24-hour review queue |
 | Detection | Isolation forest per clinic on explanation, forgery, graph and behaviour features; a small daily alert budget; review workflow |
-| Audit log and anchoring | Hash chain, signed Merkle checkpoints, anchoring on an EVM chain (Polygon Amoy in production, a local chain in the demo), a git witness, OpenTimestamps; tamper evidence shown on the admin audit page |
+| Audit log and anchoring | Hash chain, signed Merkle checkpoints, anchoring on an EVM chain (Polygon Amoy in production, a local chain in the demo), a git witness, OpenTimestamps; the admin audit page checks the log against the stored checkpoints and against the newest head on the public witness, so deleting the stored checkpoints does not hide a rewrite |
 | Patient portal | Records, access log with plain-language reasons, "I do not recognise this", in-browser receipt verification, consent withdrawal, data download (JSON and FHIR), push notification opt-in |
 | FHIR | R4 export following the NRCeS ABDM profiles, validated offline with the HAPI validator. Not ABDM certified |
 | Security | Row level security per clinic in Postgres, role-based task views, append-only audit table, encryption of notes and TOTP secrets, CSP and security headers. OWASP ASVS level 1 checklist and threat model in `docs/` |
@@ -79,13 +79,34 @@ Weaknesses reported with the results: absolute recall is modest (about one attac
 at five alerts a day), alerts come about a day after the access, and for careless attackers
 simple rules do as well as E2D.
 
+## Live demo
+
+Since 31 October 2026 the app runs as a public demo with synthetic data only: the web app at
+https://app.vaaniprashar.tech (Cloudflare Pages) and the API at https://api.vaaniprashar.tech (an
+Azure VM and Azure PostgreSQL in East Asia). Checkpoints are anchored on Polygon Amoy, published
+to the public GitHub repository vaani1127/healthsaathi-witness and stamped with OpenTimestamps. A
+synthetic activity bot makes visits during clinic hours so the log keeps growing. Set-up steps
+are in `docs/RUNBOOK.md`.
+
+## Anchoring and overhead study (P16)
+
+Every result is a committed file written by a script; no numbers are typed by hand.
+
+| Part | Script | Results |
+|---|---|---|
+| Local 4-validator Besu QBFT network, 200 anchors | `make besu-bench` (`hs_demo.besu`) | `experiments/results/anchoring/besu` |
+| Receipt check time in the browser (laptop, Android phone) | `/bench/receipt` page | `experiments/results/anchoring/browser` |
+| Which check catches a rewritten log | `make tamper-study` | `experiments/results/anchoring/tamper/detection.json` |
+| Latency with and without access recording, both run orders | `make load-run`, `make load-run-reversed`, `python -m e2d_experiments.load` | `experiments/results/load`, `paper/tables/load_overhead.tex` |
+| Rewrite window and gas on the live demo | `python -m e2d_experiments.anchoring` | after the two-week snapshot, around 15 November 2026 |
+
 ## What remains
 
-- Hosting: deploy to Azure for Students and Cloudflare Pages, fund the Polygon Amoy wallet,
-  create the public GitHub witness repository and turn on OpenTimestamps. These need accounts
-  and secrets that only the project owner can create.
+- Anchoring study: take the two-week snapshot of the live demo and write its tables.
 - Paper: not started. A fuller literature search (Google Scholar and the ACM Digital Library) is
   needed before writing the related work and the novelty claim.
+- Hosting after the Azure Free Trial ends (about 30 November 2026): move to Azure for Students,
+  upgrade, or take the demo offline. This is the project owner's decision.
 - Smaller items: password recovery for staff, a password strength meter, and a 12-character
   minimum password (the specification currently says 10).
 

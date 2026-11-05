@@ -166,7 +166,13 @@ takes up to a minute.
 
 ## Anchoring
 
-- Status: Clinic admin, "Audit log" tab, or `GET /api/v1/audit/status`.
+- Status: Clinic admin, "Audit log" tab, or `GET /api/v1/audit/status`. The page checks the
+  hash chain, the log against the stored checkpoints, and the log against the newest head on the
+  witness (`WITNESS_DIR`, or `WITNESS_REPO` read through the GitHub API and cached for 5 minutes).
+  "Fail" on the witness row with no other failure means the rows were rewritten and the stored
+  checkpoints deleted. "Skipped" there means nothing is published yet or GitHub could not be read.
+- Full auditor check against every published head:
+  `python -m app.scripts.verify_witness <clinic-id> --repo <owner>/healthsaathi-witness`.
 - Manual run: Actions, "anchor", "Run workflow"; or on the VM
   `docker compose -f /opt/healthsaathi/docker-compose.prod.yml exec api python -m app.anchor.job`.
 - The worker runs the job itself if no checkpoint or anchor attempt happened for

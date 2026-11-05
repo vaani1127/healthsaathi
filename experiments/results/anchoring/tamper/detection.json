@@ -1,11 +1,11 @@
 {
-  "run_at": "2026-11-02T09:38:43.411445+00:00",
+  "run_at": "2026-11-04T18:12:07.244892+00:00",
   "setup": "local anvil chain and local git witness; 3 checkpoints of 4 events anchored and published before the attack",
   "results": {
     "control": {
       "audit_page": {
         "detected": false,
-        "detail": "log matches stored checkpoints"
+        "detail": "log matches stored checkpoints and the witness"
       },
       "next_checkpoint": {
         "detected": false,
@@ -40,8 +40,8 @@
     },
     "events_and_checkpoints": {
       "audit_page": {
-        "detected": false,
-        "detail": "log matches stored checkpoints"
+        "detected": true,
+        "detail": "the log no longer matches the head published on the witness at size 18: the log's root differs from the published head"
       },
       "next_checkpoint": {
         "detected": false,

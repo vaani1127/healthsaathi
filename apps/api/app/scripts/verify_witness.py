@@ -6,58 +6,22 @@
 Each published head must carry a valid signature by the clinic key, and the log in the database
 must still have the same Merkle root at the head's size. A database owner who rewrote audit rows
 and deleted the stored checkpoints is caught here, because the published heads cannot be changed.
+The admin audit page runs the same check against the newest head (`app.anchor.witness_check`).
 Reads the database as the anchor job role; prints one line per head and exits 1 on any mismatch.
 """
 
 import argparse
 import asyncio
-import json
 import sys
 import uuid
 from pathlib import Path
-from typing import Any
-
-import httpx
 
 from app.anchor.job import JOB_ROLE
+from app.anchor.witness_check import heads_from_folder, heads_from_github
 from app.core.db import TenantContext, get_engine, tenant_session
 from app.ledger.checkpoint import LedgerIntegrityError, clinic_signing_key, load_tree
 from e2d_core.ledger import public_key_bytes
-from e2d_core.ledger.sth import TreeHead
 from e2d_core.ledger.witness import HeadCheck, PublishedHead, check_log
-
-GITHUB_API = "https://api.github.com"
-
-
-def parse(document: dict[str, Any]) -> PublishedHead:
-    return PublishedHead(
-        TreeHead.from_json(document["sth"]),
-        bytes.fromhex(document["signature"]),
-        bytes.fromhex(document["public_key"]),
-    )
-
-
-def heads_from_folder(folder: Path, clinic_id: uuid.UUID) -> list[PublishedHead]:
-    files = sorted((folder / "witness" / str(clinic_id)).glob("*.json"))
-    return [parse(json.loads(f.read_text(encoding="utf-8"))) for f in files]
-
-
-def heads_from_github(repo: str, clinic_id: uuid.UUID, branch: str = "main") -> list[PublishedHead]:
-    """The public contents API; no token needed for a public witness repository."""
-    with httpx.Client(timeout=30) as client:
-        listing = client.get(
-            f"{GITHUB_API}/repos/{repo}/contents/witness/{clinic_id}", params={"ref": branch}
-        )
-        if listing.status_code == 404:
-            return []
-        listing.raise_for_status()
-        heads = []
-        for item in listing.json():
-            if item["name"].endswith(".json"):
-                raw = client.get(item["download_url"])
-                raw.raise_for_status()
-                heads.append(parse(raw.json()))
-    return heads
 
 
 async def verify(clinic_id: uuid.UUID, heads: list[PublishedHead]) -> list[HeadCheck]:

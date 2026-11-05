@@ -633,6 +633,7 @@
       "none": "None yet",
       "chain": "Hash chain intact",
       "consistency": "Log matches earlier checkpoints",
+      "witnessCheck": "Log matches the newest checkpoint on the public witness",
       "root": "Root",
       "status": {
         "pending": "Pending",
@@ -664,6 +665,7 @@
       "openCommit": "Open commit",
       "problemChain": "FAIL: the audit log hash chain is broken. A stored event was changed or removed.",
       "problemConsistency": "FAIL: the audit log no longer matches its signed checkpoint.",
+      "problemWitness": "FAIL: the audit log no longer matches a checkpoint published on the public witness. Events were changed, and the stored checkpoints may have been deleted to hide it.",
       "technical": "Technical detail"
     },
     "alerts": {

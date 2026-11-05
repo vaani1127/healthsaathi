@@ -75,8 +75,9 @@ function BackendRow({ backend }: { backend: Backend }) {
   );
 }
 
-/** SPEC 9 audit page: latest signed checkpoint, hash chain and consistency checks, and the real
- * state of every witness, including the ones that are not configured here. */
+/** SPEC 9 audit page: latest signed checkpoint, hash chain and consistency checks, the log against
+ * the newest head on the public witness (catches a rewrite whose stored checkpoints were deleted),
+ * and the real state of every witness, including the ones that are not configured here. */
 export function AuditStatus() {
   const { t } = useTranslation();
   const status = useQuery({
@@ -102,7 +103,13 @@ export function AuditStatus() {
           <>
             {data.problem && (
               <Alert tone="error" data-testid="audit-problem">
-                <p>{data.chain_ok ? t("admin.audit.problemConsistency") : t("admin.audit.problemChain")}</p>
+                <p>
+                  {!data.chain_ok
+                    ? t("admin.audit.problemChain")
+                    : data.consistency_ok === false
+                      ? t("admin.audit.problemConsistency")
+                      : t("admin.audit.problemWitness")}
+                </p>
                 <details className="mt-1 text-xs">
                   <summary>{t("admin.audit.technical")}</summary>
                   <span className="font-mono">{data.problem}</span>
@@ -123,6 +130,7 @@ export function AuditStatus() {
               </dd>
               <Check ok={data.chain_ok} label={t("admin.audit.chain")} testId="check-chain" />
               <Check ok={data.consistency_ok} label={t("admin.audit.consistency")} testId="check-consistency" />
+              <Check ok={data.witness_ok} label={t("admin.audit.witnessCheck")} testId="check-witness" />
             </dl>
             {data.sth && (
               <p className="break-all font-mono text-xs text-muted-foreground">

@@ -245,6 +245,9 @@ def test_tamper_table_from_the_committed_study() -> None:
     text = report.tamper_table(data)
     lines = {line.split(" & ")[0]: line for line in text.splitlines() if " & " in line}
     # Columns: no attack, rows rewritten, rows rewritten and checkpoints deleted.
-    assert lines["Admin audit page"].endswith("-- & caught & -- \\\\")
+    # The audit page also reads the newest published head, so deleting checkpoints does not hide
+    # the rewrite from it; the next checkpoint only compares with stored checkpoints.
+    assert lines["Admin audit page"].endswith("-- & caught & caught \\\\")
+    assert lines["Next checkpoint"].endswith("-- & caught & -- \\\\")
     assert lines["Root on chain"].endswith("-- & caught & caught \\\\")
     assert lines[r"Published heads (verify\_witness)"].endswith("-- & caught & caught \\\\")
