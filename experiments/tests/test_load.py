@@ -34,8 +34,25 @@ def test_table_compares_both_variants_per_endpoint(tmp_path: Path) -> None:
     )
     out = load.write(tmp_path, tmp_path / "tables")
     text = out.read_text(encoding="utf-8")
-    assert "nurse chart & With recording & 100 & 0 & 80 & 200" in text
-    assert "nurse chart & Without recording & 100 & 0 & 40 & 90" in text
+    assert "nurse chart & With recording & Recording first & 100 & 0 & 80 & 200" in text
+    assert "nurse chart & Without recording & Recording first & 100 & 0 & 40 & 90" in text
     assert "Aggregated" not in text
-    assert "API memory (MiB), with recording &  &  &  & 310 & 310" in text
+    assert "API memory (MiB) & With recording & Recording first &  &  & 310 & 310" in text
     assert "10 simulated users for 240s on Azure test VM" in text
+
+
+def test_reversed_pair_is_shown_next_to_the_first(tmp_path: Path) -> None:
+    (tmp_path / "recording_stats.csv").write_text(stats_csv(80, 200), encoding="utf-8")
+    (tmp_path / "no-recording_stats.csv").write_text(stats_csv(40, 90), encoding="utf-8")
+    (tmp_path / "recording_reversed_stats.csv").write_text(stats_csv(75, 190), encoding="utf-8")
+    (tmp_path / "no-recording_reversed_stats.csv").write_text(stats_csv(41, 95), encoding="utf-8")
+    (tmp_path / "no-recording_reversed_memory.txt").write_text("60MiB / 1GiB\n", encoding="utf-8")
+    text = load.write(tmp_path, tmp_path / "tables").read_text(encoding="utf-8")
+    rows = [line for line in text.splitlines() if line.startswith("nurse chart")]
+    assert rows == [
+        "nurse chart & With recording & Recording first & 100 & 0 & 80 & 200 \\\\",
+        "nurse chart & With recording & Recording second & 100 & 0 & 75 & 190 \\\\",
+        "nurse chart & Without recording & Recording first & 100 & 0 & 40 & 90 \\\\",
+        "nurse chart & Without recording & Recording second & 100 & 0 & 41 & 95 \\\\",
+    ]
+    assert "API memory (MiB) & Without recording & Recording second &  &  & 60 & 60" in text

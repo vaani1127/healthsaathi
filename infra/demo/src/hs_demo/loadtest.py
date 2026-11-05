@@ -2,21 +2,26 @@
 
     python -m hs_demo.loadtest bench-db     # make load-bench-db: create and seed healthsaathi_bench
     python -m hs_demo.loadtest run          # make load-run: both variants, results copied back
+    python -m hs_demo.loadtest run --reversed   # make load-run-reversed: no-recording first
+    python -m hs_demo.loadtest clean        # make load-clean: remove the copy and its database
 
 The copy is a second API container on the VM (`hs-bench`, port 8100 on localhost only) with
 APP_ENV=test and its own database `healthsaathi_bench` on the same server, seeded with the demo
 clinics. It runs twice: with recording, then with BENCHMARK_SKIP_RECORDING=true, which the API
-refuses outside APP_ENV=test. The live API and database are never switched. Locust runs on the VM
-too, so the network is not in the numbers; both runs share the VM with the live demo.
+refuses outside APP_ENV=test. `--reversed` runs the same two variants in the other order and saves
+them with a `_reversed` suffix, to show how much of the difference comes from run order. The live
+API and database are never switched. Locust runs on the VM too, so the network is not in the
+numbers; both runs share the VM with the live demo.
 
 Reaching the database from this computer goes through an SSH tunnel on localhost:15432 (Cloudflare
 WARP blocks port 5432): `ssh -L 15432:<db host>:5432 azureuser@<vm>`. Results go to
-experiments/results/load/<variant>/.
+experiments/results/load/<variant>[_reversed]_*.
 """
 
 import asyncio
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -144,10 +149,18 @@ def bench_env(values: dict[str, str]) -> dict[str, str]:
     }
 
 
-def run() -> None:
+def run_order(reverse: bool) -> tuple[str, list[tuple[str, str]]]:
+    """The file suffix and the (variant, switch) pairs in the order they run."""
+    pairs = list(VARIANTS.items())
+    return ("_reversed", pairs[::-1]) if reverse else ("", pairs)
+
+
+def run(reverse: bool = False) -> None:
+    suffix, order = run_order(reverse)
     values = hosted.read_values()
     target = f"{values['VM_USER']}@{values['VM_HOST']}"
-    ssh(target, f"mkdir -p {REMOTE} && chmod 700 {REMOTE}")
+    # A fresh out/ so only this run's files are copied back.
+    ssh(target, f"mkdir -p {REMOTE} && chmod 700 {REMOTE} && sudo rm -rf {REMOTE}/out")
     staging = BENCH_STATE / "upload"
     staging.mkdir(parents=True, exist_ok=True)
     (staging / "logins.json").write_bytes(json.dumps(load_config()).encode())
@@ -169,17 +182,18 @@ def run() -> None:
     )
     if "switch present" not in ssh(target, f"{probe} 2>/dev/null || true"):
         raise SystemExit(f"healthsaathi-api:{tag} has no BENCHMARK_SKIP_RECORDING; deploy first")
-    for variant, skip in VARIANTS.items():
+    for variant, skip in order:
         say(f"{variant}: {USERS} users for {DURATION} against the copy of {tag}")
-        say(ssh(target, remote_script(variant, skip, tag)).strip())
+        say(ssh(target, remote_script(f"{variant}{suffix}", skip, tag)).strip())
     RESULTS.mkdir(parents=True, exist_ok=True)
     hosted.run(
         [tool("scp"), *hosted.ssh_options(), "-r", f"{target}:{REMOTE}/out/.", str(RESULTS)],
         ROOT,
         env,
     )
-    (RESULTS / "setup.txt").write_text(
+    (RESULTS / f"setup{suffix}.txt").write_text(
         f"api_image=healthsaathi-api:{tag}\nlocust={LOCUST_IMAGE}\nusers={USERS}\n"
+        f"order={','.join(v for v, _ in order)}\n"
         f"spawn_rate={SPAWN_RATE}\nduration={DURATION}\nvm=Azure {values.get('AZURE_LOCATION')}"
         " Standard_B2ats_v2 (2 vCPU, 1 GB), shared with the live demo\n",
         encoding="utf-8",
@@ -187,12 +201,37 @@ def run() -> None:
     say(f"results in {RESULTS}")
 
 
+async def drop_database(admin_url: str) -> None:
+    url = asyncpg_url(admin_url)
+    engine = create_async_engine(url, isolation_level="AUTOCOMMIT", **engine_options(url))
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text(f'DROP DATABASE IF EXISTS "{BENCH_DB}" WITH (FORCE)'))
+    finally:
+        await engine.dispose()
+
+
+def clean() -> None:
+    """Remove the benchmark copy: its container, its files on the VM, its database, local state."""
+    values = hosted.read_values()
+    target = f"{values['VM_USER']}@{values['VM_HOST']}"
+    ssh(target, f"sudo docker rm -f hs-bench >/dev/null 2>&1 || true; sudo rm -rf {REMOTE}")
+    say(f"removed hs-bench and {REMOTE} on the VM")
+    asyncio.run(drop_database(values["MIGRATOR_DATABASE_URL"].replace(db_host(values), TUNNEL)))
+    say(f"dropped database {BENCH_DB}")
+    if BENCH_STATE.exists():
+        shutil.rmtree(BENCH_STATE)
+        say(f"removed {BENCH_STATE}")
+
+
 def main(argv: list[str]) -> int:
     command = argv[0] if argv else ""
     if command == "bench-db":
         bench_db()
     elif command == "run":
-        run()
+        run(reverse="--reversed" in argv[1:])
+    elif command == "clean":
+        clean()
     else:
         raise SystemExit(__doc__)
     return 0

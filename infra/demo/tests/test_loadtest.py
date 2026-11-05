@@ -40,3 +40,14 @@ def test_each_variant_sets_the_switch_and_only_listens_on_localhost() -> None:
         # Failed requests are counted in the table, not a reason to skip the other variant.
         assert "--exit-code-on-error 0" in script
     assert loadtest.VARIANTS == {"recording": "false", "no-recording": "true"}
+
+
+def test_reversed_runs_without_recording_first_and_keeps_its_own_files() -> None:
+    assert loadtest.run_order(False) == ("", [("recording", "false"), ("no-recording", "true")])
+    assert loadtest.run_order(True) == (
+        "_reversed",
+        [("no-recording", "true"), ("recording", "false")],
+    )
+    script = loadtest.remote_script("no-recording_reversed", "true", "v9.9.9")
+    assert "--csv /load/out/no-recording_reversed" in script
+    assert "out/no-recording_reversed_memory.txt" in script

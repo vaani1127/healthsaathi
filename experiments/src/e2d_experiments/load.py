@@ -4,6 +4,8 @@
 
 Each variant (recording, no-recording) has `<variant>_stats.csv` from Locust (latency per endpoint
 in milliseconds) and `<variant>_memory.txt` (the benchmark container's memory every 5 seconds).
+The first pair ran with recording first; the pair with the `_reversed` suffix ran without
+recording first (`make load-run-reversed`). The table shows both orders.
 """
 
 import re
@@ -17,28 +19,31 @@ from e2d_experiments.export import _tabular
 ROOT = Path(__file__).resolve().parents[3]
 RESULTS = ROOT / "experiments" / "results" / "load"
 VARIANTS = {"recording": "With recording", "no-recording": "Without recording"}
+ORDERS = {"": "Recording first", "_reversed": "Recording second"}
 UNITS = {"KiB": 1 / 1024, "MiB": 1.0, "GiB": 1024.0, "B": 1 / 1024 / 1024}
 
 
 def endpoint_stats(folder: Path) -> pl.DataFrame:
     frames = []
-    for variant in VARIANTS:
-        path = folder / f"{variant}_stats.csv"
-        if not path.exists():
-            continue
-        stats = pl.read_csv(path).filter(pl.col("Name") != "Aggregated")
-        frames.append(
-            stats.select(
-                pl.lit(variant).alias("variant"),
-                pl.col("Name").alias("endpoint"),
-                pl.col("Request Count").alias("requests"),
-                pl.col("Failure Count").alias("failures"),
-                pl.col("50%").cast(pl.Float64).alias("p50_ms"),
-                pl.col("95%").cast(pl.Float64).alias("p95_ms"),
-                pl.col("Requests/s").cast(pl.Float64).alias("rps"),
-            )
-        )
+    for order in ORDERS:
+        for variant in VARIANTS:
+            path = folder / f"{variant}{order}_stats.csv"
+            if path.exists():
+                frames.append(_stats(pl.read_csv(path), variant, order))
     return pl.concat(frames) if frames else pl.DataFrame()
+
+
+def _stats(stats: pl.DataFrame, variant: str, order: str) -> pl.DataFrame:
+    return stats.filter(pl.col("Name") != "Aggregated").select(
+        pl.lit(variant).alias("variant"),
+        pl.lit(order).alias("order"),
+        pl.col("Name").alias("endpoint"),
+        pl.col("Request Count").alias("requests"),
+        pl.col("Failure Count").alias("failures"),
+        pl.col("50%").cast(pl.Float64).alias("p50_ms"),
+        pl.col("95%").cast(pl.Float64).alias("p95_ms"),
+        pl.col("Requests/s").cast(pl.Float64).alias("rps"),
+    )
 
 
 def memory_mib(text: str) -> list[float]:
@@ -51,46 +56,58 @@ def memory_mib(text: str) -> list[float]:
     return values
 
 
-def memory_stats(folder: Path) -> dict[str, tuple[float, float]]:
+def memory_stats(folder: Path) -> dict[tuple[str, str], tuple[float, float]]:
+    """(variant, order) to the median and peak memory in MiB."""
     out = {}
-    for variant in VARIANTS:
-        path = folder / f"{variant}_memory.txt"
-        if path.exists():
-            values = memory_mib(path.read_text(encoding="utf-8"))
-            if values:
-                ordered = sorted(values)
-                out[variant] = (ordered[len(ordered) // 2], ordered[-1])
+    for order in ORDERS:
+        for variant in VARIANTS:
+            path = folder / f"{variant}{order}_memory.txt"
+            if path.exists():
+                values = memory_mib(path.read_text(encoding="utf-8"))
+                if values:
+                    ordered = sorted(values)
+                    out[(variant, order)] = (ordered[len(ordered) // 2], ordered[-1])
     return out
 
 
-def table(stats: pl.DataFrame, memory: dict[str, tuple[float, float]], setup: str) -> str:
+def table(
+    stats: pl.DataFrame, memory: dict[tuple[str, str], tuple[float, float]], setup: str
+) -> str:
     rows = []
     for endpoint in sorted(stats["endpoint"].unique().to_list()):
         for variant, label in VARIANTS.items():
-            row = stats.filter((pl.col("variant") == variant) & (pl.col("endpoint") == endpoint))
-            if row.is_empty():
-                continue
-            r = row.to_dicts()[0]
-            rows.append(
-                [
-                    endpoint,
-                    label,
-                    f"{r['requests']:,}",
-                    f"{r['failures']:,}",
-                    f"{r['p50_ms']:.0f}",
-                    f"{r['p95_ms']:.0f}",
-                ]
-            )
+            for order, order_label in ORDERS.items():
+                row = stats.filter(
+                    (pl.col("variant") == variant)
+                    & (pl.col("order") == order)
+                    & (pl.col("endpoint") == endpoint)
+                )
+                if row.is_empty():
+                    continue
+                r = row.to_dicts()[0]
+                rows.append(
+                    [
+                        endpoint,
+                        label,
+                        order_label,
+                        f"{r['requests']:,}",
+                        f"{r['failures']:,}",
+                        f"{r['p50_ms']:.0f}",
+                        f"{r['p95_ms']:.0f}",
+                    ]
+                )
     for variant, label in VARIANTS.items():
-        if variant in memory:
-            median, peak = memory[variant]
-            rows.append(
-                [f"API memory (MiB), {label.lower()}", "", "", "", f"{median:.0f}", f"{peak:.0f}"]
-            )
-    header = ["Endpoint", "Variant", "Requests", "Failures", "P50 (ms)", "P95 (ms)"]
+        for order, order_label in ORDERS.items():
+            if (variant, order) in memory:
+                median, peak = memory[(variant, order)]
+                rows.append(
+                    ["API memory (MiB)", label, order_label, "", "", f"{median:.0f}", f"{peak:.0f}"]
+                )
+    header = ["Endpoint", "Variant", "Run order", "Requests", "Failures", "P50 (ms)", "P95 (ms)"]
     caption = (
         "Latency with and without access recording (explanation and audit logging), on a copy "
-        f"of the API with its own database. Memory rows: median and peak. {setup}"
+        "of the API with its own database, in two run pairs: recording first, then recording "
+        f"second. Memory rows: median and peak. {setup}"
     )
     return _tabular(header, rows, caption, "tab:load-overhead")
 
