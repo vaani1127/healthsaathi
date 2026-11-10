@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Health shows the deployed release
+
+- `GET /api/v1/health` reports `APP_VERSION`, which the deploy build sets to the git tag
+  (`--build-arg APP_VERSION=$TAG` in `deploy.yml`, `ARG`/`ENV` in `infra/api.Dockerfile`). It
+  falls back to the package version (0.1.0) when unset, as in local runs, CI and staging. New
+  variable in `.env.example`. Tests: `tests/test_health.py`.
+- Runbook: the manual anchor and detection commands on the VM now set `HS_TAG`, without which
+  Docker Compose refuses to read the compose file.
+
 ### Audit page checks the public witness
 
 - The admin audit page (`GET /api/v1/audit/status`) now also checks the log against the newest

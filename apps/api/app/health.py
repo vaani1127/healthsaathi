@@ -8,6 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import __version__
+from app.core.config import get_settings
 from app.core.db import get_session
 
 router = APIRouter(tags=["health"])
@@ -26,7 +27,7 @@ class ReadyResponse(BaseModel):
 
 @router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
-    return HealthResponse(status="ok", version=__version__)
+    return HealthResponse(status="ok", version=get_settings().app_version or __version__)
 
 
 @router.get(

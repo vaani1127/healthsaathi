@@ -101,7 +101,7 @@ jobs:
       - name: build the API image
         if: env.VM_HOST != ''
         run: |
-          docker build -f infra/api.Dockerfile --target prod -t "healthsaathi-api:$TAG" .
+          docker build -f infra/api.Dockerfile --target prod --build-arg APP_VERSION="$TAG" \n            -t "healthsaathi-api:$TAG" .
           docker save "healthsaathi-api:$TAG" | gzip >"healthsaathi-api-$TAG.tar.gz"
       - name: set up SSH
         if: env.VM_HOST != ''

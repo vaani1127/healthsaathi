@@ -19,6 +19,9 @@ WORKDIR /repo/apps/api
 
 FROM base AS prod
 RUN uv sync --frozen --no-dev --package healthsaathi-api
+# The release tag, from the deploy build (--build-arg APP_VERSION=v0.1.4); /api/v1/health shows it.
+ARG APP_VERSION=
+ENV APP_VERSION=${APP_VERSION}
 COPY apps/api apps/api
 RUN useradd --system --uid 10001 app   && mkdir -p /var/lib/healthsaathi/models   && chown app /var/lib/healthsaathi/models
 ENV PATH="/repo/.venv/bin:$PATH"

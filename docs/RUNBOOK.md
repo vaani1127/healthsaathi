@@ -173,8 +173,10 @@ takes up to a minute.
   checkpoints deleted. "Skipped" there means nothing is published yet or GitHub could not be read.
 - Full auditor check against every published head:
   `python -m app.scripts.verify_witness <clinic-id> --repo <owner>/healthsaathi-witness`.
-- Manual run: Actions, "anchor", "Run workflow"; or on the VM
-  `docker compose -f /opt/healthsaathi/docker-compose.prod.yml exec api python -m app.anchor.job`.
+- Manual run: Actions, "anchor", "Run workflow"; or on the VM, in `/opt/healthsaathi`:
+  `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml exec -T api python -m app.anchor.job`.
+  The compose file needs `HS_TAG` (the deployed tag, kept in `current_tag`) or Docker Compose
+  refuses to read it.
 - The worker runs the job itself if no checkpoint or anchor attempt happened for
   `ANCHOR_FALLBACK_MINUTES`.
 - Registering a clinic: two of the three registry admins each run
@@ -190,8 +192,8 @@ takes up to a minute.
 - The worker scores every clinic's accesses each `DETECT_INTERVAL_SECONDS` and refits models
   once a day (models in the `models` volume, `MODEL_DIR`). Before the first fit, and for clinics
   with few accesses, the rules baseline or the global model is used.
-- Run by hand on the VM:
-  `docker compose -f /opt/healthsaathi/docker-compose.prod.yml exec worker python -m app.detect.job`
+- Run by hand on the VM, in `/opt/healthsaathi`:
+  `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml exec -T worker python -m app.detect.job`
   (add `--fit` to refit now).
 - Every alert stores `model_version` (sha256 of the model file) and `policy_version`.
 

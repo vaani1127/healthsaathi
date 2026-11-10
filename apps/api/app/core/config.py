@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     )
 
     env: Literal["local", "test", "staging", "prod"] = Field(default="local", alias="APP_ENV")
+    # The deployed release (the git tag), set in the image by the deploy build. Unset: the
+    # package version.
+    app_version: str | None = Field(default=None, alias="APP_VERSION")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     database_url: str = Field(
         default="postgresql+asyncpg://healthsaathi:healthsaathi@localhost:5432/healthsaathi",
@@ -112,6 +115,7 @@ class Settings(BaseSettings):
     email_outbox_dir: str | None = Field(default=None, alias="EMAIL_OUTBOX_DIR")
 
     @field_validator(
+        "app_version",
         "cookie_domain",
         "brevo_api_key",
         "storage_dir",
