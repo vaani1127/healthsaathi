@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Anchoring study by period
+
+- `configs/anchoring.yaml` defines three study periods: timer working (31 Oct 17:20 to 5 Nov
+  06:06 UTC; the timer's last run submitted its anchors 06:05:23 to 06:05:40), timer stalled (to
+  10 Nov 18:47:10 UTC) and after the fix (from the v0.1.5 worker start, 10 Nov 18:47:10 UTC).
+- `python -m e2d_experiments.anchoring cadence` (`anchoring/cadence.py`): anchors per clinic,
+  backend and day in clinic time, and the gaps between consecutive anchors (all pairs, and pairs
+  inside one OPD session), by period, as CSV next to the snapshot. Reads only the snapshot's
+  receipts: counts and times, no payloads.
+- The report splits the rewrite-window and parts tables by period and adds
+  `paper/tables/anchoring_cadence.tex`. Bench (Besu) anchors get their own "Bench run" row.
+- `deploy.yml`: the image build command had a literal backslash-n from the APP_VERSION change,
+  so the first v0.1.5 build failed before deploying anything; fixed, and v0.1.5 was re-tagged on
+  the fixed commit.
+
 ### Anchor timer cannot freeze
 
 - From 5 November 2026 06:05 UTC until the worker restarted on 10 November, the worker's

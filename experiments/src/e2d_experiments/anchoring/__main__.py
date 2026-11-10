@@ -4,16 +4,17 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 from omegaconf import OmegaConf
 
-from e2d_experiments.anchoring import bench, collect, report
+from e2d_experiments.anchoring import bench, cadence, collect, report
 
 ROOT = Path(__file__).resolve().parents[4]
 CONFIG = ROOT / "experiments" / "configs" / "anchoring.yaml"
 WEB_BENCH = ROOT / "apps" / "web" / "public" / "bench" / "receipts.json"
-STEPS = ["snapshot", "enrich", "bench", "bench-receipts", "report"]
+STEPS = ["snapshot", "enrich", "bench", "bench-receipts", "cadence", "report"]
 
 
 def chain_probe(folder: Path) -> dict[str, str] | None:
@@ -31,6 +32,27 @@ def chain_probe(folder: Path) -> dict[str, str] | None:
     row = rows.row(-1, named=True)
     clinic = row["clinic_id"].replace("-", "")
     return {"chain": "amoy", "clinic_id_bytes32": "0x" + clinic + "0" * 32, "tx_ref": row["tx_ref"]}
+
+
+def write_cadence(folder: Path, cfg: Any) -> list[Path]:
+    """Anchors per day and gaps between anchors by study period, from the snapshot's receipts
+    (counts and times only), as CSV next to the snapshot."""
+    receipts = pl.read_parquet(folder / "receipts.parquet")
+    periods = cadence.periods_from_config(cfg.periods)
+    tz = str(cfg.clinic_timezone)
+    sessions = cadence.sessions_from_config(cfg.opd_sessions)
+    out = folder.parent / "cadence"
+    out.mkdir(parents=True, exist_ok=True)
+    per_day = cadence.anchors_per_day(receipts, tz, periods)
+    gaps = cadence.anchor_gaps(receipts, periods, tz, sessions)
+    frames = {
+        "anchors_per_day.csv": per_day,
+        "daily_summary.csv": cadence.daily_summary(per_day),
+        "gap_summary.csv": cadence.gap_summary(gaps),
+    }
+    for name, frame in frames.items():
+        frame.write_csv(out / name)
+    return [out / name for name in frames]
 
 
 def main(argv: list[str]) -> int:
@@ -67,10 +89,19 @@ def main(argv: list[str]) -> int:
         WEB_BENCH.write_bytes((json.dumps(data, indent=1) + "\n").encode())
         probe = data["chain_probe"] is not None
         print(f"wrote {WEB_BENCH.relative_to(ROOT)} (chain probe: {probe})")
+    elif args.step == "cadence":
+        for path in write_cadence(folder, cfg):
+            print(f"wrote {path}")
     else:
         gwei = [float(g) for g in cfg.mainnet_gwei]
         for path in report.write(
-            folder, ROOT / "paper" / "tables", ROOT / "paper" / "figures", gwei
+            folder,
+            ROOT / "paper" / "tables",
+            ROOT / "paper" / "figures",
+            gwei,
+            cadence.periods_from_config(cfg.periods),
+            str(cfg.clinic_timezone),
+            cadence.sessions_from_config(cfg.opd_sessions),
         ):
             print(f"wrote {path.relative_to(ROOT)}")
     return 0

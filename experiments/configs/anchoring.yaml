@@ -7,6 +7,32 @@ snapshot_dir: experiments/results/anchoring/live
 # The prod-demo v0.1.0 deploy finished at this time.
 since: "2026-10-31T17:20:00+00:00"
 
+# Study periods, reported separately (docs/CHANGELOG.md, "Anchor timer cannot freeze"). The
+# worker's 15 minute anchor timer made its last run on 2026-11-05 (anchors submitted 06:05:23 to
+# 06:05:40 UTC); the next one, due about 06:20, never came, so the stall starts at 06:06:00. Only
+# the GitHub schedule anchored until v0.1.5 fixed the timer; the v0.1.5 worker started at
+# 2026-11-10 18:47:10 UTC. An event or anchor belongs to the period its time falls in.
+periods:
+  - name: timer-working
+    label: Timer working
+    start: "2026-10-31T17:20:00+00:00"
+    end: "2026-11-05T06:06:00+00:00"
+  - name: stalled
+    label: Timer stalled
+    start: "2026-11-05T06:06:00+00:00"
+    end: "2026-11-10T18:47:10+00:00"
+  - name: clean
+    label: After the fix (v0.1.5)
+    start: "2026-11-10T18:47:10+00:00"
+    end: null
+
+# OPD sessions of the demo activity bot (app/scripts/demo_activity.py), in clinic time. Gaps
+# between anchors are also reported for pairs inside one session.
+clinic_timezone: Asia/Kolkata
+opd_sessions:
+  weekdays: ["09:30-13:30", "17:00-20:00"]
+  sunday: ["09:30-12:30"]
+
 rpc:
   amoy: https://polygon-amoy-bor-rpc.publicnode.com
   besu: http://127.0.0.1:8545

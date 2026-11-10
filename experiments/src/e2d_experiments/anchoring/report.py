@@ -1,7 +1,7 @@
 """LaTeX tables and figures for the anchoring study, from the committed snapshot and bench files."""
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime, time
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +11,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import polars as pl
 
-from e2d_experiments.anchoring import analysis
+from e2d_experiments.anchoring import analysis, cadence
 from e2d_experiments.export import _tabular
 
 BACKEND_NAMES = {
@@ -38,9 +38,21 @@ def _period(start: datetime | None, end: datetime | None) -> str:
     return f"{start:%d %b %Y} to {end:%d %b %Y}"
 
 
-def windows_table(summary: pl.DataFrame, period: str) -> str:
+BENCH_PERIOD = "bench"
+
+
+def _in_period_order(summary: pl.DataFrame, labels: dict[str, str]) -> list[dict[str, Any]]:
+    """Rows in the order the periods are configured, then by backend; rows outside every period
+    (null) are left out."""
+    order = {name: i for i, name in enumerate(labels)}
+    rows = [r for r in summary.to_dicts() if r["period"] in order]
+    return sorted(rows, key=lambda r: (order[r["period"]], r["backend"]))
+
+
+def windows_table(summary: pl.DataFrame, labels: dict[str, str], span: str) -> str:
     rows = [
         [
+            labels[r["period"]],
             _name(r["backend"]),
             f"{r['events']:,}",
             f"{r['censored']:,}",
@@ -49,33 +61,81 @@ def windows_table(summary: pl.DataFrame, period: str) -> str:
             _num(r["p95_min"]),
             _num(r["max_min"]),
         ]
-        for r in summary.to_dicts()
+        for r in _in_period_order(summary, labels)
     ]
-    header = ["Backend", "Events", "Not yet covered", "Median", "P90", "P95", "Max"]
+    header = ["Period", "Backend", "Events", "Not yet covered", "Median", "P90", "P95", "Max"]
     caption = (
         "Rewrite window per witness in minutes: from an audit event being written until a final "
-        f"witness record covers it. Live prod-demo, {period}."
+        f"witness record covers it, by study period (event time). Live prod-demo, {span}."
     )
     return _tabular(header, rows, caption, "tab:rewrite-window")
 
 
-def parts_table(summary: pl.DataFrame, period: str) -> str:
+def parts_table(summary: pl.DataFrame, labels: dict[str, str], span: str) -> str:
     rows = [
         [
+            labels[r["period"]],
             _name(r["backend"]),
             f"{r['checkpoints']:,}",
             _num(r["job_delay_median_min"]),
             _num(r["finality_median_min"]),
             _num(r["finality_p95_min"]),
         ]
-        for r in summary.to_dicts()
+        for r in _in_period_order(summary, labels)
     ]
-    header = ["Backend", "Checkpoints", "Job delay (median)", "Finality (median)", "Finality (P95)"]
+    header = [
+        "Period",
+        "Backend",
+        "Checkpoints",
+        "Job delay (median)",
+        "Finality (median)",
+        "Finality (P95)",
+    ]
     caption = (
         "Parts of the rewrite window in minutes: delay of the anchor run after its 15 minute slot, "
-        f"and time from the signed checkpoint to the final witness record. {period}."
+        "and time from the signed checkpoint to the final witness record, by study period "
+        f"(checkpoint time). {span}."
     )
     return _tabular(header, rows, caption, "tab:rewrite-parts")
+
+
+def cadence_table(daily: pl.DataFrame, gaps: pl.DataFrame, labels: dict[str, str]) -> str:
+    """Anchors per clinic-day and gaps between anchors, by study period (cadence.py)."""
+    gap = {(r["period"], r["backend"], r["scope"]): r for r in gaps.to_dicts()}
+    empty: dict[str, Any] = {}
+    rows = []
+    for r in _in_period_order(daily, labels):
+        key = (r["period"], r["backend"])
+        every = gap.get((*key, "all"), empty)
+        inside = gap.get((*key, "inside one OPD session"), empty)
+        rows.append(
+            [
+                labels[r["period"]],
+                _name(r["backend"]),
+                f"{r['clinic_days']:,}",
+                _num(r["median_per_day"]),
+                _num(every.get("median_min")),
+                _num(every.get("max_min")),
+                _num(inside.get("median_min")),
+                _num(inside.get("max_min")),
+            ]
+        )
+    header = [
+        "Period",
+        "Backend",
+        "Clinic-days",
+        "Anchors per day (median)",
+        "Gap median",
+        "Gap max",
+        "Gap median in OPD",
+        "Gap max in OPD",
+    ]
+    caption = (
+        "Anchoring cadence on the live demo by study period: anchors per clinic and day (clinic "
+        "time), and minutes between consecutive anchors of a clinic, for all pairs and for pairs "
+        "inside one OPD session. From e2d\\_experiments.anchoring.cadence."
+    )
+    return _tabular(header, rows, caption, "tab:anchor-cadence")
 
 
 def gas_table(summary: pl.DataFrame, mainnet_gwei: list[float]) -> str:
@@ -226,12 +286,29 @@ def window_figure(windows: pl.DataFrame, out: Path) -> None:
     plt.close(fig)
 
 
-def write(snapshot: Path, tables: Path, figures: Path, mainnet_gwei: list[float]) -> list[Path]:
+def write(
+    snapshot: Path,
+    tables: Path,
+    figures: Path,
+    mainnet_gwei: list[float],
+    periods: list[cadence.Period] | None = None,
+    clinic_timezone: str = "Asia/Kolkata",
+    sessions: dict[int, list[tuple[time, time]]] | None = None,
+) -> list[Path]:
+    """Tables and the figure. `periods` splits the live results (configs/anchoring.yaml); without
+    it the whole snapshot is one period."""
     events = pl.read_parquet(snapshot / "events.parquet")
     checkpoints = pl.read_parquet(snapshot / "checkpoints.parquet")
     receipts = pl.read_parquet(snapshot / "enriched.parquet")
-    period = _period(*analysis.study_period(events))
-    windows = analysis.event_windows(events, checkpoints, receipts)
+    span = _period(*analysis.study_period(events))
+    if periods is None:
+        start = analysis.study_period(events)[0] or datetime(1970, 1, 1, tzinfo=UTC)
+        periods = [cadence.Period("all", "Whole study", start, None)]
+    labels = {p.name: p.label for p in periods}
+    live_receipts = receipts
+    windows = cadence.with_period(
+        analysis.event_windows(events, checkpoints, receipts), "at", periods
+    )
     # The Besu bench has no live events, so it adds to finality and gas only.
     besu = snapshot.parent / "besu"
     if (besu / "enriched.parquet").exists():
@@ -241,16 +318,38 @@ def write(snapshot: Path, tables: Path, figures: Path, mainnet_gwei: list[float]
         receipts = pl.concat(
             [receipts, pl.read_parquet(besu / "enriched.parquet")], how="diagonal_relaxed"
         )
-    parts = analysis.checkpoint_parts(checkpoints, receipts)
+    # Bench anchors were sent back to back at some time; they get their own row, not a period.
+    parts = cadence.with_period(
+        analysis.checkpoint_parts(checkpoints, receipts), "signed_at", periods
+    ).with_columns(
+        pl.when(pl.col("backend").is_in(analysis.BENCH_BACKENDS))
+        .then(pl.lit(BENCH_PERIOD))
+        .otherwise(pl.col("period"))
+        .alias("period")
+    )
+    part_labels = {**labels, BENCH_PERIOD: "Bench run"}
     tables.mkdir(parents=True, exist_ok=True)
     figures.mkdir(parents=True, exist_ok=True)
     written = {
-        tables / "anchoring_windows.tex": windows_table(analysis.window_summary(windows), period),
-        tables / "anchoring_parts.tex": parts_table(analysis.parts_summary(parts), period),
+        tables / "anchoring_windows.tex": windows_table(
+            analysis.window_summary(windows), labels, span
+        ),
+        tables / "anchoring_parts.tex": parts_table(
+            analysis.parts_summary(parts), part_labels, span
+        ),
         tables / "anchoring_gas.tex": gas_table(
             analysis.gas_summary(receipts, mainnet_gwei), mainnet_gwei
         ),
     }
+    if "submitted_at" in live_receipts.columns and "clinic_id" in live_receipts.columns:
+        sessions = sessions or cadence.sessions_from_config(cadence.DEMO_SESSIONS)
+        written[tables / "anchoring_cadence.tex"] = cadence_table(
+            cadence.daily_summary(cadence.anchors_per_day(live_receipts, clinic_timezone, periods)),
+            cadence.gap_summary(
+                cadence.anchor_gaps(live_receipts, periods, clinic_timezone, sessions)
+            ),
+            labels,
+        )
     bench = snapshot.parent / "bench"
     if (bench / "proofs.parquet").exists():
         machine = (bench / "machine.txt").read_text(encoding="utf-8").strip()

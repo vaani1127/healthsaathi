@@ -87,10 +87,16 @@ def event_windows(
     return pl.concat(out)
 
 
+def _keys(frame: pl.DataFrame) -> list[str]:
+    """Group by study period too when the frame has one (cadence.with_period)."""
+    return ["period", "backend"] if "period" in frame.columns else ["backend"]
+
+
 def window_summary(windows: pl.DataFrame) -> pl.DataFrame:
     minutes = pl.col("window_s") / 60
+    keys = _keys(windows)
     return (
-        windows.group_by("backend")
+        windows.group_by(keys)
         .agg(
             pl.len().alias("events"),
             pl.col("window_s").null_count().alias("censored"),
@@ -99,8 +105,8 @@ def window_summary(windows: pl.DataFrame) -> pl.DataFrame:
             minutes.quantile(0.95, "nearest").alias("p95_min"),
             minutes.max().alias("max_min"),
         )
-        .sort("backend")
-        .select(WINDOW_COLUMNS)
+        .sort(keys)
+        .select(*keys[:-1], *WINDOW_COLUMNS)
     )
 
 
@@ -121,20 +127,22 @@ def checkpoint_parts(checkpoints: pl.DataFrame, receipts: pl.DataFrame) -> pl.Da
             .dt.total_milliseconds()
             .truediv(1000)
             .alias("finality_s"),
+            "signed_at",
         )
     )
 
 
 def parts_summary(parts: pl.DataFrame) -> pl.DataFrame:
+    keys = _keys(parts)
     return (
-        parts.group_by("backend")
+        parts.group_by(keys)
         .agg(
             pl.len().alias("checkpoints"),
             (pl.col("job_delay_s") / 60).median().alias("job_delay_median_min"),
             (pl.col("finality_s") / 60).median().alias("finality_median_min"),
             (pl.col("finality_s") / 60).quantile(0.95, "nearest").alias("finality_p95_min"),
         )
-        .sort("backend")
+        .sort(keys)
     )
 
 
