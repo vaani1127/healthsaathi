@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import httpx
 import polars as pl
 import pytest
 
@@ -153,3 +154,61 @@ def test_activity_config_takes_one_login_per_role_and_clinic() -> None:
     assert all(set(c) == {"reception", "nurse", "doctor"} for c in config["clinics"])
     # Admins and patients are never handed to the bot.
     assert "admin" not in json.dumps(config) and "patient" not in json.dumps(config)
+
+
+class FakeResponse:
+    def __init__(self, body: object) -> None:
+        self.body = body
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self) -> object:
+        return self.body
+
+
+def test_poster_balance_reads_pol_or_says_why_not(monkeypatch: pytest.MonkeyPatch) -> None:
+    address = "0x" + "1" * 40
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: FakeResponse({"result": hex(26 * 10**15)}))
+    assert hosted.poster_balance("https://rpc.test", address) == "0.0260 POL"
+    monkeypatch.setattr(
+        httpx, "post", lambda *a, **k: FakeResponse({"error": {"message": "limit"}})
+    )
+    assert hosted.poster_balance("https://rpc.test", address).startswith(
+        "could not be read (RPC error"
+    )
+
+    def down(*a: object, **k: object) -> None:
+        raise httpx.ConnectError("no route")
+
+    monkeypatch.setattr(httpx, "post", down)
+    assert hosted.poster_balance("https://rpc.test", address) == (
+        "could not be read (ConnectError: no route)"
+    )
+    assert hosted.poster_balance("", address) == "could not be read (ANCHOR_RPC_URL is not set)"
+
+
+def test_anchor_lines_per_clinic() -> None:
+    report = {
+        "clinics": {
+            "a": {
+                "name": "Clinic A",
+                "minutes_since_last_anchor": 12.4,
+                "anchors_24h": 30,
+                "backends": {"amoy": {"anchors_24h": 25}, "ots": {"anchors_24h": 5}},
+            },
+            "b": {
+                "name": "Clinic B",
+                "minutes_since_last_anchor": None,
+                "anchors_24h": 0,
+                "backends": {},
+            },
+        }
+    }
+    assert hosted.anchor_lines(report) == [
+        "Clinic A: last anchor 12 min ago, 30 anchors in the last 24 h (amoy 25, ots 5)",
+        "Clinic B: never anchored, 0 anchors in the last 24 h",
+    ]
+    assert hosted.anchor_lines("could not be read (exit 1: No module named x)") == [
+        "anchors: could not be read (exit 1: No module named x)"
+    ]

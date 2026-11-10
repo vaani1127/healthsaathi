@@ -201,12 +201,74 @@ def status() -> None:
     say(f"domain {values['DOMAIN']}, {len(REQUIRED) - len(missing)} of {len(REQUIRED)} values set")
     for key, how in missing:
         print(f"  missing {key}: {how}")
-    print(f"  poster wallet: {read_wallets()['poster']['address']}")
+    poster = read_wallets()["poster"]["address"]
+    print(f"  poster wallet: {poster}")
+    print(f"  poster balance: {poster_balance(values.get('ANCHOR_RPC_URL', ''), poster)}")
     try:
         ready = httpx.get(f"https://{values['API_DOMAIN']}/api/v1/ready", timeout=10)
         print(f"  api: HTTP {ready.status_code}")
     except httpx.HTTPError as exc:
         print(f"  api: not reachable ({type(exc).__name__})")
+    for line in anchor_lines(remote_anchor_status(values)):
+        print(f"  {line}")
+
+
+def poster_balance(rpc: str, address: str) -> str:
+    """The poster wallet's balance in POL, or why it could not be read."""
+    if not rpc:
+        return "could not be read (ANCHOR_RPC_URL is not set)"
+    request = {"jsonrpc": "2.0", "id": 1, "method": "eth_getBalance", "params": [address, "latest"]}
+    try:
+        response = httpx.post(rpc, json=request, timeout=15)
+        response.raise_for_status()
+        body = response.json()
+        if "result" not in body:
+            return f"could not be read (RPC error: {body.get('error', 'no result')})"
+        wei = int(body["result"], 16)
+    except (httpx.HTTPError, ValueError, TypeError) as exc:
+        return f"could not be read ({type(exc).__name__}: {exc})"
+    return f"{wei / 10**18:.4f} POL"
+
+
+def remote_anchor_status(values: dict[str, str]) -> dict[str, Any] | str:
+    """app.scripts.anchor_status run read-only in the API container, or why it could not be."""
+    target = f"{values['VM_USER']}@{values['VM_HOST']}"
+    command = "sudo docker exec healthsaathi-api-1 python -m app.scripts.anchor_status"
+    try:
+        done = subprocess.run(  # noqa: S603
+            [tool("ssh"), *ssh_options(), target, command],
+            capture_output=True,
+            text=True,
+            timeout=90,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return f"could not be read ({type(exc).__name__})"
+    if done.returncode != 0:
+        last = (done.stderr.strip().splitlines() or ["no output"])[-1]
+        return f"could not be read (exit {done.returncode}: {last[:200]})"
+    try:
+        report: dict[str, Any] = json.loads(done.stdout.strip().splitlines()[-1])
+    except (IndexError, json.JSONDecodeError):
+        return "could not be read (unexpected output)"
+    return report
+
+
+def anchor_lines(report: dict[str, Any] | str) -> list[str]:
+    if isinstance(report, str):
+        return [f"anchors: {report}"]
+    lines = []
+    for clinic in report["clinics"].values():
+        minutes = clinic["minutes_since_last_anchor"]
+        since = "never anchored" if minutes is None else f"last anchor {minutes:.0f} min ago"
+        per_backend = ", ".join(
+            f"{name} {b['anchors_24h']}" for name, b in sorted(clinic["backends"].items())
+        )
+        lines.append(
+            f"{clinic['name']}: {since}, {clinic['anchors_24h']} anchors in the last 24 h"
+            + (f" ({per_backend})" if per_backend else "")
+        )
+    return lines or ["anchors: no clinics"]
 
 
 def run_env(values: dict[str, str]) -> dict[str, str]:

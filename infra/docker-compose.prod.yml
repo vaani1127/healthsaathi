@@ -29,6 +29,9 @@ services:
       APP_ENV: prod
       # Fitted detection models live on a volume so they survive deploys.
       MODEL_DIR: /var/lib/healthsaathi/models
+      # A statement on a dropped connection fails after 2 minutes instead of hanging the anchor
+      # timer (it did from 5 to 10 November 2026).
+      DB_COMMAND_TIMEOUT_SECONDS: "120"
     volumes:
       - models:/var/lib/healthsaathi/models
     healthcheck:

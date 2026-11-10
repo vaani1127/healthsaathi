@@ -45,13 +45,18 @@ def asyncpg_dsn(url: str) -> str:
     return parsed.set(drivername="postgresql", query=query).render_as_string(hide_password=False)
 
 
-def engine_options(url: str, pooler_prepared: bool = False) -> dict[str, Any]:
+def engine_options(
+    url: str, pooler_prepared: bool = False, command_timeout: float | None = None
+) -> dict[str, Any]:
     """Options for create_async_engine: check connections before use (a sleeping Neon compute
     closes them; the check replaces them) and recycle them after 30 minutes, so their prepared
     statements stay warm. Behind a pooler, prepared statements get unique names; their caches
     stay on only when the pooler supports prepared statements (PgBouncer 1.21 and later with
-    max_prepared_statements, as Neon's does), which saves two round trips a query."""
+    max_prepared_statements, as Neon's does), which saves two round trips a query.
+    `command_timeout` limits every statement (a pooled host gets 60 seconds when it is unset)."""
     options: dict[str, Any] = {"pool_pre_ping": True, "pool_recycle": 1800}
+    if command_timeout is not None:
+        options["connect_args"] = {"command_timeout": command_timeout}
     if is_pooled(url):
         connect_args: dict[str, Any] = {
             "prepared_statement_name_func": lambda: f"__hs_{uuid.uuid4().hex}__",
@@ -60,7 +65,7 @@ def engine_options(url: str, pooler_prepared: bool = False) -> dict[str, Any]:
             connect_args.update(statement_cache_size=0, prepared_statement_cache_size=0)
         # A remote pooler: fail a statement on a dropped connection instead of waiting forever,
         # and allow more connections, since each request holds one for several round trips.
-        connect_args["command_timeout"] = 60
+        connect_args["command_timeout"] = command_timeout or 60
         options["connect_args"] = connect_args
         options.update(pool_size=10, max_overflow=10)
     return options

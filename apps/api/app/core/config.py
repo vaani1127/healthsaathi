@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     # package version.
     app_version: str | None = Field(default=None, alias="APP_VERSION")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
+    # Client-side limit on every SQL statement (asyncpg command_timeout); a statement on a dropped
+    # connection fails instead of waiting forever. Unset: no limit (set for the worker in prod).
+    db_command_timeout_seconds: float | None = Field(
+        default=None, gt=0, alias="DB_COMMAND_TIMEOUT_SECONDS"
+    )
     database_url: str = Field(
         default="postgresql+asyncpg://healthsaathi:healthsaathi@localhost:5432/healthsaathi",
         alias="DATABASE_URL",
@@ -87,6 +92,15 @@ class Settings(BaseSettings):
     anchor_trigger_token: SecretStr | None = Field(default=None, alias="ANCHOR_TRIGGER_TOKEN")
     # The worker runs the anchor job itself when no run has happened for this long. 0 turns it off.
     anchor_fallback_minutes: int = Field(default=30, ge=0, alias="ANCHOR_FALLBACK_MINUTES")
+    # Longest one run of the worker's anchor timer may take before it is abandoned, so a call that
+    # never returns cannot freeze the timer.
+    anchor_timer_limit_seconds: int = Field(default=600, ge=1, alias="ANCHOR_TIMER_LIMIT_SECONDS")
+    # Warn when a clinic has events waiting and no anchor for this long inside the watch hours
+    # (clinic time, HH:MM-HH:MM). 0 turns the warning off.
+    anchor_stale_minutes: int = Field(default=30, ge=0, alias="ANCHOR_STALE_MINUTES")
+    anchor_watch_hours: str = Field(
+        default="09:30-17:00", pattern=r"^\d{2}:\d{2}-\d{2}:\d{2}$", alias="ANCHOR_WATCH_HOURS"
+    )
     witness_repo: str | None = Field(default=None, alias="WITNESS_REPO")
     witness_branch: str = Field(default="main", alias="WITNESS_BRANCH")
     witness_github_token: SecretStr | None = Field(default=None, alias="WITNESS_GITHUB_TOKEN")
@@ -116,6 +130,7 @@ class Settings(BaseSettings):
 
     @field_validator(
         "app_version",
+        "db_command_timeout_seconds",
         "cookie_domain",
         "brevo_api_key",
         "storage_dir",

@@ -178,7 +178,15 @@ takes up to a minute.
   The compose file needs `HS_TAG` (the deployed tag, kept in `current_tag`) or Docker Compose
   refuses to read it.
 - The worker runs the job itself if no checkpoint or anchor attempt happened for
-  `ANCHOR_FALLBACK_MINUTES`.
+  `ANCHOR_FALLBACK_MINUTES`. Each timer run logs "anchor timer start" and "anchor timer finish";
+  if those lines stop, the timer is stuck. A run that passes `ANCHOR_TIMER_LIMIT_SECONDS` is
+  abandoned and logged as "anchor timer run abandoned".
+- "no anchor inside OPD hours while events wait" in the worker log: a clinic has new events and
+  no anchor for 30 minutes during `ANCHOR_WATCH_HOURS`. Check the worker log and the poster
+  balance.
+- Quick check from this computer: `make prod-status` prints the poster wallet balance and, per
+  clinic, the minutes since the last anchor and the anchors in the last 24 hours.
+- Worker log on the VM: `sudo docker logs --since 1h healthsaathi-worker-1 | grep "anchor timer"`.
 - Registering a clinic: two of the three registry admins each run
   `python -m app.scripts.register_clinic <clinic-id> --send` with their own key in
   `REGISTRY_ADMIN_PRIVATE_KEY` (in the shell, never in a file), or use the printed `cast send`

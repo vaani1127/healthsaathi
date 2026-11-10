@@ -80,7 +80,10 @@ def get_engine() -> AsyncEngine:
     settings = get_settings()
     url = settings.database_url
     return create_async_engine(
-        url, **engine_options(url, settings.database_pooler_prepared_statements)
+        url,
+        **engine_options(
+            url, settings.database_pooler_prepared_statements, settings.db_command_timeout_seconds
+        ),
     )
 
 

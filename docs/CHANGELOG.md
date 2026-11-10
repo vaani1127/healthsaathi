@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Anchor timer cannot freeze
+
+- From 5 November 2026 06:05 UTC until the worker restarted on 10 November, the worker's
+  15-minute anchor timer stopped running while the process stayed up; only the GitHub schedule
+  anchored. The likely cause is one call that never returned. Now each timer run (the fallback,
+  then the staleness check) is abandoned after `ANCHOR_TIMER_LIMIT_SECONDS` (600) without waiting
+  for the stuck call, and the worker sets `DB_COMMAND_TIMEOUT_SECONDS=120`, so a SQL statement
+  on a dropped connection fails instead of waiting forever (`app/worker.py`, `app/core/dburl.py`).
+- Every timer run logs "anchor timer start" and "anchor timer finish" with UTC times, duration
+  and outcome.
+- Warning "no anchor inside OPD hours while events wait" when a clinic has audit events newer
+  than its last checkpoint and no anchor for `ANCHOR_STALE_MINUTES` (30) inside
+  `ANCHOR_WATCH_HOURS` (09:30-17:00, clinic time), repeated at most every 30 minutes per clinic.
+  A clinic with nothing new to anchor is quiet, not stuck, and is not reported.
+- Tests: `tests/anchor/test_worker_timer.py` (a run that hangs, also in its clean-up; a hanging
+  staleness check; the loop going on after failures; the warning rule).
+- `make prod-status` also prints the poster wallet balance and, per clinic, the minutes since the
+  last anchor and the anchors in the last 24 hours (`app.scripts.anchor_status`, read-only, run in
+  the API container). Either says "could not be read" with the reason when it fails.
+
 ### Health shows the deployed release
 
 - `GET /api/v1/health` reports `APP_VERSION`, which the deploy build sets to the git tag
