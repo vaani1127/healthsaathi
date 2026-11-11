@@ -6,8 +6,16 @@
 
 - `ANCHOR_WATCH_HOURS` now defaults to 09:30-20:00 clinic time (was 09:30-17:00), so the
   17:00-20:00 OPD session is watched too. The warning still fires only while a clinic has events
-  newer than its last checkpoint, so the 13:30-17:00 break stays quiet. Only the warning
-  changes; anchoring itself does not. Test: `test_default_watch_hours_cover_both_opd_sessions`.
+  waiting, so the 13:30-17:00 break stays quiet. Only the warning changes; anchoring itself does
+  not. Test: `test_default_watch_hours_cover_both_opd_sessions`.
+- The warning now measures how long the oldest event not yet in a checkpoint has waited, not
+  the time since the last anchor. On 11 Nov at 04:01 UTC (09:31 IST) v0.1.5 warned for both
+  clinics because the last anchor was 711 minutes old (the night), although the first events of
+  the session had waited one minute; the anchor followed at 04:05. With the evening session
+  watched, it would also have warned at every 17:00 restart. The waiting event is found by
+  position (a checkpoint of size n covers the clinic's first n events), not by comparing times:
+  `signed_at` comes from the app's clock and event times from the database's. Tests:
+  `test_the_first_events_of_a_session_are_not_a_stall`, `test_states_come_from_the_database`.
 
 ### Anchoring study by period
 

@@ -7,8 +7,9 @@
   not run for ANCHOR_FALLBACK_MINUTES the worker runs the job itself. The job's advisory lock
   keeps the two from overlapping. Each timer run is logged at its start and finish and is
   abandoned after ANCHOR_TIMER_LIMIT_SECONDS, so one call that never returns cannot freeze the
-  timer (from 5 to 10 November 2026 it did). Each run also warns when a clinic has events waiting
-  and no anchor for ANCHOR_STALE_MINUTES inside ANCHOR_WATCH_HOURS, in the clinic's own time.
+  timer (from 5 to 10 November 2026 it did). Each run also warns when a clinic's oldest event
+  not yet in a checkpoint has waited ANCHOR_STALE_MINUTES inside ANCHOR_WATCH_HOURS, in the
+  clinic's own time.
 
     uv run python -m app.worker
 """
@@ -112,11 +113,17 @@ class ClinicAnchorState:
     timezone: str
     last_anchor: datetime | None
     last_checkpoint: datetime | None
-    last_event: datetime | None
+    # The oldest audit event not yet in a checkpoint (None: nothing is waiting).
+    oldest_waiting: datetime | None
 
 
 async def clinic_anchor_states() -> tuple[datetime, list[ClinicAnchorState]]:
-    """The database clock, and per clinic its last anchor attempt, checkpoint and audit event."""
+    """The database clock, and per clinic its last anchor attempt, its last checkpoint and its
+    oldest audit event not in that checkpoint.
+
+    A checkpoint of size n covers the clinic's first n events in seq order, so the oldest waiting
+    event is the one at position n. Positions are used, not times: signed_at comes from the app's
+    clock and an event's time from the database's, and the two can differ by seconds."""
     last_anchor = (
         select(func.max(AnchorReceipt.submitted_at))
         .where(AnchorReceipt.clinic_id == Clinic.id)
@@ -127,21 +134,29 @@ async def clinic_anchor_states() -> tuple[datetime, list[ClinicAnchorState]]:
         .where(MerkleCheckpoint.clinic_id == Clinic.id)
         .scalar_subquery()
     )
-    last_event = (
-        select(AuditEvent.at)
-        .where(AuditEvent.clinic_id == Clinic.id)
-        .order_by(AuditEvent.seq.desc())
-        .limit(1)
+    covered = (
+        select(func.max(MerkleCheckpoint.tree_size))
+        .where(MerkleCheckpoint.clinic_id == Clinic.id)
         .scalar_subquery()
     )
     async with tenant_session(TenantContext(role="system", db_role=job.JOB_ROLE)) as db:
         now = await db.scalar(text("SELECT clock_timestamp()"))
         rows = (
             await db.execute(
-                select(Clinic.id, Clinic.timezone, last_anchor, last_checkpoint, last_event)
+                select(Clinic.id, Clinic.timezone, last_anchor, last_checkpoint, covered)
             )
         ).all()
-    return now, [ClinicAnchorState(*row) for row in rows]
+        states = []
+        for clinic_id, timezone, anchored, signed, size in rows:
+            oldest_waiting = await db.scalar(
+                select(AuditEvent.at)
+                .where(AuditEvent.clinic_id == clinic_id)
+                .order_by(AuditEvent.seq)
+                .offset(size or 0)
+                .limit(1)
+            )
+            states.append(ClinicAnchorState(clinic_id, timezone, anchored, signed, oldest_waiting))
+    return now, states
 
 
 def in_watch_hours(at: datetime, timezone: str, hours: str) -> bool:
@@ -151,23 +166,18 @@ def in_watch_hours(at: datetime, timezone: str, hours: str) -> bool:
 
 def stale_clinics(
     now: datetime, states: list[ClinicAnchorState], minutes: int, hours: str
-) -> list[tuple[ClinicAnchorState, float | None]]:
-    """Clinics inside their watch hours with events newer than their last checkpoint (work is
-    waiting) and no anchor attempt for `minutes`, with the minutes since their last anchor (None:
-    never anchored). A clinic with nothing new to anchor is quiet, not stuck, and is left out."""
-    out: list[tuple[ClinicAnchorState, float | None]] = []
+) -> list[tuple[ClinicAnchorState, float]]:
+    """Clinics inside their watch hours whose oldest event not yet in a checkpoint has waited at
+    least `minutes`, with how long it has waited. The wait is measured from that event, not from
+    the last anchor: after a quiet night the last anchor is hours old, but the first events of
+    the session have only just arrived. A clinic with nothing waiting is quiet, not stuck."""
+    out: list[tuple[ClinicAnchorState, float]] = []
     for s in states:
-        waiting = s.last_event is not None and (
-            s.last_checkpoint is None or s.last_event > s.last_checkpoint
-        )
-        if not waiting or not in_watch_hours(now, s.timezone, hours):
+        if s.oldest_waiting is None or not in_watch_hours(now, s.timezone, hours):
             continue
-        if s.last_anchor is None:
-            out.append((s, None))
-            continue
-        idle = (now - s.last_anchor).total_seconds() / 60
-        if idle >= minutes:
-            out.append((s, idle))
+        waited = (now - s.oldest_waiting).total_seconds() / 60
+        if waited >= minutes:
+            out.append((s, waited))
     return out
 
 
@@ -185,7 +195,7 @@ async def anchor_watch_tick() -> list[uuid.UUID]:
         return []
     now, states = await clinic_anchor_states()
     warned = []
-    for state, idle in stale_clinics(now, states, s.anchor_stale_minutes, s.anchor_watch_hours):
+    for state, waited in stale_clinics(now, states, s.anchor_stale_minutes, s.anchor_watch_hours):
         last = WatchState.warned.get(state.clinic_id)
         if last is not None and now - last < WARN_AGAIN_AFTER:
             continue
@@ -195,9 +205,9 @@ async def anchor_watch_tick() -> list[uuid.UUID]:
             "no anchor inside OPD hours while events wait",
             extra={
                 "clinic_id": str(state.clinic_id),
-                "minutes_since_anchor": None if idle is None else round(idle, 1),
+                "minutes_waiting": round(waited, 1),
+                "oldest_waiting_event": state.oldest_waiting,
                 "last_anchor": state.last_anchor,
-                "last_event": state.last_event,
             },
         )
     return warned

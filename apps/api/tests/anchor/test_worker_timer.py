@@ -7,12 +7,15 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app import worker
 from app.core.config import Settings, get_settings
 from app.core.db import TenantContext, tenant_session
 from app.core.dburl import asyncpg_url, engine_options
+from app.db.models import AuditEvent
+from app.ledger.checkpoint import build_checkpoint
 from app.ledger.writer import append_audit_event
 from tests.helpers import make_clinic
 
@@ -133,38 +136,52 @@ async def test_run_limited_returns_results_and_errors_in_time() -> None:
 def state(
     *,
     anchor: timedelta | None,
-    checkpoint: timedelta | None,
-    event: timedelta | None,
+    waiting: timedelta | None,
     now: datetime = MORNING,
 ) -> worker.ClinicAnchorState:
-    """A clinic whose last anchor, checkpoint and event were these long before `now`."""
+    """A clinic whose last anchor was `anchor` ago and whose oldest event not yet in a checkpoint
+    was written `waiting` ago (None: nothing is waiting)."""
     return worker.ClinicAnchorState(
         uuid.uuid4(),
         IST,
         None if anchor is None else now - anchor,
-        None if checkpoint is None else now - checkpoint,
-        None if event is None else now - event,
+        None if anchor is None else now - anchor,
+        None if waiting is None else now - waiting,
     )
 
 
-def test_stale_means_events_waiting_and_no_anchor_for_30_minutes_in_opd_hours() -> None:
+def test_stale_means_an_event_has_waited_30_minutes_in_opd_hours() -> None:
     minute = timedelta(minutes=1)
-    stuck = state(anchor=45 * minute, checkpoint=45 * minute, event=2 * minute)
-    recent = state(anchor=10 * minute, checkpoint=10 * minute, event=2 * minute)
-    quiet = state(anchor=90 * minute, checkpoint=90 * minute, event=95 * minute)
-    never = state(anchor=None, checkpoint=None, event=5 * minute)
+    stuck = state(anchor=50 * minute, waiting=35 * minute)
+    fresh = state(anchor=10 * minute, waiting=2 * minute)
+    quiet = state(anchor=90 * minute, waiting=None)
+    never = state(anchor=None, waiting=40 * minute)
     found = dict(
-        (s.clinic_id, idle)
-        for s, idle in worker.stale_clinics(
-            MORNING, [stuck, recent, quiet, never], 30, "09:30-17:00"
+        (s.clinic_id, waited)
+        for s, waited in worker.stale_clinics(
+            MORNING, [stuck, fresh, quiet, never], 30, "09:30-20:00"
         )
     )
-    assert found == {stuck.clinic_id: 45.0, never.clinic_id: None}
+    assert found == {stuck.clinic_id: 35.0, never.clinic_id: 40.0}
 
     # The same stuck clinic outside the watch hours (21:30 IST) is not reported.
     night = MORNING + timedelta(hours=10, minutes=30)
-    late = state(anchor=45 * minute, checkpoint=45 * minute, event=2 * minute, now=night)
-    assert worker.stale_clinics(night, [late], 30, "09:30-17:00") == []
+    late = state(anchor=50 * minute, waiting=35 * minute, now=night)
+    assert worker.stale_clinics(night, [late], 30, "09:30-20:00") == []
+
+
+def test_the_first_events_of_a_session_are_not_a_stall() -> None:
+    """11 Nov 2026, 04:01 UTC: the old rule warned for both clinics, because the last anchor was
+    711 minutes old (the night), although the first events had waited only a minute."""
+    minute = timedelta(minutes=1)
+    opening = datetime(2026, 11, 11, 4, 1, 17, tzinfo=UTC)
+    session_start = state(anchor=711 * minute, waiting=minute, now=opening)
+    assert worker.stale_clinics(opening, [session_start], 30, "09:30-20:00") == []
+    # If the timer then never anchors them, the warning comes once they have waited 30 minutes.
+    later = opening + 29 * minute
+    assert worker.stale_clinics(later, [session_start], 30, "09:30-20:00") == [
+        (session_start, 30.0)
+    ]
 
 
 def test_watch_hours_are_in_the_clinic_time() -> None:
@@ -179,14 +196,14 @@ async def test_a_stale_clinic_is_warned_about_every_30_minutes_not_every_run(
 ) -> None:
     minute = timedelta(minutes=1)
     clock = {"now": MORNING}
-    stuck = state(anchor=45 * minute, checkpoint=45 * minute, event=minute)
+    stuck = state(anchor=50 * minute, waiting=35 * minute)
 
     async def states() -> tuple[datetime, list[worker.ClinicAnchorState]]:
         return clock["now"], [stuck]
 
     monkeypatch.setattr(worker, "clinic_anchor_states", states)
     monkeypatch.setattr(get_settings(), "anchor_stale_minutes", 30)
-    monkeypatch.setattr(get_settings(), "anchor_watch_hours", "09:30-17:00")
+    monkeypatch.setattr(get_settings(), "anchor_watch_hours", "09:30-20:00")
     caplog.set_level(logging.WARNING, logger="app.worker")
     assert await worker.anchor_watch_tick() == [stuck.clinic_id]
     clock["now"] = MORNING + 10 * minute
@@ -196,7 +213,7 @@ async def test_a_stale_clinic_is_warned_about_every_30_minutes_not_every_run(
     warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert len(warnings) == 2
     assert vars(warnings[0])["clinic_id"] == str(stuck.clinic_id)
-    assert vars(warnings[0])["minutes_since_anchor"] == 45.0
+    assert vars(warnings[0])["minutes_waiting"] == 35.0
 
     monkeypatch.setattr(get_settings(), "anchor_stale_minutes", 0)
     clock["now"] = MORNING + 90 * minute
@@ -205,13 +222,36 @@ async def test_a_stale_clinic_is_warned_about_every_30_minutes_not_every_run(
 
 async def test_states_come_from_the_database(admin_engine: AsyncEngine) -> None:
     clinic = await make_clinic(admin_engine)
+
+    async def add_event() -> None:
+        async with tenant_session(TenantContext(clinic_id=clinic, role="system")) as db:
+            await append_audit_event(db, clinic, "test", {"i": 0})
+
+    async def mine() -> worker.ClinicAnchorState:
+        _, states = await worker.clinic_anchor_states()
+        return next(s for s in states if s.clinic_id == clinic)
+
+    await add_event()
+    first = await mine()
+    assert first.timezone == IST
+    assert first.last_anchor is None and first.last_checkpoint is None
+    assert first.oldest_waiting is not None, "never checkpointed: the first event is waiting"
+
+    await build_checkpoint(clinic)
+    covered = await mine()
+    assert covered.last_checkpoint is not None and covered.oldest_waiting is None
+
+    # The next event is waiting at once, whatever the clocks say (positions, not times).
+    await add_event()
+    await add_event()
+    later = await mine()
     async with tenant_session(TenantContext(clinic_id=clinic, role="system")) as db:
-        await append_audit_event(db, clinic, "test", {"i": 0})
-    now, states = await worker.clinic_anchor_states()
-    mine = next(s for s in states if s.clinic_id == clinic)
-    assert mine.timezone == IST
-    assert mine.last_anchor is None and mine.last_checkpoint is None
-    assert mine.last_event is not None and mine.last_event <= now
+        times = (
+            await db.scalars(
+                select(AuditEvent.at).where(AuditEvent.clinic_id == clinic).order_by(AuditEvent.seq)
+            )
+        ).all()
+    assert later.oldest_waiting == times[1], "the first event after the checkpoint"
 
 
 def test_every_statement_gets_the_command_timeout() -> None:
@@ -241,16 +281,20 @@ def test_default_watch_hours_cover_both_opd_sessions() -> None:
     minute = timedelta(minutes=1)
     # 19:00 IST, in the evening session: a stall there is now reported.
     evening = datetime(2026, 11, 11, 13, 30, tzinfo=UTC)
-    stuck = state(anchor=40 * minute, checkpoint=40 * minute, event=minute, now=evening)
+    stuck = state(anchor=50 * minute, waiting=35 * minute, now=evening)
     assert [s.clinic_id for s, _ in worker.stale_clinics(evening, [stuck], 30, hours)] == [
         stuck.clinic_id
     ]
     # 15:00 IST, in the break between sessions: the morning's events are anchored and nothing new
     # is waiting, so a long time since the last anchor is quiet, not stuck.
     lunch = datetime(2026, 11, 11, 9, 30, tzinfo=UTC)
-    quiet = state(anchor=80 * minute, checkpoint=80 * minute, event=95 * minute, now=lunch)
+    quiet = state(anchor=80 * minute, waiting=None, now=lunch)
     assert worker.stale_clinics(lunch, [quiet], 30, hours) == []
+    # 17:01 IST, the evening session's first event after the break: not a stall.
+    reopening = datetime(2026, 11, 11, 11, 31, tzinfo=UTC)
+    resumed = state(anchor=200 * minute, waiting=minute, now=reopening)
+    assert worker.stale_clinics(reopening, [resumed], 30, hours) == []
     # 20:00 IST is the end of the watch hours.
     closing = datetime(2026, 11, 11, 14, 30, tzinfo=UTC)
-    late = state(anchor=40 * minute, checkpoint=40 * minute, event=minute, now=closing)
+    late = state(anchor=50 * minute, waiting=35 * minute, now=closing)
     assert worker.stale_clinics(closing, [late], 30, hours) == []
