@@ -17,7 +17,7 @@ from app.ledger.writer import append_audit_event
 from tests.helpers import make_clinic
 
 IST = "Asia/Kolkata"
-# 11:00 IST on a weekday, inside the default watch hours (09:30 to 17:00).
+# 11:00 IST on a weekday, inside the default watch hours (09:30 to 20:00).
 MORNING = datetime(2026, 11, 11, 5, 30, tzinfo=UTC)
 
 
@@ -233,3 +233,24 @@ def test_blank_command_timeout_means_no_limit(monkeypatch: pytest.MonkeyPatch) -
     assert Settings().db_command_timeout_seconds is None
     monkeypatch.setenv("DB_COMMAND_TIMEOUT_SECONDS", "120")
     assert Settings().db_command_timeout_seconds == 120
+
+
+def test_default_watch_hours_cover_both_opd_sessions() -> None:
+    hours = Settings.model_fields["anchor_watch_hours"].default
+    assert hours == "09:30-20:00"
+    minute = timedelta(minutes=1)
+    # 19:00 IST, in the evening session: a stall there is now reported.
+    evening = datetime(2026, 11, 11, 13, 30, tzinfo=UTC)
+    stuck = state(anchor=40 * minute, checkpoint=40 * minute, event=minute, now=evening)
+    assert [s.clinic_id for s, _ in worker.stale_clinics(evening, [stuck], 30, hours)] == [
+        stuck.clinic_id
+    ]
+    # 15:00 IST, in the break between sessions: the morning's events are anchored and nothing new
+    # is waiting, so a long time since the last anchor is quiet, not stuck.
+    lunch = datetime(2026, 11, 11, 9, 30, tzinfo=UTC)
+    quiet = state(anchor=80 * minute, checkpoint=80 * minute, event=95 * minute, now=lunch)
+    assert worker.stale_clinics(lunch, [quiet], 30, hours) == []
+    # 20:00 IST is the end of the watch hours.
+    closing = datetime(2026, 11, 11, 14, 30, tzinfo=UTC)
+    late = state(anchor=40 * minute, checkpoint=40 * minute, event=minute, now=closing)
+    assert worker.stale_clinics(closing, [late], 30, hours) == []

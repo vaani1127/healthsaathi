@@ -99,7 +99,7 @@ class Settings(BaseSettings):
     # (clinic time, HH:MM-HH:MM). 0 turns the warning off.
     anchor_stale_minutes: int = Field(default=30, ge=0, alias="ANCHOR_STALE_MINUTES")
     anchor_watch_hours: str = Field(
-        default="09:30-17:00", pattern=r"^\d{2}:\d{2}-\d{2}:\d{2}$", alias="ANCHOR_WATCH_HOURS"
+        default="09:30-20:00", pattern=r"^\d{2}:\d{2}-\d{2}:\d{2}$", alias="ANCHOR_WATCH_HOURS"
     )
     witness_repo: str | None = Field(default=None, alias="WITNESS_REPO")
     witness_branch: str = Field(default="main", alias="WITNESS_BRANCH")

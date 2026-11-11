@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Staleness warning covers the evening session
+
+- `ANCHOR_WATCH_HOURS` now defaults to 09:30-20:00 clinic time (was 09:30-17:00), so the
+  17:00-20:00 OPD session is watched too. The warning still fires only while a clinic has events
+  newer than its last checkpoint, so the 13:30-17:00 break stays quiet. Only the warning
+  changes; anchoring itself does not. Test: `test_default_watch_hours_cover_both_opd_sessions`.
+
 ### Anchoring study by period
 
 - `configs/anchoring.yaml` defines three study periods: timer working (31 Oct 17:20 to 5 Nov

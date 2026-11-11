@@ -182,8 +182,9 @@ takes up to a minute.
   if those lines stop, the timer is stuck. A run that passes `ANCHOR_TIMER_LIMIT_SECONDS` is
   abandoned and logged as "anchor timer run abandoned".
 - "no anchor inside OPD hours while events wait" in the worker log: a clinic has new events and
-  no anchor for 30 minutes during `ANCHOR_WATCH_HOURS`. Check the worker log and the poster
-  balance.
+  no anchor for 30 minutes during `ANCHOR_WATCH_HOURS` (default 09:30 to 20:00 clinic time, both
+  OPD sessions). In the break between sessions nothing new is waiting, so it stays quiet. Check
+  the worker log and the poster balance.
 - Quick check from this computer: `make prod-status` prints the poster wallet balance and, per
   clinic, the minutes since the last anchor and the anchors in the last 24 hours.
 - Worker log on the VM: `sudo docker logs --since 1h healthsaathi-worker-1 | grep "anchor timer"`.
