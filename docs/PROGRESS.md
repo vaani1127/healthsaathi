@@ -33,9 +33,9 @@ check their own access receipts in the browser.
 
 | Suite | Result |
 |---|---|
-| Python (API, E2D core, simulator, experiments) | 807 passed (CI run 38441215530, 13 October 2026); E2D core line coverage 99.7% |
-| JavaScript (web app and receipt verification) | 82 passed |
-| Solidity contracts | 51 passed |
+| Python (API, E2D core, simulator, experiments) | 892 passed (CI run 42959698908, 11 November 2026, commit 0b455e4); E2D core line coverage 99.7% (1,370 of 1,374 lines) |
+| JavaScript (web app and receipt verification) | 88 passed (25 web app, 63 receipt verification; same CI run) |
+| Solidity contracts | 51 passed (same CI run) |
 | Browser tests against the demo stack (all 9 flows, a crawler of every screen at desktop width, phone width and in Hindi, offline use, accessibility, tamper demo) | 55 of 55 passed; on 13 October 2026 in native mode with the database on Neon, in 37.8 minutes |
 | FHIR bundles of 10 patients, HAPI validator | 10 of 10 with 0 errors |
 | OWASP ZAP baseline scan (web and API) | 0 failures |
@@ -87,6 +87,11 @@ Azure VM and Azure PostgreSQL in East Asia). Checkpoints are anchored on Polygon
 to the public GitHub repository vaani1127/healthsaathi-witness and stamped with OpenTimestamps. A
 synthetic activity bot makes visits during clinic hours so the log keeps growing. Set-up steps
 are in `docs/RUNBOOK.md`.
+
+The deployed release is v0.1.6: the deploy finished on 11 November 2026, with the worker started
+at 09:29:54 UTC (14:59:54 IST), between OPD sessions. It changes only the anchor staleness
+warning. The fix for the anchor timer that stalled from 5 to 10 November came in v0.1.5 (worker
+started 10 November 2026, 18:47:10 UTC); see `docs/CHANGELOG.md`.
 
 ## Anchoring and overhead study (P16)
 

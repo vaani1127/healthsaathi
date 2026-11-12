@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Docs: progress
+
+- `docs/PROGRESS.md`: test counts from CI run 42959698908 (892 Python, 88 JavaScript, 51
+  Solidity) and the v0.1.6 deploy (worker started 11 November 2026, 09:29:54 UTC).
+
 ### Staleness warning covers the evening session
 
 - `ANCHOR_WATCH_HOURS` now defaults to 09:30-20:00 clinic time (was 09:30-17:00), so the
