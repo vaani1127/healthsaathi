@@ -108,9 +108,9 @@ Every result is a committed file written by a script; no numbers are typed by ha
 Two snapshots of the clean period are planned. The clean period starts when the v0.1.5 worker
 started, on 10 November 2026 at 18:47:10 UTC (11 November, 00:17 IST):
 
-- Snapshot A, on 18 November 2026: 7 clean days, an early look. It is a deviation from SPEC
-  section 8 (`docs/SPEC.md`, line 271), which asks for at least 2 weeks of real runs, and will be
-  reported as one.
+- Snapshot A, on 18 November 2026: 7 clean days, an early look. It is a deviation from the
+  specification, which asks for the rewrite window "as a distribution over at least 2 weeks of
+  real runs", and will be reported as one.
 - Snapshot B, on 25 November 2026 after 00:17 IST: 14 clean days. This is the primary snapshot
   and meets the SPEC.
 

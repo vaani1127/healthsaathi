@@ -6,8 +6,8 @@
 
 - `docs/PROGRESS.md`: the single snapshot "around 15 November 2026" is replaced by two planned
   snapshots of the clean period: A on 18 November 2026 (7 clean days, an early look, a deviation
-  from SPEC line 271, which asks for at least 2 weeks) and B on 25 November 2026 after 00:17 IST
-  (14 clean days, primary, meets the SPEC).
+  from the specification, which asks for "a distribution over at least 2 weeks of real runs")
+  and B on 25 November 2026 after 00:17 IST (14 clean days, primary, meets the specification).
 
 ### Docs: progress
 
