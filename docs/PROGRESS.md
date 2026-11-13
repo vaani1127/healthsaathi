@@ -103,11 +103,20 @@ Every result is a committed file written by a script; no numbers are typed by ha
 | Receipt check time in the browser (laptop, Android phone) | `/bench/receipt` page | `experiments/results/anchoring/browser` |
 | Which check catches a rewritten log | `make tamper-study` | `experiments/results/anchoring/tamper/detection.json` |
 | Latency with and without access recording, both run orders | `make load-run`, `make load-run-reversed`, `python -m e2d_experiments.load` | `experiments/results/load`, `paper/tables/load_overhead.tex` |
-| Rewrite window and gas on the live demo | `python -m e2d_experiments.anchoring` | after the two-week snapshot, around 15 November 2026 |
+| Rewrite window and gas on the live demo | `python -m e2d_experiments.anchoring` | after the snapshots planned below |
+
+Two snapshots of the clean period are planned. The clean period starts when the v0.1.5 worker
+started, on 10 November 2026 at 18:47:10 UTC (11 November, 00:17 IST):
+
+- Snapshot A, on 18 November 2026: 7 clean days, an early look. It is a deviation from SPEC
+  section 8 (`docs/SPEC.md`, line 271), which asks for at least 2 weeks of real runs, and will be
+  reported as one.
+- Snapshot B, on 25 November 2026 after 00:17 IST: 14 clean days. This is the primary snapshot
+  and meets the SPEC.
 
 ## What remains
 
-- Anchoring study: take the two-week snapshot of the live demo and write its tables.
+- Anchoring study: take the two snapshots of the live demo and write its tables.
 - Paper: not started. A fuller literature search (Google Scholar and the ACM Digital Library) is
   needed before writing the related work and the novelty claim.
 - Hosting after the Azure Free Trial ends (about 30 November 2026): move to Azure for Students,
