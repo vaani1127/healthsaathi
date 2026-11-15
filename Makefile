@@ -59,7 +59,7 @@ demo:
 	$(DEMO) exec -T api python -m hs_demo.logins
 
 demo-code:
-	@if [ -f .demo/pids/api.pid ]; then $(NATIVE) code $(EMAIL); 	else $(DEMO) exec -T api python -m hs_demo.logins $(EMAIL); fi
+	@if $(NATIVE) alive api; then $(NATIVE) code $(EMAIL); 	else $(DEMO) exec -T api python -m hs_demo.logins $(EMAIL); fi
 
 # Native demo (no Docker): api, worker, web and anvil as local processes, database on Neon.
 # Needs .env.local (see .env.local.example), Foundry, Node and pnpm.
@@ -79,7 +79,7 @@ demo-logs:
 # Browser tests against the running demo (make demo first). Many sign-ins from one address in a
 # minute, so the API runs without rate limits for the test and gets them back afterwards.
 demo-e2e:
-	@if [ -f .demo/pids/api.pid ]; then $(MAKE) --no-print-directory demo-e2e-native; 	else $(MAKE) --no-print-directory demo-e2e-docker; fi
+	@if $(NATIVE) alive api; then $(MAKE) --no-print-directory demo-e2e-native; 	else $(MAKE) --no-print-directory demo-e2e-docker; fi
 
 demo-e2e-docker:
 	DEMO_RATE_LIMIT=false $(DEMO) up --detach --wait --no-deps api
@@ -92,7 +92,7 @@ demo-e2e-native:
 # Backup videos of the 9 flows (SPEC 1.3) against the running demo, in demo-videos/ (gitignored).
 demo-videos:
 	rm -rf apps/web/test-results/demo demo-videos && mkdir -p demo-videos
-	@if [ -f .demo/pids/api.pid ]; then 		DEMO_RATE_LIMIT=false $(NATIVE) restart-api; native=1; 	else DEMO_RATE_LIMIT=false $(DEMO) up --detach --wait --no-deps api; native=; fi; 	cd apps/web && E2E_NATIVE=$$native E2E_VIDEO=1 		PLAYWRIGHT_JSON_OUTPUT_NAME=../../demo-videos/report.json pnpm exec playwright test 		-c playwright.demo.config.ts --project=flows-360 --reporter=list,json; status=$$?; 	cd ../..; if [ -n "$$native" ]; then $(NATIVE) restart-api; 	else $(DEMO) up --detach --wait --no-deps api; fi; 	$(UV) python infra/demo/collect_videos.py demo-videos/report.json demo-videos; exit $$status
+	@if $(NATIVE) alive api; then 		DEMO_RATE_LIMIT=false $(NATIVE) restart-api; native=1; 	else DEMO_RATE_LIMIT=false $(DEMO) up --detach --wait --no-deps api; native=; fi; 	cd apps/web && E2E_NATIVE=$$native E2E_VIDEO=1 		PLAYWRIGHT_JSON_OUTPUT_NAME=../../demo-videos/report.json pnpm exec playwright test 		-c playwright.demo.config.ts --project=flows-360 --reporter=list,json; status=$$?; 	cd ../..; if [ -n "$$native" ]; then $(NATIVE) restart-api; 	else $(DEMO) up --detach --wait --no-deps api; fi; 	$(UV) python infra/demo/collect_videos.py demo-videos/report.json demo-videos; exit $$status
 
 # Screenshots of every screen of the running demo, in demo-screenshots/ (gitignored), with an
 # index.html and screens.pdf. Rate limits are off while it signs in as every role.

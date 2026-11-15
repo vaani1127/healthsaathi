@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Tooling
+
+- `make demo-e2e`, `demo-videos` and `demo-code` pick the native demo only when the pid in
+  `.demo/pids/api.pid` is a running process that runs the command the demo started
+  (`python -m hs_demo.native alive api`), not whenever the file exists. A stale pid file from an
+  earlier native demo sent a run against the Docker demo to a native API it could not use.
+- `hs_demo.native stop` stops a process only if its pid is still running the command the demo
+  started (the command is now kept in the pid file and compared with the live command line).
+  A stale pid file is removed and reported as "not running", so a pid that Windows has given to
+  another program is never killed. Old pid files that hold only a number are never acted on.
+  Tests: `infra/demo/tests/test_native.py`.
+
 ### Docs: anchoring snapshot plan
 
 - `docs/PROGRESS.md`: the single snapshot "around 15 November 2026" is replaced by two planned
