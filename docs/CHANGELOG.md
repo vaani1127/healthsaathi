@@ -93,6 +93,10 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
   page's witness check then compared a fresh log with the largest head left by the earlier demo
   (`the log is shorter than the published head`). The native reset already removed the folder.
   Flow 9 now also requires the witness check to show Pass.
+- Browser tests: `freshCode()` sends a code for a future authenticator step only once this
+  machine is 5 s into the step before it. It used to allow 0.5 s, and the Docker demo's clock can
+  lag the host's by more: a demo run failed when the server, about 0.6 s behind, was still one
+  step earlier and refused a code two steps ahead. The server check is unchanged.
 
 ### Docs: anchoring snapshot plan
 
