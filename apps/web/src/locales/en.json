@@ -707,7 +707,26 @@
         "open": "Open alerts, all days",
         "day": "One day"
       },
-      "noneOpen": "No open alerts. Every alert has been reviewed."
+      "noneOpen": "No open alerts. Every alert has been reviewed, or retired by its day's final list.",
+      "provisionalExplain": "Alerts for today and yesterday are provisional. Two days after a day ends, when every access of that day has had 24 hours to show whether its workflow went ahead, the detector makes the day's final list: it can add alerts and retire provisional ones. It never changes an alert you have reviewed.",
+      "dayProvisional": "Provisional list for {{day}}. The final list will be ready after midnight on {{ready}} (clinic time).",
+      "dayFinal": "Final list for {{day}}. {{retired}} provisional alerts were retired.",
+      "daySkipped": "The list for {{day}} was not finalised: the day was more than 7 days old when the daily check ran. The alerts shown are provisional.",
+      "dayHeaderProvisional": "provisional",
+      "showRetired": "Show retired alerts",
+      "listState": {
+        "provisional": "Provisional",
+        "final": "Final",
+        "retired": "Retired",
+        "outside_final": "Reviewed, not in final list"
+      },
+      "scorers": {
+        "starter_rules": "starter rules (used until a model is trained)",
+        "rules": "starter rules (used until a model is trained)",
+        "iforest": "isolation forest model",
+        "ecod": "ECOD model",
+        "copod": "COPOD model"
+      }
     },
     "shifts": "Shifts this week",
     "shiftsExplain": "Staff on shift can open records for their work that day.",

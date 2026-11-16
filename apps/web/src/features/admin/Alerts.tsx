@@ -7,11 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert as Notice, Badge, Field, Input, Textarea } from "@/components/ui/form";
 import { Empty, Loading, LoadError, QueryStatus } from "@/components/ui/state";
 import { api, call, type Schemas } from "@/lib/api/client";
-import { useClinicToday } from "@/lib/clinicDay";
+import { clinicDay, useClinicToday } from "@/lib/clinicDay";
 import { errorMessage, formatDate, formatDateTime, formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type AlertItem = Schemas["AlertOut"];
+type ListState = AlertItem["list_state"];
 type Outcome = "benign" | "misuse" | "unsure";
 const OUTCOMES: Outcome[] = ["misuse", "benign", "unsure"];
 
@@ -35,6 +36,57 @@ function Why({ code, strength }: { code: string | null | undefined; strength: nu
   );
 }
 
+const STATE_TONE: Record<ListState, "default" | "success" | "warning" | "danger"> = {
+  provisional: "warning",
+  final: "default",
+  retired: "default",
+  outside_final: "default",
+};
+
+/** Provisional, final, retired, or reviewed but outside the final list (ADR 0008). */
+function StateBadge({ state }: { state: ListState }) {
+  const { t } = useTranslation();
+  return (
+    <Badge tone={STATE_TONE[state]} data-testid="alert-state">
+      {t(`admin.alerts.listState.${state}`)}
+    </Badge>
+  );
+}
+
+/** Whether the day's list is final yet, and when it will be. */
+function DayNotice({ day }: { day: string }) {
+  const { t } = useTranslation();
+  const status = useQuery({
+    queryKey: ["alert-day", day],
+    queryFn: () => call(() => api.GET("/api/v1/alerts/days/{day}", { params: { path: { day } } })),
+  });
+  const s = status.data;
+  if (!s) {
+    return null;
+  }
+  if (s.state === "final") {
+    return (
+      <Notice tone="info" data-testid="day-notice">
+        {t("admin.alerts.dayFinal", { day: formatDate(day), retired: s.retired_count ?? 0 })}
+      </Notice>
+    );
+  }
+  if (s.state === "skipped") {
+    return (
+      <Notice tone="info" data-testid="day-notice">
+        {t("admin.alerts.daySkipped", { day: formatDate(day) })}
+      </Notice>
+    );
+  }
+  // The final list can be made from 00:00 clinic time two days after the day.
+  const readyDay = clinicDay(s.timezone, new Date(s.ready_after));
+  return (
+    <Notice tone="info" data-testid="day-notice">
+      {t("admin.alerts.dayProvisional", { day: formatDate(day), ready: formatDate(readyDay) })}
+    </Notice>
+  );
+}
+
 type View = "open" | "day";
 
 export function Alerts() {
@@ -45,11 +97,18 @@ export function Alerts() {
   const [picked, setDay] = useState<string | null>(null);
   const day = picked ?? today;
   const [selected, setSelected] = useState<string | null>(null);
+  const [showRetired, setShowRetired] = useState(false);
+  // Retired alerts are not open for review, so only the day view can show them.
+  const includeRetired = view === "day" && showRetired;
   const alerts = useQuery({
-    queryKey: ["alerts", view, view === "day" ? day : null],
+    queryKey: ["alerts", view, view === "day" ? day : null, includeRetired],
     queryFn: () =>
       call(() =>
-        api.GET("/api/v1/alerts", { params: { query: view === "open" ? { status: "open" } : { day } } }),
+        api.GET("/api/v1/alerts", {
+          params: {
+            query: { ...(view === "open" ? { status: "open" as const } : { day }), include_retired: includeRetired },
+          },
+        }),
       ),
   });
   const label = useFeatureLabel();
@@ -74,7 +133,20 @@ export function Alerts() {
               <Input id="alerts-day" type="date" value={day} onChange={(e) => setDay(e.target.value)} />
             </Field>
           )}
+          {view === "day" && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={showRetired}
+                onChange={(e) => setShowRetired(e.target.checked)}
+                data-testid="show-retired"
+              />
+              {t("admin.alerts.showRetired")}
+            </label>
+          )}
         </div>
+        <p className="text-xs text-muted-foreground">{t("admin.alerts.provisionalExplain")}</p>
+        {view === "day" && <DayNotice day={day} />}
         <QueryStatus query={alerts} />
         {alerts.data?.length === 0 && (
           <Empty>{view === "open" ? t("admin.alerts.noneOpen") : t("admin.alerts.empty")}</Empty>
@@ -85,7 +157,12 @@ export function Alerts() {
             lastDay = a.day;
             return (
               <li key={a.id} className="flex flex-col gap-2">
-                {header && <h3 className="pt-2 text-sm font-semibold text-muted-foreground">{formatDate(header)}</h3>}
+                {header && (
+                  <h3 className="pt-2 text-sm font-semibold text-muted-foreground">
+                    {formatDate(header)}
+                    {!a.day_final && <span className="font-normal"> · {t("admin.alerts.dayHeaderProvisional")}</span>}
+                  </h3>
+                )}
                 <div className="rounded-md border p-3 text-sm" data-testid="alert">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
@@ -100,6 +177,7 @@ export function Alerts() {
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
+                      <StateBadge state={a.list_state} />
                       <Badge tone={statusTone(a.status)}>{t(`admin.alerts.status.${a.status}`)}</Badge>
                       <span className="text-xs text-muted-foreground">
                         {t("admin.alerts.score")} {a.score.toFixed(2)}
@@ -202,7 +280,9 @@ function AlertDetail({ id }: { id: string }) {
           ))}
         </ol>
       </div>
-      <p className="text-xs text-muted-foreground">{t("admin.alerts.scorer", { scorer: d.scorer })}</p>
+      <p className="text-xs text-muted-foreground">
+        {t("admin.alerts.scorer", { scorer: t(`admin.alerts.scorers.${d.scorer}`, { defaultValue: d.scorer }) })}
+      </p>
       {last ? (
         <p role="status">{t("admin.alerts.reviewed", { outcome: t(`outcome.${last.outcome}`) })}</p>
       ) : (
