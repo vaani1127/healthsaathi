@@ -35,6 +35,7 @@ test("flow 9: the audit page shows the checkpoint, every witness and consistency
   await page.getByRole("tab", { name: "Audit log" }).click();
   await expect(page.getByTestId("check-chain")).toHaveText("Pass");
   await expect(page.getByTestId("check-consistency")).toHaveText("Pass");
+  await expect(page.getByTestId("check-witness")).toHaveText("Pass");
   await expect(page.getByText(/events, signed/)).toBeVisible();
 
   const chain = page.getByTestId("backend-chain");

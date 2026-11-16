@@ -111,8 +111,12 @@ fhir-validate:
 demo-down:
 	$(DEMO) down
 
+# Also empties .demo/witness: the local witness is a bind mount, not a volume, and the seeded
+# clinics get the same ids every time, so heads left from an earlier demo would be read as this
+# demo's newest published heads.
 demo-reset:
 	$(DEMO) down --volumes
+	rm -rf .demo/witness && mkdir -p .demo/witness
 
 # CI provides its own postgres service, so it sets SKIP_DB_UP=1.
 # Hosted public demo (docs/RUNBOOK.md, "Public demo set-up"). Settings live in .env.prod.

@@ -13,6 +13,11 @@
   A stale pid file is removed and reported as "not running", so a pid that Windows has given to
   another program is never killed. Old pid files that hold only a number are never acted on.
   Tests: `infra/demo/tests/test_native.py`.
+- `make demo-reset` also empties `.demo/witness`. The local witness is a bind mount, not a Docker
+  volume, so it survived the reset, and the seeded clinics get the same ids every time: the audit
+  page's witness check then compared a fresh log with the largest head left by the earlier demo
+  (`the log is shorter than the published head`). The native reset already removed the folder.
+  Flow 9 now also requires the witness check to show Pass.
 
 ### Docs: anchoring snapshot plan
 

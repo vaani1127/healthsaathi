@@ -13,6 +13,10 @@ accounts and resources themselves are listed in `docs/MANUAL_TASKS.md` ("Before 
 
 Staging is optional. Its steps are skipped while its secrets are not set.
 
+The local Docker demo (`make demo`) keeps its data in Docker volumes and its witness commits in
+`.demo/witness`. `make demo-reset` deletes both, so a fresh demo never reads heads published by an
+earlier one (the seeded clinics get the same ids every time).
+
 Workflows: `.github/workflows/deploy.yml`, `anchor.yml` (every 15 minutes), `nightly.yml`
 (backup and schema drift check). Each step is skipped while its secrets are not set.
 
