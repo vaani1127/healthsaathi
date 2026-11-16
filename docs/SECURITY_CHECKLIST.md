@@ -36,7 +36,7 @@ the row.
 | 2.7.2 | Out-of-band codes expire after 10 minutes | Pass | Email codes, 10 minutes |
 | 2.7.3 | Out-of-band codes used once | Pass | `used_at` set on use, `identity/service.py` |
 | 2.7.4 | Out-of-band channel is secure | Pass | Brevo API over HTTPS |
-| 2.8.1 | Time-based OTPs have a defined lifetime | Pass | 30 second TOTP steps, each accepted once |
+| 2.8.1 | Time-based OTPs have a defined lifetime | Pass | 30 second TOTP steps (the current step or one either side). Note: reuse of a code is refused only within one API process; with 2 workers a code can be accepted once per worker (`docs/APP_GAPS.md` 30) |
 
 ## V3 Session management
 

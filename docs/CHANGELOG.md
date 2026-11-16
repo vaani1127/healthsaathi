@@ -8,6 +8,25 @@ Changes that depart from docs/SPEC.md, from what the experiments did, or from an
 each with its date, reason and effect. Deviations from the registered experiment plan made before
 this heading existed are in section 9 of experiments/PREREGISTRATION.md.
 
+- **16 November 2026: statement-time stamps and one clock (migration 0005, ADR 0008).**
+  Reason: evidence rows and status changes were stamped with the transaction's start time
+  (`now()`), so a row created, or a status set, after an access in the same request was dated
+  before the access; and four workflow times came from the API host's clock while access times
+  come from the database's, so explanation tie-breaks depended on the offset between the two
+  (the gated count of the same test scenario changed from run to run). What changes:
+  - The `created_at` of `patients`, `appointments`, `queue_tokens`, `encounters`, `referrals`,
+    `care_team_assignments`, `invoices`, `lab_orders`, `shifts`, `schedules`, `clinical_notes`,
+    `prescriptions` and `vitals`, and `status_events.at`, `vitals.recorded_at`,
+    `lab_results.resulted_at` and `break_glass_events.at`, default to `clock_timestamp()`.
+    Audit and anchoring timestamps are unchanged.
+  - The walk-in slot, the care team start and end, and the clinic's today use the database clock.
+  - Rows written before migration 0005 keep their transaction-time stamps; only new rows are
+    stamped at statement time.
+  - The simulator already stamps each event at its own instant, so this change brings the
+    product's timestamps closer to what the experiments assume. It does not change any v1
+    input: `sim/`, `packages/e2d-core`, `experiments/configs`, `experiments/results/v1` and the
+    pre-registration are untouched.
+
 - **13 November 2026: daily final alert list (ADR 0008, amended).** Reason: the product never
   computed the two late forgery flags (`no_progress`, `cancelled_after_access`), and it raised
   alerts one access at a time against a calibrated threshold, so its alerts were not the ranking
@@ -46,6 +65,24 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
     kind `detect_daily`. The feature cache is a file in `MODEL_DIR`.
   - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
     `experiments/results/v1` and the pre-registration are not touched, so no v1 number can change.
+
+### Docs: authenticator code reuse
+
+- `docs/APP_GAPS.md` 30, `docs/THREAT_MODEL.md` and `docs/SECURITY_CHECKLIST.md` (ASVS 2.8.1): a
+  code is refused a second time only within one API process, and the API runs 2 workers, so a
+  code can be accepted once per worker. Not fixed here; the fix (last accepted step in the
+  database, one atomic update) goes on its own branch.
+
+### Statement-time stamps and one clock
+
+- Migration 0005: `clock_timestamp()` defaults for the timestamps the explanation engine reads
+  (models: `EvidenceCreatedAtMixin`, `WorkflowMixin`); audit and anchoring stamps unchanged.
+- Walk-in `slot_start` and `slot_end`, care team `starts_at` and `ends_at`, and `local_today` use
+  `db_now()`; the API host's clock (`_now()`) is no longer used in the clinic service.
+- Tests: `apps/api/tests/db/test_statement_time.py` (the defaults on every listed column and the
+  unchanged audit ones; stored times after an access in the same request for a walk-in, a token
+  change and a cancellation; the access recorded in the cancelling request gets
+  `cancelled_after_access`).
 
 ### Daily final alert list
 
