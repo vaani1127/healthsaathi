@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Confirmation } from "@/components/ui/confirmation";
 import { Alert, Badge, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Empty, QueryStatus } from "@/components/ui/state";
 import { Alerts } from "@/features/admin/Alerts";
@@ -445,12 +446,17 @@ function AccessReports() {
   const { t } = useTranslation();
   const client = useQueryClient();
   const reports = useQuery({ queryKey: ["access-queries"], queryFn: () => call(() => api.GET("/api/v1/access-queries")) });
+  const [closed, setClosed] = useState<string | null>(null);
   const close = useMutation({
     mutationFn: (id: string) =>
       call(() =>
         api.PATCH("/api/v1/access-queries/{query_id}", { params: { path: { query_id: id } }, body: { status: "closed" } }),
       ),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["access-queries"] }),
+    onSuccess: async () => {
+      // A closed report leaves the list, so the confirmation is shown outside it.
+      setClosed(t("admin.reportClosed"));
+      await client.invalidateQueries({ queryKey: ["access-queries"] });
+    },
   });
   return (
     <Card>
@@ -458,6 +464,7 @@ function AccessReports() {
         <CardTitle>{t("admin.reports")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-2 text-sm">
+        <Confirmation message={closed} onDismiss={() => setClosed(null)} testId="report-confirmation" />
         <QueryStatus query={reports} />
         {reports.data?.length === 0 && <Empty>{t("admin.nothingToReview")}</Empty>}
         {reports.data?.map((q) => (

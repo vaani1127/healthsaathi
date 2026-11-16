@@ -66,6 +66,17 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
   - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
     `experiments/results/v1` and the pre-registration are not touched, so no v1 number can change.
 
+### Confirmations that outlive the list
+
+- After an alert review, the admin's alert screen shows "Reviewed: ... Moved out of the open
+  list." in a page-level status region (`aria-live="polite"`) outside the alert list. The
+  reviewed alert leaves the open list when it refetches, and the status line inside it used to
+  go with it, sometimes before it could be read. The confirmation stays until it is dismissed or
+  another alert is opened. Closing a patient report and signing out a session, which also
+  remove the item from their lists, show the same kind of confirmation. English and Hindi.
+- Flow 8 checks the review's API response (200, outcome misuse) and the page-level
+  confirmation, and no longer checks inside an alert that can leave the list.
+
 ### Docs: authenticator code reuse
 
 - `docs/APP_GAPS.md` 30, `docs/THREAT_MODEL.md` and `docs/SECURITY_CHECKLIST.md` (ASVS 2.8.1): a

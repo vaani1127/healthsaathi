@@ -117,8 +117,18 @@ test.describe.serial("review", () => {
       await expect(first.getByTestId("alert-state")).toHaveText(tx("admin.alerts.listState.provisional"));
     }
     await detail.getByLabel(tx("admin.alerts.note")).fill("Not asked for a second opinion");
+    // The reviewed alert leaves the open list when it refetches, so nothing is checked inside
+    // it after the click: the API's answer, then the page-level confirmation outside the list.
+    const reviewed = page.waitForResponse((r) => r.request().method() === "POST" && /\/api\/v1\/alerts\/[^/]+\/review$/.test(r.url()));
     await detail.getByRole("button", { name: tx("outcome.misuse") }).click();
-    await expect(detail.getByRole("status")).toHaveText(tx("admin.alerts.reviewed", { outcome: tx("outcome.misuse") }));
+    const response = await reviewed;
+    expect(response.status()).toBe(200);
+    const body = (await response.json()) as { status: string; reviews: { outcome: string }[] };
+    expect(body.status).toBe("misuse");
+    expect(body.reviews.at(-1)?.outcome).toBe("misuse");
+    await expect(page.getByTestId("review-confirmation")).toContainText(
+      tx("admin.alerts.reviewedMoved", { outcome: tx("outcome.misuse") }),
+    );
     // A reviewed alert leaves the open queue; the day view still lists it with its outcome.
     await page.getByRole("button", { name: tx("admin.alerts.view.day") }).click();
     await expect(page.getByTestId("alert").filter({ hasText: tx("admin.alerts.status.misuse") }).first()).toBeVisible();

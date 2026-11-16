@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Confirmation } from "@/components/ui/confirmation";
 import { Alert as Notice, Badge, Field, Input, Textarea } from "@/components/ui/form";
 import { Empty, Loading, LoadError, QueryStatus } from "@/components/ui/state";
 import { api, call, type Schemas } from "@/lib/api/client";
@@ -97,6 +98,9 @@ export function Alerts() {
   const [picked, setDay] = useState<string | null>(null);
   const day = picked ?? today;
   const [selected, setSelected] = useState<string | null>(null);
+  // The result of the last review. A reviewed alert leaves the open list when it refetches,
+  // so the confirmation is kept here, outside the list, until dismissed or another alert opens.
+  const [confirmation, setConfirmation] = useState<string | null>(null);
   const [showRetired, setShowRetired] = useState(false);
   // Retired alerts are not open for review, so only the day view can show them.
   const includeRetired = view === "day" && showRetired;
@@ -120,6 +124,7 @@ export function Alerts() {
         <p className="text-sm text-muted-foreground">{t("admin.alerts.explain")}</p>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        <Confirmation message={confirmation} onDismiss={() => setConfirmation(null)} testId="review-confirmation" />
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex gap-1" role="group" aria-label={t("admin.alerts.show")}>
             {(["open", "day"] as const).map((v) => (
@@ -196,11 +201,29 @@ export function Alerts() {
                     size="sm"
                     className="mt-1 px-0 text-primary underline"
                     aria-expanded={selected === a.id}
-                    onClick={() => setSelected(selected === a.id ? null : a.id)}
+                    onClick={() => {
+                      setConfirmation(null);
+                      setSelected(selected === a.id ? null : a.id);
+                    }}
                   >
                     {selected === a.id ? t("admin.alerts.close") : t("admin.alerts.open")}
                   </Button>
-                  {selected === a.id && <AlertDetail id={a.id} />}
+                  {selected === a.id && (
+                    <AlertDetail
+                      id={a.id}
+                      onReviewed={(outcome) => {
+                        const text = t(`outcome.${outcome}`);
+                        setConfirmation(
+                          view === "open"
+                            ? t("admin.alerts.reviewedMoved", { outcome: text })
+                            : t("admin.alerts.reviewed", { outcome: text }),
+                        );
+                        if (view === "open") {
+                          setSelected(null);
+                        }
+                      }}
+                    />
+                  )}
                 </div>
               </li>
             );
@@ -211,7 +234,7 @@ export function Alerts() {
   );
 }
 
-function AlertDetail({ id }: { id: string }) {
+function AlertDetail({ id, onReviewed }: { id: string; onReviewed: (outcome: Outcome) => void }) {
   const { t } = useTranslation();
   const client = useQueryClient();
   const label = useFeatureLabel();
@@ -228,7 +251,8 @@ function AlertDetail({ id }: { id: string }) {
           body: { outcome, note: note.trim() || null },
         }),
       ),
-    onSuccess: (data) => {
+    onSuccess: (data, outcome) => {
+      onReviewed(outcome);
       client.setQueryData(["alert", id], data);
       void client.invalidateQueries({ queryKey: ["alerts"] });
     },
