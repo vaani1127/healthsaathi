@@ -1,7 +1,9 @@
 """Background worker process (SPEC 3).
 
 - Detection: every DETECT_INTERVAL_SECONDS it scores the day's accesses of each clinic and
-  raises alerts; once a day it fits the models on the last 30 days.
+  raises provisional alerts, and makes the final alert list of any clinic day that has become
+  due (app.detect.daily: from 00:00 clinic time two days after the day). Once a day it fits the
+  provisional models on the last 30 days.
 - Web push: sends the queued access notifications every few seconds.
 - Anchor timer: the GitHub Actions schedule is the main trigger for the anchor job; if it has
   not run for ANCHOR_FALLBACK_MINUTES the worker runs the job itself. The job's advisory lock
@@ -30,6 +32,7 @@ from app.core.config import get_settings
 from app.core.db import TenantContext, get_engine, tenant_session, wait_for_database
 from app.core.logging import configure_logging
 from app.db.models import AnchorReceipt, AuditEvent, Clinic, MerkleCheckpoint
+from app.detect import daily
 from app.detect import service as detect
 from app.notify import push
 from app.startup import maintenance_loop, run_startup_tasks
@@ -40,6 +43,11 @@ CHECK_INTERVAL_SECONDS = 60
 PUSH_INTERVAL_SECONDS = 10
 FIT_EVERY = timedelta(hours=24)
 FIT_MARKER = "last_fit.txt"
+# Work of the daily final ranking per worker tick, so per-minute scoring and the anchor timer
+# are not held up behind a long run: one clinic day with accesses, and a few days of training
+# features (a first run with no feature cache needs about 30 days per clinic).
+DAILY_DAYS_PER_TICK = 1
+DAILY_CACHE_DAYS_PER_TICK = 3
 # A clinic that stays stale is warned about again after this long.
 WARN_AGAIN_AFTER = timedelta(minutes=30)
 
@@ -268,7 +276,13 @@ async def detect_tick(now: datetime | None = None) -> dict[str, int]:
         await detect.fit_models(store=store)  # fits up to the database clock
         store.root.mkdir(parents=True, exist_ok=True)
         (store.root / FIT_MARKER).write_text(now.isoformat(), encoding="utf-8")
-    return await detect.score_all()
+    scored = await detect.score_all()
+    # Final lists of due days, a little per tick. Cheap when nothing is due: two small
+    # queries per clinic.
+    await daily.run_due(
+        store=store, max_days=DAILY_DAYS_PER_TICK, max_cache_days=DAILY_CACHE_DAYS_PER_TICK
+    )
+    return scored
 
 
 async def detect_loop() -> None:

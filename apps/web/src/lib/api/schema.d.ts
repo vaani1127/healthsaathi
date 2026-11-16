@@ -79,8 +79,33 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Alerts */
+        /**
+         * List Alerts
+         * @description Retired alerts (provisional, not in the day's final list, never reviewed) are left out
+         *     unless `include_retired` is true. They are never in `status=open`: they are not open for
+         *     review.
+         */
         get: operations["list_alerts_api_v1_alerts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/alerts/days/{day}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Day Status
+         * @description Whether the day's alert list is final, and from when it can be.
+         */
+        get: operations["day_status_api_v1_alerts_days__day__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1818,6 +1843,8 @@ export interface components {
              * Format: date
              */
             day: string;
+            /** Day Final */
+            day_final: boolean;
             /** Evidence */
             evidence: {
                 [key: string]: unknown;
@@ -1835,6 +1862,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * List State
+             * @enum {string}
+             */
+            list_state: "provisional" | "final" | "retired" | "outside_final";
             /** Model Version */
             model_version: string;
             /**
@@ -1858,6 +1890,11 @@ export interface components {
             score: number;
             /** Scorer */
             scorer: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "provisional" | "final" | "retired";
             status: components["schemas"]["AlertStatus"];
             /** Strength */
             strength: number;
@@ -1898,11 +1935,18 @@ export interface components {
              * Format: date
              */
             day: string;
+            /** Day Final */
+            day_final: boolean;
             /**
              * Id
              * Format: uuid
              */
             id: string;
+            /**
+             * List State
+             * @enum {string}
+             */
+            list_state: "provisional" | "final" | "retired" | "outside_final";
             /** Model Version */
             model_version: string;
             /** Policy Version */
@@ -1915,6 +1959,11 @@ export interface components {
             score: number;
             /** Scorer */
             scorer: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "provisional" | "final" | "retired";
             status: components["schemas"]["AlertStatus"];
             /** Strength */
             strength: number;
@@ -2417,6 +2466,35 @@ export interface components {
             payments: number;
             /** Total Paise */
             total_paise: number;
+        };
+        /**
+         * DayStatus
+         * @description Whether a clinic day's alert list is final, and when it will be.
+         */
+        DayStatus: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Final Count */
+            final_count: number | null;
+            /** Finalised At */
+            finalised_at: string | null;
+            /**
+             * Ready After
+             * Format: date-time
+             */
+            ready_after: string;
+            /** Retired Count */
+            retired_count: number | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "provisional" | "final" | "skipped";
+            /** Timezone */
+            timezone: string;
         };
         /** DoctorChart */
         DoctorChart: {
@@ -4021,6 +4099,7 @@ export interface operations {
             query?: {
                 day?: string | null;
                 status?: components["schemas"]["AlertStatus"] | null;
+                include_retired?: boolean;
             };
             header?: never;
             path?: never;
@@ -4035,6 +4114,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AlertOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    day_status_api_v1_alerts_days__day__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                day: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayStatus"];
                 };
             };
             /** @description Validation Error */

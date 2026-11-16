@@ -11,8 +11,7 @@ from app import worker
 from app.core.config import get_settings
 from app.db import models as m
 from app.db.enums import Role
-from app.detect import service
-from e2d_core.detect import RULES_THRESHOLD
+from app.detect import daily, service, starter_rules
 from tests.helpers import Actor, make_actor, make_clinic, make_patient
 
 
@@ -66,7 +65,7 @@ async def alerts_of(engine: AsyncEngine, clinic: uuid.UUID) -> list[m.Alert]:
         return list((await s.scalars(select(m.Alert).where(m.Alert.clinic_id == clinic))).all())
 
 
-async def test_rules_baseline_raises_alerts_within_the_budget(
+async def test_starter_rules_raise_provisional_alerts_within_the_budget(
     client: AsyncClient,
     admin_engine: AsyncEngine,
     clinic: uuid.UUID,
@@ -81,9 +80,10 @@ async def test_rules_baseline_raises_alerts_within_the_budget(
     assert 0 < created == len(alerts) <= budget
     assert sorted(a.rank_in_day for a in alerts) == list(range(1, created + 1))
     first = min(alerts, key=lambda a: a.rank_in_day)
-    assert first.model_version == service.RULES_VERSION
-    assert first.features["scorer"] == "rules"
-    assert first.score >= RULES_THRESHOLD
+    assert first.model_version == starter_rules.VERSION
+    assert first.features["scorer"] == "starter_rules"
+    assert first.features["lifecycle"] == {"stage": "provisional"}
+    assert first.score >= starter_rules.THRESHOLD
     assert len(first.policy_version) == 64
 
     # A second run raises nothing new for the same accesses.
@@ -232,7 +232,7 @@ async def test_nobody_reviews_an_alert_about_themselves(
             day=date.today(),
             score=1.0,
             rank_in_day=1,
-            features={"values": {}, "top": [], "scorer": "rules"},
+            features={"values": {}, "top": [], "scorer": "starter_rules"},
             model_version="x" * 64,
             policy_version="y" * 64,
         )
@@ -292,7 +292,12 @@ async def test_worker_fits_once_a_day(tmp_path: Path, monkeypatch: pytest.Monkey
 
     monkeypatch.setattr(service, "model_store", lambda: store)
     monkeypatch.setattr(service, "fit_models", fake_fit)
+
+    async def fake_daily(*args: object, **kwargs: object) -> dict[str, object]:
+        return {}
+
     monkeypatch.setattr(service, "score_all", fake_score)
+    monkeypatch.setattr(daily, "run_due", fake_daily)
     await worker.detect_tick()
     await worker.detect_tick()
     assert calls == ["fit", "score", "score"]

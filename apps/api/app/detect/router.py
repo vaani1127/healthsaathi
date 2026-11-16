@@ -16,9 +16,22 @@ Admin = Annotated[ClinicPrincipal, Depends(require_roles(Role.CLINIC_ADMIN))]
 
 @router.get("/alerts", response_model=list[schemas.AlertOut])
 async def list_alerts(
-    principal: Admin, db: Db, day: date | None = None, status: AlertStatus | None = None
+    principal: Admin,
+    db: Db,
+    day: date | None = None,
+    status: AlertStatus | None = None,
+    include_retired: bool = False,
 ) -> list[schemas.AlertOut]:
-    return await service.list_alerts(db, principal.clinic_id, day, status)
+    """Retired alerts (provisional, not in the day's final list, never reviewed) are left out
+    unless `include_retired` is true. They are never in `status=open`: they are not open for
+    review."""
+    return await service.list_alerts(db, principal.clinic_id, day, status, include_retired)
+
+
+@router.get("/alerts/days/{day}", response_model=schemas.DayStatus)
+async def day_status(principal: Admin, day: date, db: Db) -> schemas.DayStatus:
+    """Whether the day's alert list is final, and from when it can be."""
+    return await service.day_status(db, principal.clinic_id, day)
 
 
 @router.get("/alerts/{alert_id}", response_model=schemas.AlertDetail)

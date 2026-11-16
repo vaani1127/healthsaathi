@@ -4,7 +4,8 @@
 2. Load 50 of their patients and all their activity into the product tables (`hs_demo.load`).
 3. Register both clinics' signing keys in ClinicRegistry on the local anvil chain. A hosted demo
    on Polygon Amoy does this and the first anchor run afterwards, with `make prod-register`.
-4. Run the detector over every past day, as the worker would have done each day.
+4. Run the detector over every past day, as the worker would have done each day, then make the
+   final alert list of every loaded day that is already due (app.detect.daily).
 5. Book a few of today's appointments and issue queue tokens through the normal services.
 6. Run the anchor job once, so receipts can be verified straight away.
 7. Write the login table to the state folder.
@@ -36,6 +37,7 @@ from app.core.config import get_settings
 from app.core.db import TenantContext, get_engine, tenant_session
 from app.db.enums import Role
 from app.db.models import AccessEvent, Alert, Clinic, Membership, Patient, User
+from app.detect import daily
 from app.detect import service as detect
 from app.identity.deps import ClinicPrincipal
 from app.scripts.register_clinic import registration
@@ -114,6 +116,16 @@ async def detect_history(report: LoadReport) -> int:
         raised += sum((await detect.score_all(at)).values())
         day += timedelta(days=1)
     return raised
+
+
+async def finalise_history(report: LoadReport, today: date) -> int:
+    """Final alert lists for every loaded day that is due, as the worker would have made them
+    two days after each day. The catch-up window covers the whole loaded history."""
+    assert report.first_day is not None
+    runs = await daily.run_due(catch_up=max(1, (today - report.first_day).days))
+    if runs is None:
+        raise SystemExit("another daily detection run holds the lock")
+    return sum(1 for days in runs.values() for r in days if r.outcome == "finalised")
 
 
 async def todays_queue() -> int:
@@ -285,6 +297,7 @@ async def main() -> int:
             clinic_ids = list((await db.scalars(select(Clinic.id))).all())
         await register_on_chain(clinic_ids)
         say(f"detector raised {await detect_history(report)} alerts over the past days")
+        say(f"final alert lists made for {await finalise_history(report, today)} past clinic days")
         say(f"booked {await todays_queue()} appointments for today")
         if get_settings().anchor_chain == "anvil":
             runs = await job.run()

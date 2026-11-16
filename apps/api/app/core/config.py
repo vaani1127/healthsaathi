@@ -69,6 +69,9 @@ class Settings(BaseSettings):
         default="iforest", alias="DETECT_SCORER"
     )
     detect_interval_seconds: int = Field(default=60, ge=0, alias="DETECT_INTERVAL_SECONDS")
+    # Due days the daily final ranking may still finalise; older unfinished days are skipped.
+    # Raise it once, for the first run on a database with history (docs/RUNBOOK.md).
+    detect_catch_up_days: int = Field(default=7, ge=1, alias="DETECT_CATCH_UP_DAYS")
 
     # Files (lab reports). Local folder unless an Azure container SAS URL is set.
     storage_dir: str | None = Field(default=None, alias="STORAGE_DIR")
