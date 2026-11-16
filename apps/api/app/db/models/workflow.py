@@ -167,4 +167,5 @@ class StatusEvent(ClinicScopedMixin, Base):
     entity_type: Mapped[StatusEntity] = mapped_column(str_enum(StatusEntity, "status_entity"))
     entity_id: Mapped[uuid.UUID]
     status: Mapped[str] = mapped_column(String(32))
-    at: Mapped[datetime] = mapped_column(server_default=func.now())
+    # Statement time: a status set after an access in the same request is dated after it.
+    at: Mapped[datetime] = mapped_column(server_default=func.clock_timestamp())

@@ -21,6 +21,7 @@ from app.db.base import (
     Base,
     ClinicScopedMixin,
     CreatedAtMixin,
+    EvidenceCreatedAtMixin,
     clinic_fk,
     scoped_args,
     str_enum,
@@ -29,7 +30,7 @@ from app.db.base import (
 from app.db.enums import AllergySeverity, ConditionStatus, LabOrderStatus
 
 
-class Vital(ClinicScopedMixin, CreatedAtMixin, Base):
+class Vital(ClinicScopedMixin, EvidenceCreatedAtMixin, Base):
     __tablename__ = "vitals"
     __table_args__ = scoped_args(
         clinic_fk(["patient_id"], "patients"),
@@ -40,7 +41,7 @@ class Vital(ClinicScopedMixin, CreatedAtMixin, Base):
     patient_id: Mapped[uuid.UUID]
     encounter_id: Mapped[uuid.UUID | None]
     recorded_by: Mapped[uuid.UUID] = user_fk()
-    recorded_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    recorded_at: Mapped[datetime] = mapped_column(server_default=func.clock_timestamp())
     bp_sys: Mapped[int | None] = mapped_column(SmallInteger)
     bp_dia: Mapped[int | None] = mapped_column(SmallInteger)
     pulse: Mapped[int | None] = mapped_column(SmallInteger)
@@ -77,7 +78,7 @@ class Condition(ClinicScopedMixin, CreatedAtMixin, Base):
     recorded_by: Mapped[uuid.UUID] = user_fk()
 
 
-class ClinicalNote(ClinicScopedMixin, CreatedAtMixin, Base):
+class ClinicalNote(ClinicScopedMixin, EvidenceCreatedAtMixin, Base):
     """Versioned note. A signed version is never changed; an edit creates a new version."""
 
     __tablename__ = "clinical_notes"
@@ -98,7 +99,7 @@ class ClinicalNote(ClinicScopedMixin, CreatedAtMixin, Base):
     signed_at: Mapped[datetime | None]
 
 
-class Prescription(ClinicScopedMixin, CreatedAtMixin, Base):
+class Prescription(ClinicScopedMixin, EvidenceCreatedAtMixin, Base):
     __tablename__ = "prescriptions"
     __table_args__ = scoped_args(
         clinic_fk(["patient_id"], "patients"),
@@ -119,7 +120,7 @@ class Prescription(ClinicScopedMixin, CreatedAtMixin, Base):
     parent_id: Mapped[uuid.UUID | None]
 
 
-class LabOrder(ClinicScopedMixin, CreatedAtMixin, Base):
+class LabOrder(ClinicScopedMixin, EvidenceCreatedAtMixin, Base):
     __tablename__ = "lab_orders"
     __table_args__ = scoped_args(
         clinic_fk(["patient_id"], "patients"),
@@ -163,5 +164,5 @@ class LabResult(ClinicScopedMixin, Base):
     values: Mapped[dict[str, Any]] = mapped_column(JSONB)
     document_id: Mapped[uuid.UUID | None]
     resulted_by: Mapped[uuid.UUID] = user_fk()
-    resulted_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    resulted_at: Mapped[datetime] = mapped_column(server_default=func.clock_timestamp())
     released_at: Mapped[datetime | None]
