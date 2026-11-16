@@ -202,13 +202,54 @@ takes up to a minute.
 
 ## Detection
 
-- The worker scores every clinic's accesses each `DETECT_INTERVAL_SECONDS` and refits models
-  once a day (models in the `models` volume, `MODEL_DIR`). Before the first fit, and for clinics
-  with few accesses, the rules baseline or the global model is used.
+- The worker scores every clinic's accesses each `DETECT_INTERVAL_SECONDS` and raises
+  provisional alerts, and refits the provisional models once a day (models in the `models`
+  volume, `MODEL_DIR`). Before the first fit, and for clinics with few accesses, the starter
+  rules or the global model are used.
+- After scoring, the worker makes the final alert list of every clinic day that is due (from
+  00:00 clinic time two days after the day; ADR 0008). Each finalised or skipped day writes one
+  `detect_daily` audit event. A clinic whose daily run fails is logged ("daily detection
+  failed") and tried again after 15 minutes.
+- Each worker tick does a little of the daily work: it finalises at most one clinic day with
+  accesses and computes at most 3 days of training features (`DAILY_DAYS_PER_TICK`,
+  `DAILY_CACHE_DAYS_PER_TICK` in `app/worker.py`), so per-minute scoring and the anchor timer are
+  not held up. A first run with no feature cache needs about 30 training days per clinic, so it
+  is spread over several ticks.
+- Days that are due and older than `DETECT_CATCH_UP_DAYS` (7 by default) without a final list
+  are skipped for good (a `detect_daily` event with outcome `skipped`).
+
+### First deploy of the daily final list on a database with history
+
+The first worker run after this release would skip every clinic day older than 7 days. To
+finalise the whole history instead, run the job once by hand before the worker gets to it:
+
+1. Do not deploy before anchoring snapshot B (25 November 2026, after 00:17 IST) is taken.
+   Stopping the worker pauses the anchor fallback timer, and finalising the history writes one
+   `detect_daily` audit event per clinic per past day, all of which are then anchored; either
+   would change the anchoring study's data. Deploy outside OPD hours (09:30-13:30 and
+   17:00-20:00 IST), as usual.
+2. On the VM, in `/opt/healthsaathi`, stop the worker so it does not start skipping days:
+   `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml stop worker`
+   (this stops the anchor fallback timer too; the GitHub schedule keeps anchoring).
+3. Finalise the history with a catch-up window longer than the history (in days since the
+   first access), for example 400:
+   `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml run --rm worker python -m app.detect.job --daily --catch-up 400`
+   This runs without the per-tick caps and can take a while on a long history. It is safe to
+   stop and run again: finalised days are never redone.
+4. Start the worker again:
+   `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml start worker`
+5. Check the log for "day finalised" lines and no "day skipped" lines, and the admin alert
+   page: past days say "Final list".
+
+The local demo does this itself: `hs_demo.seed` finalises every loaded day that is due.
+- The daily feature cache is in `MODEL_DIR/daily`. It can be deleted at any time; it is rebuilt
+  from the database.
 - Run by hand on the VM, in `/opt/healthsaathi`:
   `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml exec -T worker python -m app.detect.job`
-  (add `--fit` to refit now).
-- Every alert stores `model_version` (sha256 of the model file) and `policy_version`.
+  (add `--fit` to refit now, or `--daily` to make the final lists of the due days, with
+  `--catch-up N` to reach further back; all are safe to repeat).
+- Every alert stores `model_version` (sha256 of the model file, or of the day's final model) and
+  `policy_version`.
 
 ## Backups and restore
 
