@@ -8,6 +8,18 @@ Changes that depart from docs/SPEC.md, from what the experiments did, or from an
 each with its date, reason and effect. Deviations from the registered experiment plan made before
 this heading existed are in section 9 of experiments/PREREGISTRATION.md.
 
+- **17 November 2026: last accepted authenticator step in the database (migration 0006, ADR
+  0003 amended).** Reason: each TOTP step was accepted once per user only within one API
+  process, and the API runs 2 workers (SPEC 2), so a code could be accepted once per worker, and
+  again after a restart (`docs/APP_GAPS.md` 30). What changes:
+  - `mfa_secrets` gains `last_step bigint NULL`. SPEC 3.1 lists `mfa_secrets(user_id pk,
+    totp_secret_enc, enabled_at)`; SPEC is not changed here.
+  - A code is accepted only if one conditional update moves `last_step` forward; the in-memory
+    `_last_step` is removed. ADR 0003's decision to keep TOTP replay state in memory is replaced.
+  - The accepted window is unchanged: the current step or one either side.
+  - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
+    `experiments/results/v1` and the pre-registration are not touched.
+
 - **16 November 2026: statement-time stamps and one clock (migration 0005, ADR 0008).**
   Reason: evidence rows and status changes were stamped with the transaction's start time
   (`now()`), so a row created, or a status set, after an access in the same request was dated
@@ -65,6 +77,23 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
     kind `detect_daily`. The feature cache is a file in `MODEL_DIR`.
   - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
     `experiments/results/v1` and the pre-registration are not touched, so no v1 number can change.
+
+### Authenticator codes work once across workers
+
+- `identity/totp.py`: `verify()` becomes `matching_step()`, which only finds the code's step.
+  `identity/service.py` `_claim_step` takes the step with one atomic update, used by
+  `verify_totp` and `activate_totp`; `start_totp_enrolment` clears it with a new secret.
+- Tests (`apps/api/tests/identity/test_single_use.py`), each running two attempts at once on
+  separate database sessions and checking that both were waiting on the same row lock: the same
+  authenticator code (exactly one session), the same email code (exactly one session, one
+  `used_at`), and the same refresh token (one rotation; the other is treated as reuse and the
+  whole family, including the new token, is revoked). Also: a used code is refused after a
+  restart, an older step after a newer one is refused, a wrong code claims nothing, and a new
+  enrolment secret clears the old step.
+- No code change was needed for email codes, refresh rotation or invite tokens: each already
+  locks its row with `SELECT ... FOR UPDATE` before checking and updating it.
+- Docs: `docs/SECURITY_CHECKLIST.md` (ASVS 2.2.1, 2.7.3, 2.8.1), `docs/THREAT_MODEL.md`,
+  `docs/APP_GAPS.md` 30 fixed and 31 added (rate limits and lockout counted per API process).
 
 ### Confirmations that outlive the list
 

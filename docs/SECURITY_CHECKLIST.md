@@ -23,7 +23,7 @@ the row.
 | 2.1.10 | No periodic rotation or history rules | Pass | None |
 | 2.1.11 | Paste and password managers allowed | Pass | Standard inputs with `autocomplete` |
 | 2.1.12 | Option to show the password | Pass | `components/ui/password.tsx` on every password field |
-| 2.2.1 | Anti-automation | Pass | 5 logins per minute per IP, account lock after 5 failures in 15 minutes, 3 email codes per minute per address |
+| 2.2.1 | Anti-automation | Pass | 5 logins per minute per IP, account lock after 5 failures in 15 minutes, 3 email codes per minute per address, 5 authenticator code attempts per user in 15 minutes. These counters are kept in each API process's memory (slowapi memory storage, `core/ratelimit.py`, `identity/lockout.py`). The API runs 2 Uvicorn workers, so each limit is counted per worker: up to twice the number above can get through (for example up to 10 logins per minute from one IP, or up to 10 wrong passwords before both workers lock the account), and a restart clears them (`docs/APP_GAPS.md` 31). The 5 attempts allowed per email code are counted on the code's row in the database, so they hold across workers |
 | 2.2.2 | Email and SMS only as a secondary factor | Accepted | Patients sign in with an email code alone (SPEC 1.1). A patient account only reaches that patient's own record, the code expires in 10 minutes and allows 5 attempts |
 | 2.2.3 | Notify after changes to authentication details | Pass | Emails on a new device and on a password change |
 | 2.3.1 | Initial secrets random, at least 6 characters, expire | Pass | Invite tokens are random and expire after 72 hours |
@@ -34,9 +34,9 @@ the row.
 | 2.5.6 | Forgotten password uses a secure recovery | Accepted | There is no password recovery flow yet: staff who forget their password need help from the platform team. Kept out of scope for now because a recovery flow by email alone would weaken the staff login, which also needs TOTP; listed as an open item |
 | 2.7.1 | Clear-text SMS not used for secrets | Pass | No SMS (out of scope in SPEC 1.2) |
 | 2.7.2 | Out-of-band codes expire after 10 minutes | Pass | Email codes, 10 minutes |
-| 2.7.3 | Out-of-band codes used once | Pass | `used_at` set on use, `identity/service.py` |
+| 2.7.3 | Out-of-band codes used once | Pass | The code row is read with `SELECT ... FOR UPDATE` and `used_at` is set in the same transaction (`identity/service.py` `verify_email_code`). A second request with the same code, on any worker, waits for the lock and then finds no unused code. Tested with two requests at once: `tests/identity/test_single_use.py` |
 | 2.7.4 | Out-of-band channel is secure | Pass | Brevo API over HTTPS |
-| 2.8.1 | Time-based OTPs have a defined lifetime | Pass | 30 second TOTP steps (the current step or one either side). Note: reuse of a code is refused only within one API process; with 2 workers a code can be accepted once per worker (`docs/APP_GAPS.md` 30) |
+| 2.8.1 | Time-based OTPs have a defined lifetime | Pass | 30 second TOTP steps (the current step or one either side). Each step is accepted once per user, across all API workers and restarts: the last accepted step is kept in `mfa_secrets.last_step` (migration 0006), and a code is accepted only if one `UPDATE ... WHERE last_step IS NULL OR last_step < :step` changes the row (`identity/service.py` `_claim_step`). A step at or before the last accepted one is refused. Tested with two requests at once, after a restart, and with an older step after a newer one: `tests/identity/test_single_use.py` |
 
 ## V3 Session management
 
