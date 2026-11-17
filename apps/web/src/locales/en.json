@@ -171,7 +171,8 @@
       "500": "Something went wrong on the server. Please try again."
     },
     "same-password": "Choose a password you have not used here.",
-    "push-off": "Notifications are not available here."
+    "push-off": "Notifications are not available here.",
+    "rate-limit-unavailable": "Sign-in is not available right now. Try again in a minute."
   },
   "sex": {
     "female": "Female",
