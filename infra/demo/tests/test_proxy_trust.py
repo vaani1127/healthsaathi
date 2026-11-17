@@ -44,6 +44,14 @@ def test_uvicorn_does_not_read_proxy_headers_itself() -> None:
     assert '"--proxy-headers"' not in dockerfile
     demo_api = load("docker-compose.demo.yml")["services"]["api"]["command"]
     assert "--no-proxy-headers" in demo_api
+    dev_api = load("docker-compose.dev.yml")["services"]["api"]["command"]
+    assert "--no-proxy-headers" in dev_api
+    native = (INFRA / "demo" / "src" / "hs_demo" / "native.py").read_text(encoding="utf-8")
+    assert '"--no-proxy-headers"' in native
+    playwright = (INFRA.parent / "apps" / "web" / "playwright.config.ts").read_text(
+        encoding="utf-8"
+    )
+    assert "uvicorn app.main:app --port 8000 --no-proxy-headers" in playwright
 
 
 def test_prod_and_demo_subnets_differ() -> None:

@@ -348,6 +348,8 @@ def start_api() -> None:
             "127.0.0.1",
             "--port",
             str(API_PORT),
+            # Only the app's own middleware reads X-Forwarded-For (TRUSTED_PROXY_IPS).
+            "--no-proxy-headers",
         ],
         API_DIR,
         demo_env(),
