@@ -552,11 +552,15 @@ async def test_email_code_requests_are_limited_per_email(
     client: AsyncClient, clinic: ClinicGraph, admin_engine: AsyncEngine
 ) -> None:
     email = await make_patient(admin_engine, clinic)
+    before = len([mail for mail in outbox.sent if mail.to == email])
     statuses = [
         (await client.post("/api/v1/auth/otp/request", json={"email": email})).status_code
         for _ in range(4)
     ]
-    assert statuses == [202, 202, 202, 429]
+    # The 4th gets the same answer (so it does not reveal whether the email exists), but no code
+    # is sent.
+    assert statuses == [202, 202, 202, 202]
+    assert len([mail for mail in outbox.sent if mail.to == email]) - before == 3
 
 
 async def test_email_code_request_does_not_reveal_unknown_emails(client: AsyncClient) -> None:

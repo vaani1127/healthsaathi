@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.db import ANONYMOUS, TenantContext, tenant_session
 from app.core.errors import ProblemError
-from app.core.ratelimit import hit
+from app.core.ratelimit import OTP_PER_EMAIL, allow, hit
 from app.db.enums import STAFF_ROLES, Role
 from app.db.models import Device, EmailOtp, Membership, MfaSecret, User, UserSession
 from app.identity import lockout, password_policy, passwords, tokens, totp
@@ -110,10 +110,8 @@ async def active_memberships(user_id: uuid.UUID) -> list[MembershipInfo]:
 
 
 async def login_with_password(email: str, password: str) -> LoginChallenge:
-    if lockout.is_locked(email):
-        raise ProblemError(
-            429, "account-locked", "Too many wrong passwords. Try again in 15 minutes."
-        )
+    # Counted before the password is checked (identity/lockout.py).
+    await lockout.count_attempt(email)
 
     async with tenant_session(ANONYMOUS) as db:
         user = await _user_by_email(db, email)
@@ -123,9 +121,9 @@ async def login_with_password(email: str, password: str) -> LoginChallenge:
     else:
         passwords.verify_password(_DUMMY_HASH, password)
     if not valid or user is None:
-        lockout.record_failure(email)
+        # A wrong password keeps the attempt counted.
         raise ProblemError(401, "invalid-credentials", "Email or password is wrong.")
-    lockout.clear(email)
+    await lockout.clear(email)
 
     memberships = await active_memberships(user.id)
     if memberships and all(m.role == Role.PATIENT for m in memberships):
@@ -175,7 +173,7 @@ async def _claim_step(db: AsyncSession, user_id: uuid.UUID, step: int | None) ->
 
 async def verify_totp(challenge_token: str, code: str, device: DeviceInfo) -> IssuedTokens:
     user_id = _user_from(challenge_token, "mfa_challenge")
-    hit(TOTP_ATTEMPTS, "totp", str(user_id))
+    await hit(TOTP_ATTEMPTS, "totp", str(user_id))
     async with tenant_session(ANONYMOUS) as db:
         mfa = await db.get(MfaSecret, user_id)
         if mfa is None or mfa.enabled_at is None:
@@ -211,7 +209,7 @@ async def start_totp_enrolment(enroll_token: str) -> tuple[str, str]:
 
 async def activate_totp(enroll_token: str, code: str, device: DeviceInfo) -> IssuedTokens:
     user_id = _user_from(enroll_token, "mfa_enroll")
-    hit(TOTP_ATTEMPTS, "totp", str(user_id))
+    await hit(TOTP_ATTEMPTS, "totp", str(user_id))
     async with tenant_session(ANONYMOUS) as db:
         mfa = await db.get(MfaSecret, user_id)
         if mfa is None:
@@ -231,9 +229,12 @@ async def activate_totp(enroll_token: str, code: str, device: DeviceInfo) -> Iss
 
 
 async def request_email_code(email: str) -> None:
-    """Send a login code to a patient. Gives the same answer whether or not the email is known."""
+    """Send a login code to a patient. Gives the same answer whether or not the email is known,
+    and also when this address has asked too often: then nothing is sent, but the caller cannot
+    tell, so the limit does not reveal which emails exist."""
     email = _normalise_email(email)
-    hit("3/minute", "otp-email", email)
+    if not await allow(OTP_PER_EMAIL, "otp-email", email):
+        return
     async with tenant_session(ANONYMOUS) as db:
         user = await _user_by_email(db, email)
     if user is None or not user.is_active:
