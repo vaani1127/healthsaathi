@@ -35,10 +35,33 @@ patient data gate rejects staff tokens without `otp` in `amr`.
 **Cookie.** `hs_refresh` is `HttpOnly`, `Secure`, `SameSite=Lax`, path `/api/v1/auth`, with the
 domain from `COOKIE_DOMAIN` so `app.` and `api.` subdomains share it.
 
-**Limits kept in memory.** SPEC rate limits use slowapi with in-memory storage. Account lockout
-(5 wrong passwords in 15 minutes) and the TOTP attempt limit (5 per user in 15 minutes) use the
-same storage. The API runs 2 Uvicorn workers, so each of these is counted per worker (up to twice
-the stated number), and a restart clears them (`docs/APP_GAPS.md` 31).
+**Sign-in limits in the database (amended 17 November 2026).** Login per IP (5 a minute, per
+route), email code requests per address (3 a minute) and per IP (5 a minute), authenticator
+attempts per user (5 in 15 minutes) and the password lockout are fixed-window counters in
+`rate_counters` (migration 0007, `core/counters.py`). Each hit is one
+`INSERT ... ON CONFLICT ... DO UPDATE SET count = count + 1 RETURNING count`, so both API workers
+share the counts and a restart keeps them. Windows are on the database clock. Keys are
+HMAC-SHA256 with a key derived for this use, HMAC(`OTP_HMAC_KEY`, "rate-counters-v1"), so no IP
+or email is stored. Without the database the limit refuses the request (503). The worker deletes
+ended windows every minute. A fixed window lets up to twice a limit through in a short burst
+across a window edge; a weighted two-window count was considered and left out, because the
+long-run rate is the same and the burst is small next to Argon2id and a 10 character minimum.
+
+**Lockout counts first.** Every password attempt adds one to the email's counter before the
+password is checked. Over 5 in the window, the attempt is refused as locked without checking the
+password. A wrong password keeps the count; a correct one deletes it. Attempts sent at the same
+moment cannot all get in under the limit, because each gets its own count from one statement.
+
+**Email code requests over the per-address limit answer 202** and send nothing, like a request
+for an unknown address, so the limit does not reveal which emails exist. The per-IP limit answers
+429.
+
+**Client IP.** The app applies the proxy headers itself and believes X-Forwarded-For only from
+`TRUSTED_PROXY_IPS`, Caddy's fixed address on a fixed compose subnet; uvicorn runs with
+`--no-proxy-headers`. "*" is refused.
+
+**Route limits kept in memory.** Search, export and print limits stay in slowapi's memory: per
+worker (up to twice the limit) and cleared on restart.
 
 **Each TOTP step once, in the database (amended 17 November 2026).** The last accepted 30 second
 step per user is kept in `mfa_secrets.last_step` (migration 0006). A code is accepted only if one
@@ -56,7 +79,8 @@ with `OTP_HMAC_KEY`; TOTP secrets are stored with AES-256-GCM using a key id pre
 ## Consequences
 
 - A stolen password alone never yields a session.
-- Lockout counters and rate limit counts are lost on restart and counted per worker, which
-  weakens those checks (up to twice the stated limits); Argon2id still applies.
+- Sign-in limits and the lockout hold across workers and restarts. Login needs the database
+  anyway, so failing closed costs nothing extra.
+- The search, export and print limits are still per worker and lost on restart.
 - A TOTP code works once per user whatever the number of workers, and also after a restart.
 - Platform admin sign-in is not handled yet; it will be added with the clinic onboarding flow.

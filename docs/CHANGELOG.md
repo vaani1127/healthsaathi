@@ -8,6 +8,20 @@ Changes that depart from docs/SPEC.md, from what the experiments did, or from an
 each with its date, reason and effect. Deviations from the registered experiment plan made before
 this heading existed are in section 9 of experiments/PREREGISTRATION.md.
 
+- **17 November 2026: sign-in limits in the database (migration 0007, ADR 0003 amended).**
+  Reason: the limits were counted in each API process's memory, so with 2 workers each was
+  counted per worker, and a restart cleared them (`docs/APP_GAPS.md` 31); and the API believed
+  X-Forwarded-For from any peer. What changes against SPEC 4 ("slowapi, in-memory, single VM"):
+  - Login per IP, email codes per address, authenticator attempts per user and the password
+    lockout are counted in the new table `rate_counters`. Search, export and print stay in memory.
+  - New limit: email code requests, 5 per minute per IP. Over the per-address limit an email
+    code request now answers 202 and sends nothing (it answered 429).
+  - The lockout counts each attempt before the password is checked.
+  - New setting `TRUSTED_PROXY_IPS`; Caddy has a fixed address on a fixed compose subnet.
+  - SPEC 4 is edited in the local copy only (SPEC.md is not in the repository).
+  - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
+    `experiments/results/v1` and the pre-registration are not touched.
+
 - **17 November 2026: last accepted authenticator step in the database (migration 0006, ADR
   0003 amended).** Reason: each TOTP step was accepted once per user only within one API
   process, and the API runs 2 workers (SPEC 2), so a code could be accepted once per worker, and
@@ -76,6 +90,24 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
     kind `detect_daily`. The feature cache is a file in `MODEL_DIR`.
   - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
     `experiments/results/v1` and the pre-registration are not touched, so no v1 number can change.
+
+### Sign-in limits shared by API workers
+
+- `app/core/counters.py` and migration 0007 (`rate_counters`): fixed-window counters, one atomic
+  statement per hit, on the database clock, keys HMAC'd with a derived key. Fails closed (503).
+- `ratelimit.hit()` and `allow()` are async and use the counters; `per_ip()` is a route
+  dependency for login, authenticator check, email code request and check, and password change.
+  `identity/lockout.py` counts first and clears on a correct password.
+- The worker deletes ended windows every minute.
+- The app applies proxy headers itself, only from `TRUSTED_PROXY_IPS`; uvicorn runs with
+  `--no-proxy-headers`. The prod and demo compose files give Caddy a fixed address
+  (`10.250.0.2` and `10.250.1.2`) on new networks `healthsaathi_edge` and
+  `healthsaathi-demo_edge`.
+- Tests: `tests/test_client_ip.py`, `tests/test_rate_counters.py`,
+  `tests/identity/test_db_limits.py`, `tests/test_worker_prune.py`,
+  `infra/demo/tests/test_proxy_trust.py`.
+- Docs: SECURITY_CHECKLIST 2.2.1 and 11.1.2, THREAT_MODEL, ADR 0003, RUNBOOK (DNS only, fixed
+  network), APP_GAPS 31 fixed and 32 to 34 added.
 
 ### Authenticator codes work once across workers
 

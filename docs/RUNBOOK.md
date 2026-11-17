@@ -117,7 +117,10 @@ On the VM (Ubuntu 24.04):
    `CORS_ORIGINS=["https://app.<domain>"]`, `PUBLIC_APP_URL=https://app.<domain>`, the Brevo, blob
    and anchoring values. `chmod 600` the file.
 4. Point `api.<domain>` (A record) at the VM IP and `app.<domain>` (CNAME) at the Pages project
-   before tagging, so Caddy can get its certificate.
+   before tagging, so Caddy can get its certificate. The `api.` record must stay **DNS only** (grey
+   cloud in Cloudflare). If it were proxied, Caddy would see Cloudflare's addresses instead of
+   the users', every user would share a few IPs, and the per-IP sign-in limits would lock out
+   whole groups of people at once.
 5. Tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
 
 The workflow checks that the tagged commit is on `main` and passed CI, builds the image, copies it
@@ -130,6 +133,28 @@ and the compose files to `/opt/healthsaathi`, and runs `infra/deploy/deploy.sh`,
 5. on failure starts the previous tag again and fails the job.
 
 After the first deploy, register each clinic on chain (see "Anchoring" below).
+
+### Fixed network (first deploy after fix/db-rate-limits)
+
+The compose file puts the containers on a network named `healthsaathi_edge` with the fixed subnet
+`10.250.0.0/24`, and Caddy on `10.250.0.2`. The API believes X-Forwarded-For only from that
+address (`TRUSTED_PROXY_IPS`).
+
+1. Before the deploy, on the VM, check that nothing already uses the subnet:
+   `ip route | grep 10.250.` should print nothing. Also run
+   `docker network inspect $(docker network ls -q) --format '{{.Name}} {{range .IPAM.Config}}{{.Subnet}}{{end}}' | grep 10.250.`;
+   it should print nothing either. If either prints a line, pick another subnet in
+   `docker-compose.prod.yml` (subnet, ip_range, gateway, Caddy's `ipv4_address` and
+   `TRUSTED_PROXY_IPS` together) before deploying.
+2. `deploy.sh` needs no change: `up -d` creates the new network (a new name, so the old one is
+   not modified) and recreates `api`, `worker`, `caddy` and `activity` on it. Expect the usual
+   few seconds of downtime while they restart.
+3. The old network `healthsaathi_default` is left empty. It does no harm. To remove it, first
+   check it has no containers with `docker network inspect healthsaathi_default`, then
+   `docker network rm healthsaathi_default`.
+4. Rolling back to an image older than this change still works with the new compose file, but
+   that image reads proxy headers only from 127.0.0.1, so all users would share Caddy's address
+   for the per-IP limits until the newer image is back.
 
 ## Staging
 
