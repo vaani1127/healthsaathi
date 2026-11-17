@@ -7,8 +7,9 @@ x-api: &api
   env_file: /opt/healthsaathi/.env
   environment:
     APP_ENV: prod
-    # Only Caddy can reach the api container, so its forwarded client IP is trusted.
-    FORWARDED_ALLOW_IPS: "*"
+    # Only Caddy's fixed address (see networks below) may set the client IP with
+    # X-Forwarded-For. Other containers on the network, and any client, cannot.
+    TRUSTED_PROXY_IPS: 10.250.0.2
   restart: unless-stopped
   logging:
     driver: json-file
@@ -70,6 +71,10 @@ services:
     # next to this compose file.
     environment:
       API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in /opt/healthsaathi/.env}
+    networks:
+      default:
+        # The api trusts X-Forwarded-For from this address only (TRUSTED_PROXY_IPS).
+        ipv4_address: 10.250.0.2
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -81,6 +86,18 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+# A fixed subnet so Caddy can have a fixed address. Other containers get addresses from
+# ip_range (10.250.0.128 and up), so none can take Caddy's. The new name makes compose create a
+# new network instead of changing the old one (docs/RUNBOOK.md, "Fixed network").
+networks:
+  default:
+    name: healthsaathi_edge
+    ipam:
+      config:
+        - subnet: 10.250.0.0/24
+          ip_range: 10.250.0.128/25
+          gateway: 10.250.0.1
 
 volumes:
   caddy_data:

@@ -9,6 +9,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app import __version__, health
 from app.anchor.router import router as anchor_router
@@ -72,7 +73,9 @@ def create_app() -> FastAPI:
     install_error_handlers(app)
     app.add_exception_handler(RateLimitExceeded, _rate_limited)
 
-    # Middleware runs bottom-up: request context first, then security headers, CORS, limits.
+    # Middleware runs bottom-up: the client address first, then request context, security
+    # headers, CORS and limits. The address comes first so every later step (limits, access
+    # events) sees the client, not the proxy.
     app.add_middleware(SlowAPIMiddleware)
     app.add_middleware(
         CORSMiddleware,
@@ -84,6 +87,9 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestContextMiddleware)
+    # X-Forwarded-For is believed only from TRUSTED_PROXY_IPS (Caddy). From any other peer the
+    # header is ignored. uvicorn runs with --no-proxy-headers so this is the only place.
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=settings.trusted_proxies)
 
     app.include_router(health.router, prefix=API_PREFIX)
     app.include_router(auth_router, prefix=API_PREFIX)
