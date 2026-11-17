@@ -37,6 +37,7 @@ import asyncpg  # noqa: E402
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
+from sqlalchemy import text  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine  # noqa: E402
 
 from app.main import create_app  # noqa: E402
@@ -79,10 +80,13 @@ async def admin_engine(migrated_database: str) -> AsyncIterator[AsyncEngine]:
 
 
 @pytest.fixture(autouse=True)
-def reset_rate_limits() -> None:
+async def reset_rate_limits(admin_engine: AsyncEngine) -> None:
+    """Every test starts with no counts: the in-memory route limits and the database counters."""
     from app.core.ratelimit import reset
 
     reset()
+    async with admin_engine.begin() as conn:
+        await conn.execute(text("DELETE FROM rate_counters"))
 
 
 @pytest.fixture
