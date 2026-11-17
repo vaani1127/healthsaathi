@@ -62,7 +62,7 @@ async def test_exactly_the_limit_passes_across_sessions_and_the_next_is_refused(
 async def test_login_per_ip_is_counted_in_the_database(
     client: AsyncClient, admin_engine: AsyncEngine
 ) -> None:
-    for i in range(5):
+    for i in range(20):
         resp = await client.post(
             "/api/v1/auth/login", json={"email": f"n{i}@db-limits.test", "password": "x" * 12}
         )

@@ -35,8 +35,11 @@ patient data gate rejects staff tokens without `otp` in `amr`.
 **Cookie.** `hs_refresh` is `HttpOnly`, `Secure`, `SameSite=Lax`, path `/api/v1/auth`, with the
 domain from `COOKIE_DOMAIN` so `app.` and `api.` subdomains share it.
 
-**Sign-in limits in the database (amended 17 November 2026).** Login per IP (5 a minute, per
-route), email code requests per address (3 a minute) and per IP (5 a minute), authenticator
+**Sign-in limits in the database (amended 17 November 2026).** Per IP, counted per route:
+20 a minute for password sign-in and for the authenticator check, because staff of one clinic
+often share one router address (SPEC 4 said 5; see the Deviations in `docs/CHANGELOG.md`), and
+5 a minute for email code requests, email code checks and password changes. Per address and
+user: email code requests (3 a minute), authenticator
 attempts per user (5 in 15 minutes) and the password lockout are fixed-window counters in
 `rate_counters` (migration 0007, `core/counters.py`). Each hit is one
 `INSERT ... ON CONFLICT ... DO UPDATE SET count = count + 1 RETURNING count`, so both API workers

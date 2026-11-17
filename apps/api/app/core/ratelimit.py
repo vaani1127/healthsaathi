@@ -20,6 +20,10 @@ from app.core import counters
 from app.core.config import get_settings
 from app.core.errors import ProblemError
 
+# Per IP, for password sign-in and the authenticator check. Staff of one clinic often share
+# one router address, so this is higher than the per-account limits below it.
+LOGIN_SHARED_IP = "20/minute"
+# Per IP for email codes and password changes.
 LOGIN = "5/minute"
 OTP_PER_EMAIL = "3/minute"
 SEARCH = "30/minute"

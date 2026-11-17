@@ -143,10 +143,11 @@ async def test_login_is_rate_limited_per_ip(client: AsyncClient) -> None:
                 "/api/v1/auth/login", json={"email": f"x{i}@auth.test", "password": "x" * 12}
             )
         ).status_code
-        for i in range(6)
+        for i in range(21)
     ]
-    assert statuses[:5] == [401] * 5
-    assert statuses[5] == 429
+    # 20 a minute per IP: staff behind one clinic router share an address.
+    assert statuses[:20] == [401] * 20
+    assert statuses[20] == 429
 
 
 async def test_inactive_user_cannot_log_in(

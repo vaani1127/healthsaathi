@@ -64,15 +64,15 @@ async def logins(client: AsyncClient, count: int, spoof: bool) -> list[int]:
 
 
 async def test_spoofed_forwarded_for_from_another_peer_is_ignored(direct: AsyncClient) -> None:
-    # A new X-Forwarded-For on every request does not give a new address: the 6th is limited.
-    statuses = await logins(direct, 6, spoof=True)
-    assert statuses == [401] * 5 + [429]
+    # A new X-Forwarded-For on every request does not give a new address: the 21st is limited.
+    statuses = await logins(direct, 21, spoof=True)
+    assert statuses == [401] * 20 + [429]
 
 
 async def test_forwarded_for_from_the_proxy_names_the_client(via_proxy: AsyncClient) -> None:
-    # Through Caddy, six different clients each get their own limit.
-    statuses = await logins(via_proxy, 6, spoof=True)
-    assert statuses == [401] * 6
+    # Through Caddy, 21 different clients each get their own limit.
+    statuses = await logins(via_proxy, 21, spoof=True)
+    assert statuses == [401] * 21
 
 
 async def test_in_memory_route_limit_keys_on_the_forwarded_address(app: FastAPI) -> None:

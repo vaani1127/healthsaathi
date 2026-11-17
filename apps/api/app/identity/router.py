@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.core.config import get_settings
 from app.core.db import ANONYMOUS, tenant_session
 from app.core.errors import ProblemError, problem_response
-from app.core.ratelimit import per_ip
+from app.core.ratelimit import LOGIN_SHARED_IP, per_ip
 from app.db.enums import Role
 from app.db.models import User
 from app.identity import schemas, service
@@ -66,7 +66,9 @@ def _token_response(response: Response, issued: service.IssuedTokens) -> schemas
     )
 
 
-@router.post("/login", response_model=schemas.LoginResponse, dependencies=[per_ip("login")])
+@router.post(
+    "/login", response_model=schemas.LoginResponse, dependencies=[per_ip("login", LOGIN_SHARED_IP)]
+)
 async def login(body: schemas.LoginRequest) -> schemas.LoginResponse:
     challenge = await service.login_with_password(body.email, body.password)
     return schemas.LoginResponse(
@@ -77,7 +79,9 @@ async def login(body: schemas.LoginRequest) -> schemas.LoginResponse:
 
 
 @router.post(
-    "/totp/verify", response_model=schemas.TokenResponse, dependencies=[per_ip("totp-verify")]
+    "/totp/verify",
+    response_model=schemas.TokenResponse,
+    dependencies=[per_ip("totp-verify", LOGIN_SHARED_IP)],
 )
 async def totp_verify(
     request: Request, response: Response, body: schemas.TotpVerifyRequest

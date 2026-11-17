@@ -14,6 +14,12 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
   X-Forwarded-For from any peer. What changes against SPEC 4 ("slowapi, in-memory, single VM"):
   - Login per IP, email codes per address, authenticator attempts per user and the password
     lockout are counted in the new table `rate_counters`. Search, export and print stay in memory.
+  - Per IP, password sign-in and the authenticator check allow 20 per minute (SPEC 4 says
+    5/min/IP). Reason: staff of one clinic often share one router address, and 5 a minute
+    would block a clinic opening for the day. Guessing one account is still limited by the
+    per-account lockout (5 in 15 minutes) and the authenticator attempts (5 per user in 15
+    minutes), which are unchanged. Email code requests, email code checks and password
+    changes stay at 5 per minute per IP.
   - New limit: email code requests, 5 per minute per IP. Over the per-address limit an email
     code request now answers 202 and sends nothing (it answered 429).
   - The lockout counts each attempt before the password is checked.
@@ -107,7 +113,11 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
   `tests/identity/test_db_limits.py`, `tests/test_worker_prune.py`,
   `infra/demo/tests/test_proxy_trust.py`.
 - Docs: SECURITY_CHECKLIST 2.2.1 and 11.1.2, THREAT_MODEL, ADR 0003, RUNBOOK (DNS only, fixed
-  network), APP_GAPS 31 fixed and 32 to 34 added.
+  network), APP_GAPS 31 fixed and 32 to 34 added (33, Render staging, accepted).
+- `FORWARDED_ALLOW_IPS` stays in the compose files, set to Caddy's address only, so rolling
+  back to an older image keeps real client IPs. uvicorn runs with `--no-proxy-headers` in the
+  image, the demo, the dev compose file, the native demo and the e2e server.
+- Per IP: 20 a minute for password sign-in and the authenticator check, 5 for the rest.
 
 ### Authenticator codes work once across workers
 
