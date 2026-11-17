@@ -34,7 +34,8 @@ def test_only_caddy_is_trusted(compose: str, caddy: str, api_env: Any) -> None:
     # Caddy's address is in the subnet but outside the range other containers are given.
     assert ipaddress.ip_address(address) in subnet
     assert ipaddress.ip_address(address) not in dynamic
-    assert "FORWARDED_ALLOW_IPS" not in api_env(config)
+    # Kept for rolling back to an image that still reads it; only ever Caddy's address.
+    assert api_env(config)["FORWARDED_ALLOW_IPS"] == address
 
 
 def test_uvicorn_does_not_read_proxy_headers_itself() -> None:

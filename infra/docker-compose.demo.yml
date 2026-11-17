@@ -16,6 +16,8 @@ x-demo: &demo
     RATE_LIMIT_ENABLED: ${DEMO_RATE_LIMIT:-true}
     # Only the demo Caddy (web service, fixed address below) may set the client IP.
     TRUSTED_PROXY_IPS: 10.250.1.2
+    # For an older image only (the current one runs uvicorn with --no-proxy-headers).
+    FORWARDED_ALLOW_IPS: 10.250.1.2
     EMAIL_BACKEND: console
     EMAIL_OUTBOX_DIR: /state/outbox
     STORAGE_DIR: /state/blobs

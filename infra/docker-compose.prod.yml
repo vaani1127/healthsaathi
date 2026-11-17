@@ -10,6 +10,10 @@ x-api: &api
     # Only Caddy's fixed address (see networks below) may set the client IP with
     # X-Forwarded-For. Other containers on the network, and any client, cannot.
     TRUSTED_PROXY_IPS: 10.250.0.2
+    # Read only by uvicorn's own proxy handling, which the current image turns off
+    # (--no-proxy-headers). Kept, set to Caddy's address only, so that rolling back to an older
+    # image (which reads it) still sees the real client IP.
+    FORWARDED_ALLOW_IPS: 10.250.0.2
   restart: unless-stopped
   logging:
     driver: json-file

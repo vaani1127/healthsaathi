@@ -152,9 +152,10 @@ address (`TRUSTED_PROXY_IPS`).
 3. The old network `healthsaathi_default` is left empty. It does no harm. To remove it, first
    check it has no containers with `docker network inspect healthsaathi_default`, then
    `docker network rm healthsaathi_default`.
-4. Rolling back to an image older than this change still works with the new compose file, but
-   that image reads proxy headers only from 127.0.0.1, so all users would share Caddy's address
-   for the per-IP limits until the newer image is back.
+4. Rolling back to an image older than this change works with the new compose file and keeps
+   real client IPs: the older image reads `FORWARDED_ALLOW_IPS`, which the compose file sets to
+   Caddy's address only (`10.250.0.2`). The current image ignores that variable (uvicorn runs
+   with `--no-proxy-headers`) and reads `TRUSTED_PROXY_IPS` instead.
 
 ## Staging
 
