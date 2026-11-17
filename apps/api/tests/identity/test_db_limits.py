@@ -20,6 +20,7 @@ from app.db.enums import Role
 from app.identity import lockout, service
 from app.notify.email import outbox
 from tests.factories import ClinicGraph, build_clinic_graph
+from tests.helpers import within_one_window
 from tests.identity.test_auth import PASSWORD, make_patient, make_user
 
 
@@ -48,6 +49,7 @@ async def wrong_password(email: str) -> str:
 
 
 async def test_exactly_the_limit_passes_across_sessions_and_the_next_is_refused() -> None:
+    await within_one_window()
     scope = f"limit-{uuid.uuid4().hex[:6]}"
     # Six hits at once, each on its own database session, as several workers would send them.
     results = await asyncio.gather(
@@ -62,6 +64,7 @@ async def test_exactly_the_limit_passes_across_sessions_and_the_next_is_refused(
 async def test_login_per_ip_is_counted_in_the_database(
     client: AsyncClient, admin_engine: AsyncEngine
 ) -> None:
+    await within_one_window()
     for i in range(20):
         resp = await client.post(
             "/api/v1/auth/login", json={"email": f"n{i}@db-limits.test", "password": "x" * 12}
@@ -81,6 +84,7 @@ async def test_login_per_ip_is_counted_in_the_database(
 async def test_email_code_requests_are_limited_per_ip(
     client: AsyncClient, clinic: ClinicGraph, admin_engine: AsyncEngine
 ) -> None:
+    await within_one_window()
     statuses = []
     for _ in range(6):
         email = await make_patient(admin_engine, clinic)
@@ -95,6 +99,7 @@ async def test_email_code_requests_are_limited_per_ip(
 async def test_per_email_limit_answers_like_any_other_request(
     client: AsyncClient, clinic: ClinicGraph, admin_engine: AsyncEngine
 ) -> None:
+    await within_one_window()
     known = await make_patient(admin_engine, clinic)
     for _ in range(3):
         await service.request_email_code(known)

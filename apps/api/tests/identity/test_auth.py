@@ -19,6 +19,7 @@ from app.identity.passwords import hash_password
 from app.main import create_app
 from app.notify.email import outbox
 from tests.factories import ClinicGraph, build_clinic_graph
+from tests.helpers import within_one_window
 
 PASSWORD = "correct-horse-battery-staple"
 
@@ -137,6 +138,7 @@ async def test_account_locks_after_five_wrong_passwords(
 
 
 async def test_login_is_rate_limited_per_ip(client: AsyncClient) -> None:
+    await within_one_window()
     statuses = [
         (
             await client.post(
@@ -552,6 +554,7 @@ async def test_email_code_locks_after_five_wrong_attempts(
 async def test_email_code_requests_are_limited_per_email(
     client: AsyncClient, clinic: ClinicGraph, admin_engine: AsyncEngine
 ) -> None:
+    await within_one_window()
     email = await make_patient(admin_engine, clinic)
     before = len([mail for mail in outbox.sent if mail.to == email])
     statuses = [

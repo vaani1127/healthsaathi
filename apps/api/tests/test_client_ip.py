@@ -19,7 +19,7 @@ from app.core.ratelimit import client_ip, limiter
 from app.db import models as m
 from app.db.enums import Role
 from app.main import create_app
-from tests.helpers import make_actor, make_clinic, make_patient
+from tests.helpers import make_actor, make_clinic, make_patient, within_one_window
 
 PROXY = "10.250.0.2"
 OTHER_CONTAINER = "10.250.0.130"
@@ -64,6 +64,7 @@ async def logins(client: AsyncClient, count: int, spoof: bool) -> list[int]:
 
 
 async def test_spoofed_forwarded_for_from_another_peer_is_ignored(direct: AsyncClient) -> None:
+    await within_one_window()
     # A new X-Forwarded-For on every request does not give a new address: the 21st is limited.
     statuses = await logins(direct, 21, spoof=True)
     assert statuses == [401] * 20 + [429]
@@ -76,6 +77,8 @@ async def test_forwarded_for_from_the_proxy_names_the_client(via_proxy: AsyncCli
 
 
 async def test_in_memory_route_limit_keys_on_the_forwarded_address(app: FastAPI) -> None:
+    await within_one_window()
+
     # slowapi limits run inside the app, after the address is set, so an in-memory limit keyed
     # by IP counts the client, not Caddy. A test-only route with such a limit shows it.
     @app.get("/test-only/limited")
