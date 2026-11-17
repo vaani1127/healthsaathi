@@ -27,7 +27,7 @@ from app.db.enums import Role
 from app.identity import service, tokens, totp
 from app.main import create_app
 from tests.factories import ClinicGraph, build_clinic_graph
-from tests.identity.test_auth import PASSWORD, StaffUser, make_user
+from tests.identity.test_auth import PASSWORD, StaffUser, last_code, make_patient, make_user
 
 DEVICE = service.DeviceInfo(fingerprint=None, user_agent="single-use test")
 
@@ -221,3 +221,74 @@ async def test_new_enrolment_secret_forgets_old_steps(
     issued = await service.activate_totp(enroll, pyotp.TOTP(secret).now(), DEVICE)
     assert issued.refresh_token
     assert await last_step(admin_engine, user.user_id) is not None
+
+
+# Email sign-in codes ------------------------------------------------------------------------------
+
+
+async def test_same_email_code_twice_at_once_is_accepted_once(
+    clinic: ClinicGraph, admin_engine: AsyncEngine
+) -> None:
+    email = await make_patient(admin_engine, clinic)
+    await service.request_email_code(email)
+    code = last_code(email)
+
+    results = await race(
+        admin_engine,
+        "SELECT 1 FROM email_otps WHERE email = :email AND used_at IS NULL FOR UPDATE",
+        lambda: service.verify_email_code(email, code, DEVICE),
+        email=email,
+    )
+
+    ok, failed = split(results)
+    assert len(ok) == 1, results
+    assert isinstance(ok[0], service.IssuedTokens)
+    assert len(failed) == 1
+    assert isinstance(failed[0], ProblemError)
+    assert failed[0].code == "invalid-code"
+    async with AsyncSession(admin_engine) as s:
+        used = (await s.scalars(select(m.EmailOtp.used_at).where(m.EmailOtp.email == email))).all()
+    assert len(used) == 1
+    assert used[0] is not None
+
+
+# Refresh token rotation ---------------------------------------------------------------------------
+
+
+async def test_same_refresh_token_twice_at_once_rotates_once_and_ends_the_session(
+    clinic: ClinicGraph, admin_engine: AsyncEngine
+) -> None:
+    user = await make_user(admin_engine, clinic.clinic_id, Role.DOCTOR)
+    issued = await service.create_session(user.user_id, "mfa", DEVICE)
+    assert issued.refresh_token is not None
+    token = issued.refresh_token
+
+    results = await race(
+        admin_engine,
+        "SELECT 1 FROM sessions WHERE refresh_hash = :hash FOR UPDATE",
+        lambda: service.refresh(token),
+        hash=tokens.hash_refresh_token(token),
+    )
+
+    ok, failed = split(results)
+    assert len(ok) == 1, results
+    winner = ok[0]
+    assert isinstance(winner, service.IssuedTokens)
+    assert winner.refresh_token is not None
+    # The second attempt saw the token already rotated: reuse, so the whole family is revoked,
+    # including the token the first attempt was just given.
+    assert len(failed) == 1
+    assert isinstance(failed[0], ProblemError)
+    assert failed[0].code == "refresh-token-reused"
+    async with AsyncSession(admin_engine) as s:
+        rows = (
+            await s.scalars(
+                select(m.UserSession.revoked_at).where(m.UserSession.family_id == issued.session_id)
+            )
+        ).all()
+    assert len(rows) == 2
+    assert all(r is not None for r in rows)
+    assert not await service.session_is_active(issued.session_id)
+    with pytest.raises(ProblemError) as after:
+        await service.refresh(winner.refresh_token)
+    assert after.value.code == "refresh-token-reused"
