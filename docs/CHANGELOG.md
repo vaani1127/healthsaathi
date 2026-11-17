@@ -12,8 +12,7 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
   0003 amended).** Reason: each TOTP step was accepted once per user only within one API
   process, and the API runs 2 workers (SPEC 2), so a code could be accepted once per worker, and
   again after a restart (`docs/APP_GAPS.md` 30). What changes:
-  - `mfa_secrets` gains `last_step bigint NULL`. SPEC 3.1 lists `mfa_secrets(user_id pk,
-    totp_secret_enc, enabled_at)`; SPEC is not changed here.
+  - `mfa_secrets` gains `last_step bigint NULL`, now listed in SPEC 3.1.
   - A code is accepted only if one conditional update moves `last_step` forward; the in-memory
     `_last_step` is removed. ADR 0003's decision to keep TOTP replay state in memory is replaced.
   - The accepted window is unchanged: the current step or one either side.
