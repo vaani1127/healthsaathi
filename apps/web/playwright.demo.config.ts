@@ -36,5 +36,7 @@ export default defineConfig({
     { name: "a11y", testMatch: "e2e-demo/a11y.spec.ts", use: { ...devices["Desktop Chrome"] } },
     // Rewrites an audit row and puts it back; runs last.
     { name: "tamper", testMatch: "e2e-demo/tamper.spec.ts", use: { ...devices["Desktop Chrome"] }, dependencies: ["flows-360", "crawl-desktop", "crawl-360", "crawl-hindi", "pwa", "a11y"] },
+    // `make demo-measure` only: requests per minute per user (ADR 0003). Absent from demo-e2e.
+    ...(process.env.DEMO_MEASURE ? [{ name: "measure", testMatch: "e2e-demo/measure/*.spec.ts", use: { ...devices["Desktop Chrome"] } }] : []),
   ],
 });

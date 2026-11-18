@@ -112,6 +112,9 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
   with the rate limit message and not retried.
 - Docs: SECURITY_CHECKLIST 2.2.1 and 11.1.2, THREAT_MODEL, ADR 0003 (with the demo
   measurement), APP_GAPS 32 fixed.
+- `make demo-measure` (`apps/web/e2e-demo/measure/requests.spec.ts`): requests per minute per
+  user on the running demo, the source of the numbers in ADR 0003. It runs only in the Playwright
+  project "measure", which exists only when `DEMO_MEASURE=1`, so `make demo-e2e` never runs it.
 
 ### Sign-in limits shared by API workers
 

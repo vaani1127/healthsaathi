@@ -75,13 +75,13 @@ the CORS middleware so a 429 still carries the CORS headers. In memory, per work
 route limits: a Postgres counter would add a database write to every request. Every 429 has a
 Retry-After header.
 
-Measured on the local demo with six users (reception, nurse, doctor, lab, admin, patient) on one
-address, each acting every 5 s with a full page load for 2 minutes while walk-ins arrived every
-10 s: the busiest user made 90 requests in its busiest 60 s (reception), and requests without a
-token from that one address (all `/auth/refresh`, one per page load) reached 60 in the busiest
-60 s, with 12 more in the 19 s of signing everyone in. Both are under 120. The run was a
-temporary Playwright script, not kept in the repository, so these numbers are not reproducible
-from a script in the repo.
+Measured with `make demo-measure` (`apps/web/e2e-demo/measure/requests.spec.ts`, report in
+`apps/web/test-results/measure-requests.json`): six users (reception, nurse, doctor, lab, admin,
+patient) on one address, each acting every 5 s with a full page load for 2 minutes while another
+account adds a walk-in every 10 s. In the run of 18 November 2026, with the default limit on, the
+busiest user made 90 requests in its busiest 60 s (reception), and requests without a token from
+that one address (all `/auth/refresh`, one per page load) reached 60 in the busiest 60 s, with 12
+more while signing everyone in. Both are under 120, and no request was refused.
 
 **Each TOTP step once, in the database (amended 17 November 2026).** The last accepted 30 second
 step per user is kept in `mfa_secrets.last_step` (migration 0006). A code is accepted only if one
