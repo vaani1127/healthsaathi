@@ -97,6 +97,22 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
   - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
     `experiments/results/v1` and the pre-registration are not touched, so no v1 number can change.
 
+### Default rate limit applied
+
+- The SPEC 4 default limit (120 requests a minute) limited nothing: slowapi's middleware could
+  not find the routes inside FastAPI 0.142's included routers (`docs/APP_GAPS.md` 32). A small
+  ASGI middleware (`DefaultRateLimitMiddleware`) now counts every request, per user for a valid
+  access token and per client IP otherwise; login challenge and enrolment tokens count as no
+  token. Health checks, WebSockets and OPTIONS are skipped. In memory, per worker.
+  SlowAPIMiddleware and slowapi's `default_limits` are removed; the search, export and print
+  decorators work without them.
+- Every 429 now has a Retry-After header (default, search, export, print, sign-in limits and the
+  lockout).
+- Web: the query client options moved to `src/lib/queryClient.ts`; a test shows a 429 is shown
+  with the rate limit message and not retried.
+- Docs: SECURITY_CHECKLIST 2.2.1 and 11.1.2, THREAT_MODEL, ADR 0003 (with the demo
+  measurement), APP_GAPS 32 fixed.
+
 ### Sign-in limits shared by API workers
 
 - `app/core/counters.py` and migration 0007 (`rate_counters`): fixed-window counters, one atomic

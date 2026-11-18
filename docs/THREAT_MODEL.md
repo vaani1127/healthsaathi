@@ -91,7 +91,7 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 
 | Threat | Control | Where |
 |---|---|---|
-| Request floods | Search, export and print limits (slowapi, in memory). Counted per API process: with 2 workers up to twice the limit. Residual: the default 120 requests per minute per user is not applied (`docs/APP_GAPS.md` 32) | `core/ratelimit.py` |
+| Request floods | 120 requests per minute per user (valid access token) or per client IP for every API request except health checks, WebSockets and OPTIONS; search, export and print have lower limits. In memory: counted per API process, so with 2 workers up to twice the limit, and cleared on restart. Requests without a token from one clinic share the per-IP count (measured: 60 in the busiest minute for six users reloading every 5 s, ADR 0003) | `core/ratelimit.py` `DefaultRateLimitMiddleware` |
 | Large uploads | 10 MB limit | `core/config.py` |
 | Witness outage | Each witness is independent; a failed one does not stop the others; the worker runs the job if the scheduler is late | `anchor/job.py`, `worker.py` |
 | Rate limits are per process | Sign-in limits and the lockout are in the database. Residual: the search, export and print limits are in memory, reset on restart and are not shared between Uvicorn workers | accepted for a single-VM deployment |
@@ -111,9 +111,8 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 
 - Sign-in limits use fixed windows: up to twice a limit can get through in a short burst across
   a window edge.
-- The search, export and print limits are counted in each API process's memory (up to twice the
-  limit with 2 workers, cleared on restart), and the default 120 requests per minute per user is
-  not applied (`docs/APP_GAPS.md` 32).
+- The default, search, export and print limits are counted in each API process's memory (up to
+  twice the limit with 2 workers, cleared on restart).
 - Per-IP limits trust Caddy's X-Forwarded-For. If the API's DNS record were proxied through a CDN,
   every user would share the CDN's few addresses; it must stay DNS only (`docs/RUNBOOK.md`).
 - An insider with a genuine care relationship (on the care team, or treating the patient) is
