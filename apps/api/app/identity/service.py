@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import keys
@@ -29,6 +29,7 @@ from app.core.ratelimit import OTP_PER_EMAIL, allow, hit
 from app.db.enums import STAFF_ROLES, Role
 from app.db.models import Device, EmailOtp, Membership, MfaSecret, User, UserSession
 from app.identity import lockout, password_policy, passwords, tokens, totp
+from app.ledger.writer import append_audit_event
 from app.notify.email import Email, send_email
 from e2d_core.ids import uuid7
 
@@ -550,6 +551,58 @@ async def revoke_session(user_id: uuid.UUID, family: uuid.UUID) -> bool:
 # Staff invites ------------------------------------------------------------------------------------
 
 INVITABLE_ROLES = frozenset(STAFF_ROLES - {Role.PLATFORM_ADMIN})
+# Sending an invite again sends an email, so both are limited (database counters).
+INVITE_AGAIN_PER_MEMBERSHIP = "3/hour"
+INVITE_AGAIN_PER_ADMIN = "20/hour"
+STAFF_AUDIT_KIND = "staff"
+
+
+async def _audit_invite(
+    db: AsyncSession,
+    ctx: TenantContext,
+    action: Literal["invite", "invite_again"],
+    membership_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: Role,
+) -> None:
+    """One audit event per invite sent, in the same transaction as the invite row. No email."""
+    assert ctx.clinic_id is not None and ctx.user_id is not None
+    at = await db.scalar(text("SELECT clock_timestamp()"))
+    assert isinstance(at, datetime)
+    await append_audit_event(
+        db,
+        ctx.clinic_id,
+        STAFF_AUDIT_KIND,
+        {
+            "type": "staff_invite",
+            "action": action,
+            "at": at.isoformat(),
+            "membership_id": str(membership_id),
+            "user_id": str(user_id),
+            "role": role.value,
+            "by": str(ctx.user_id),
+        },
+    )
+
+
+async def _send_invite(email: str, role: Role, token: str) -> None:
+    """The invite email, after the invite is committed. If it cannot be sent the request fails
+    with 502; the invite row stays, and the next "send again" replaces it."""
+    link = f"{get_settings().public_app_url}/invite?email={email}&token={token}"
+    try:
+        await send_email(
+            Email(
+                to=email,
+                subject="You have been invited to HealthSaathi",
+                text=f"You have been added as {role.value.replace('_', ' ')}. "
+                f"Set your password here within 72 hours: {link}",
+            )
+        )
+    except Exception as exc:
+        logger.exception("invite email not sent")
+        raise ProblemError(
+            502, "invite-email-failed", "The invite email could not be sent. Try again."
+        ) from exc
 
 
 async def change_password(
@@ -628,17 +681,58 @@ async def invite_staff(
         )
         await db.flush()
         user_id, membership_id = user.id, membership.id
+        await _audit_invite(db, ctx, "invite", membership_id, user_id, role)
 
-    link = f"{get_settings().public_app_url}/invite?email={email}&token={token}"
-    await send_email(
-        Email(
-            to=email,
-            subject="You have been invited to HealthSaathi",
-            text=f"You have been added as {role.value.replace('_', ' ')}. "
-            f"Set your password here within 72 hours: {link}",
-        )
-    )
+    await _send_invite(email, role, token)
     return user_id, membership_id
+
+
+async def invite_again(ctx: TenantContext, membership_id: uuid.UUID) -> None:
+    """Send a new invite to a staff member who has not set a password yet. Every open invite for
+    that email stops working, so only the newest link is valid. The membership row is locked, so
+    two requests at once run one after the other and leave exactly one valid invite."""
+    assert ctx.user_id is not None
+    await hit(INVITE_AGAIN_PER_ADMIN, "invite-again-admin", str(ctx.user_id))
+    await hit(INVITE_AGAIN_PER_MEMBERSHIP, "invite-again", str(membership_id))
+    token = secrets.token_urlsafe(24)
+    async with tenant_session(ctx) as db:
+        membership = await db.scalar(
+            select(Membership).where(Membership.id == membership_id).with_for_update()
+        )
+        # Another clinic's membership is hidden by row level security; a patient membership is
+        # hidden like in set_membership_active. Both look like a missing membership.
+        if membership is None or membership.role not in INVITABLE_ROLES:
+            raise ProblemError(404, "membership-not-found")
+        if not membership.is_active:
+            raise ProblemError(409, "membership-inactive", "Make the membership active first.")
+        user = await db.get(User, membership.user_id)
+        if user is None:
+            raise ProblemError(404, "membership-not-found")
+        if user.password_hash is not None:
+            raise ProblemError(
+                409, "already-has-password", "This person has already set a password."
+            )
+        email, role = user.email, Role(membership.role)
+        await db.execute(
+            update(EmailOtp)
+            .where(
+                EmailOtp.email == email,
+                EmailOtp.purpose == "invite",
+                EmailOtp.used_at.is_(None),
+            )
+            .values(used_at=_now())
+        )
+        db.add(
+            EmailOtp(
+                email=email,
+                code_hash=_otp_hash(email, "invite", token),
+                purpose="invite",
+                expires_at=_now() + INVITE_TTL,
+            )
+        )
+        await _audit_invite(db, ctx, "invite_again", membership.id, user.id, role)
+
+    await _send_invite(email, role, token)
 
 
 async def accept_invite(email: str, token: str, password: str) -> None:
@@ -676,6 +770,9 @@ class StaffRow:
     role: Role
     is_active: bool
     mfa_enabled: bool
+    # Only whether a password is set, never the hash: the Staff tab offers "Send invite again"
+    # when it is not.
+    password_set: bool
 
 
 async def list_staff(ctx: TenantContext) -> list[StaffRow]:
@@ -688,7 +785,16 @@ async def list_staff(ctx: TenantContext) -> list[StaffRow]:
             .order_by(Membership.role, User.name)
         )
         return [
-            StaffRow(m.id, u.id, u.name, u.email, Role(m.role), m.is_active, enabled is not None)
+            StaffRow(
+                m.id,
+                u.id,
+                u.name,
+                u.email,
+                Role(m.role),
+                m.is_active,
+                enabled is not None,
+                u.password_hash is not None,
+            )
             for m, u, enabled in rows.all()
         ]
 

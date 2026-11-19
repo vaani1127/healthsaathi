@@ -124,6 +124,7 @@ class StaffMemberOut(BaseModel):
     role: Role
     is_active: bool
     mfa_enabled: bool
+    password_set: bool
 
 
 class MembershipUpdate(BaseModel):
