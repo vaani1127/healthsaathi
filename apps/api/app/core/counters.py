@@ -9,30 +9,26 @@ Windows are fixed and start on multiples of their length, on the database clock.
 lets up to twice the limit through in a short burst across a window edge (the end of one window
 and the start of the next); over any longer stretch the rate stays at the limit.
 
-Keys are HMAC-SHA256 of the scope and identifiers with a key derived for this use only,
-HMAC(OTP_HMAC_KEY, "rate-counters-v1"), so the table holds no IP or email address.
+Keys are HMAC-SHA256 of the scope and identifiers with the derived key
+"healthsaathi/rate-counters/v2" (`core/keys.py`, ADR 0009), so the table holds no IP or email
+address. (v1 was HMAC(OTP_HMAC_KEY, "rate-counters-v1"); moving to v2 reset the live counts once.)
 
 If the database cannot be reached the limit fails closed: the request is refused with 503.
 """
 
-import hashlib
-import hmac
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from functools import lru_cache
 
 from limits import parse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.core.config import get_settings
+from app.core import keys
 from app.core.db import ANONYMOUS, tenant_session
 from app.core.errors import ProblemError
 
 logger = logging.getLogger(__name__)
-
-KEY_LABEL = b"rate-counters-v1"
 
 _INCREMENT = text(
     """
@@ -50,15 +46,8 @@ _INCREMENT = text(
 )
 
 
-@lru_cache(maxsize=4)
-def _derived_key(otp_hmac_key: str) -> bytes:
-    return hmac.new(otp_hmac_key.encode(), KEY_LABEL, hashlib.sha256).digest()
-
-
 def counter_key(scope: str, *identifiers: str) -> str:
-    secret = _derived_key(get_settings().otp_hmac_key.get_secret_value())
-    message = "\x1f".join((scope, *identifiers)).encode()
-    return hmac.new(secret, message, hashlib.sha256).hexdigest()
+    return keys.hmac_hex(keys.RATE_COUNTERS, "\x1f".join((scope, *identifiers)).encode())
 
 
 @asynccontextmanager
