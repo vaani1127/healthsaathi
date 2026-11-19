@@ -4,7 +4,6 @@ Each consent stores `salt_hash`, an HMAC commitment to (consent, patient, notice
 committed to the optional ConsentRegistry contract without revealing who the patient is.
 """
 
-import hashlib
 import hmac
 import uuid
 from collections.abc import Sequence
@@ -14,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.access.service import RequestInfo, db_now, record_and_explain
 from app.consent import schemas
-from app.core.config import get_settings
+from app.core import keys
 from app.core.errors import ProblemError
 from app.db.enums import AccessAction, ConsentChannel, ConsentEventKind, ResourceType, Role
 from app.db.models import Consent, ConsentEvent, ConsentNotice
@@ -24,10 +23,27 @@ from e2d_core.ids import uuid7
 CONSENT = ResourceType.CONSENT
 
 
+def _commitment_message(
+    consent_id: uuid.UUID, patient_id: uuid.UUID, notice_id: uuid.UUID
+) -> bytes:
+    return f"consent|{consent_id}|{patient_id}|{notice_id}".encode()
+
+
 def commitment(consent_id: uuid.UUID, patient_id: uuid.UUID, notice_id: uuid.UUID) -> str:
-    key = get_settings().otp_hmac_key.get_secret_value().encode()
-    message = f"consent|{consent_id}|{patient_id}|{notice_id}".encode()
-    return hmac.new(key, message, hashlib.sha256).hexdigest()
+    """A new consent's commitment, under its own derived key (ADR 0009)."""
+    message = _commitment_message(consent_id, patient_id, notice_id)
+    return keys.hmac_hex(keys.CONSENT_COMMITMENT, message)
+
+
+def verify_commitment(
+    consent_id: uuid.UUID, patient_id: uuid.UUID, notice_id: uuid.UUID, stored: str
+) -> bool:
+    """Check a stored commitment. Rows carry no key marker, so try the derived key first, then
+    the raw-key HMAC that consents made before the derived keys used (ADR 0009)."""
+    message = _commitment_message(consent_id, patient_id, notice_id)
+    return hmac.compare_digest(
+        stored, keys.hmac_hex(keys.CONSENT_COMMITMENT, message)
+    ) or hmac.compare_digest(stored, keys.legacy_hmac_hex(message))
 
 
 # Notices ------------------------------------------------------------------------------------------
