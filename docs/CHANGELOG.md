@@ -112,7 +112,8 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
 - Tests: `tests/test_keys.py` (RFC 5869 test case 1, each label against a separate HKDF written
   with `hmac`, keys differ, nothing in logs or reprs), `tests/test_key_separation.py`.
 - Docs: ADR 0009 (new), ADR 0003, THREAT_MODEL, SECURITY_CHECKLIST 6.2.2, 6.4.1 and 6.4.2,
-  RUNBOOK (rotating `OTP_HMAC_KEY`, removing the legacy invite check), APP_GAPS 34 fixed.
+  RUNBOOK (rotating `OTP_HMAC_KEY`, removing the legacy invite check), APP_GAPS 34 fixed,
+  APP_GAPS 35 added (invites cannot be sent again).
 
 ### Default rate limit applied
 
