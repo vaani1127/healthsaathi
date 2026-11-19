@@ -97,6 +97,26 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
   - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
     `experiments/results/v1` and the pre-registration are not touched, so no v1 number can change.
 
+### Send a staff invite again
+
+- `POST /api/v1/staff/members/{membership_id}/invite` (clinic admin, own clinic): for a member
+  with an active membership and no password, every open invite for that email is marked used
+  and a new one is issued (derived invite key, 72 hours), under a row lock on the membership, so
+  two requests at once leave exactly one valid link. 404 `membership-not-found` for another
+  clinic's or a patient membership, 409 `membership-inactive`, 409 `already-has-password`.
+  Database limits: 3 an hour per membership, 20 an hour per admin.
+- The first invite and each resend write one audit event of the new kind `staff`
+  (`staff_invite`, action `invite` or `invite_again`, membership, user, role, by), in the same
+  transaction, without the email address. Receipts, the daily job, the detection loader and the
+  research view ignore it (tested).
+- If the invite email cannot be sent, both the first invite and a resend answer 502
+  `invite-email-failed`; the invite row stays and the next resend replaces it.
+- The staff list returns `password_set` (yes or no only). The Staff tab shows "No password yet"
+  and "Send invite again" (disabled while sending) with a page-level confirmation that only the
+  newest link works. English and Hindi.
+- Tests: `tests/identity/test_invite_again.py`, `apps/web/e2e/staff-invite.spec.ts`.
+- Docs: RUNBOOK (invites are sent again after an `OTP_HMAC_KEY` rotation), APP_GAPS 35 fixed.
+
 ### One derived key per use of OTP_HMAC_KEY
 
 - `app/core/keys.py`: HKDF-SHA256 (RFC 5869) from `OTP_HMAC_KEY`, salt `healthsaathi/keys`, one
