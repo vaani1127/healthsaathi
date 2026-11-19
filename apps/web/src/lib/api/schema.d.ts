@@ -1731,6 +1731,26 @@ export interface paths {
         patch: operations["update_membership_api_v1_staff_members__membership_id__patch"];
         trace?: never;
     };
+    "/api/v1/staff/members/{membership_id}/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Invite Again
+         * @description A new invite for a staff member without a password; earlier links stop working.
+         */
+        post: operations["invite_again_api_v1_staff_members__membership_id__invite_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/walkins": {
         parameters: {
             query?: never;
@@ -3730,6 +3750,8 @@ export interface components {
             mfa_enabled: boolean;
             /** Name */
             name: string;
+            /** Password Set */
+            password_set: boolean;
             role: components["schemas"]["Role"];
             /**
              * User Id
@@ -7390,6 +7412,35 @@ export interface operations {
                 "application/json": components["schemas"]["MembershipUpdate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invite_again_api_v1_staff_members__membership_id__invite_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                membership_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             204: {

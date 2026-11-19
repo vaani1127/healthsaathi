@@ -748,7 +748,10 @@
     "noSchedules": "No doctor schedules yet. Add one so patients can be booked.",
     "noServices": "No services yet. Add the services the clinic bills for.",
     "noNotices": "No consent notice yet. Write the first version below.",
-    "reportClosed": "Report closed. It is no longer in the open list."
+    "reportClosed": "Report closed. It is no longer in the open list.",
+    "inviteAgain": "Send invite again",
+    "invitedAgain": "A new invite was sent to {{email}}. Only the newest link works; earlier links no longer do.",
+    "noPassword": "No password yet"
   },
   "verify": {
     "title": "Check an access receipt",
