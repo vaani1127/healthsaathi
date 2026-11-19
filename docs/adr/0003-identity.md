@@ -44,7 +44,7 @@ attempts per user (5 in 15 minutes) and the password lockout are fixed-window co
 `rate_counters` (migration 0007, `core/counters.py`). Each hit is one
 `INSERT ... ON CONFLICT ... DO UPDATE SET count = count + 1 RETURNING count`, so both API workers
 share the counts and a restart keeps them. Windows are on the database clock. Keys are
-HMAC-SHA256 with a key derived for this use, HMAC(`OTP_HMAC_KEY`, "rate-counters-v1"), so no IP
+HMAC-SHA256 with the derived key "healthsaathi/rate-counters/v2" (ADR 0009), so no IP
 or email is stored. Without the database the limit refuses the request (503). The worker deletes
 ended windows every minute. A fixed window lets up to twice a limit through in a short burst
 across a window edge; a weighted two-window count was considered and left out, because the
@@ -93,8 +93,9 @@ next code. Starting enrolment again with a new secret clears `last_step`. This r
 earlier in-memory replay check, which refused a second use only within one process.
 
 **Secrets.** `JWT_SECRET`, `OTP_HMAC_KEY` and `DATA_KEYS` come from the environment. `make env`
-creates a local `.env` with random values. Email codes and invite tokens are stored as HMAC-SHA256
-with `OTP_HMAC_KEY`; TOTP secrets are stored with AES-256-GCM using a key id prefix for rotation.
+creates a local `.env` with random values. Email codes and invite tokens are stored as HMAC-SHA256,
+each under its own key derived from `OTP_HMAC_KEY` (ADR 0009, amended 19 November 2026); TOTP
+secrets are stored with AES-256-GCM using a key id prefix for rotation.
 
 ## Consequences
 

@@ -102,6 +102,14 @@ the row.
 | ID | Requirement (short) | Status | Evidence |
 |---|---|---|---|
 | 6.2.1 | Crypto modules fail securely | Pass | AES-GCM tag failures raise; `tests/identity/test_crypto.py` |
+| 6.2.2 | Industry proven or government approved algorithms, modes and libraries are used, instead of custom coded cryptography | Pass | AES-256-GCM, HMAC-SHA256, HKDF-SHA256 (RFC 5869), Ed25519 and Argon2id, all from `cryptography`, `hmac` and `argon2-cffi`. Each use of `OTP_HMAC_KEY` has its own HKDF-derived key (`core/keys.py`, ADR 0009); the HKDF call is checked against RFC 5869 test case 1 in `tests/test_keys.py` |
+
+### V6.4 Secret management
+
+| ID | Requirement (short) | Status | Evidence |
+|---|---|---|---|
+| 6.4.1 | A secrets management solution such as a key vault is used to securely create, store, control access to and destroy secrets | Accepted | No vault: secrets live in `/opt/healthsaathi/.env` (chmod 600) on the one VM and in GitHub Actions secrets. The deployment is one free-tier VM and a paid or extra key service is out of scope (CLAUDE.md, zero cost). Secrets are never in the repo (`.env.example` holds names only), and `docs/RUNBOOK.md` lists how to rotate each one |
+| 6.4.2 | Key material is not exposed to the application but uses an isolated security module like a vault for cryptographic operations | Accepted | The API process holds the keys in memory for the same reason as 6.4.1. Keys are never logged or returned by an endpoint (`tests/test_keys.py`), and one derived key per use limits what a single misuse exposes (ADR 0009) |
 
 ## V7 Error handling and logging
 

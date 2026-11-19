@@ -97,6 +97,23 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
   - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
     `experiments/results/v1` and the pre-registration are not touched, so no v1 number can change.
 
+### One derived key per use of OTP_HMAC_KEY
+
+- `app/core/keys.py`: HKDF-SHA256 (RFC 5869) from `OTP_HMAC_KEY`, salt `healthsaathi/keys`, one
+  versioned label per use: email codes, invites, access log IP hash, consent commitments and rate
+  counters (v2). No new environment variables (ADR 0009).
+- Cutover at the first deploy with this change: email codes sent before it fail (10 minutes);
+  invites sent before it keep working through `_legacy_invite_hash`, removed 7 days after that
+  deploy (`docs/RUNBOOK.md`); rate counts start again once; old `access_events.ip_hash` and
+  `consents.salt_hash` rows are never rewritten, and `verify_commitment` checks the derived key,
+  then the raw key.
+- Not changed: `JWT_SECRET`, `DATA_KEYS`, `LEDGER_SIGNING_SEED`, refresh tokens. Nobody is signed
+  out and no stored data becomes unreadable.
+- Tests: `tests/test_keys.py` (RFC 5869 test case 1, each label against a separate HKDF written
+  with `hmac`, keys differ, nothing in logs or reprs), `tests/test_key_separation.py`.
+- Docs: ADR 0009 (new), ADR 0003, THREAT_MODEL, SECURITY_CHECKLIST 6.2.2, 6.4.1 and 6.4.2,
+  RUNBOOK (rotating `OTP_HMAC_KEY`, removing the legacy invite check), APP_GAPS 34 fixed.
+
 ### Default rate limit applied
 
 - The SPEC 4 default limit (120 requests a minute) limited nothing: slowapi's middleware could
