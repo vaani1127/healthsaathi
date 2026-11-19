@@ -114,6 +114,9 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
 - The staff list returns `password_set` (yes or no only). The Staff tab shows "No password yet"
   and "Send invite again" (disabled while sending) with a page-level confirmation that only the
   newest link works. English and Hindi.
+- Sending an invite again marks every open invite for that email used, including one sent by
+  another clinic. That clinic's link stops working; the person can still join with the newest
+  link, which sets one password for all their memberships; nothing is revealed across clinics.
 - Tests: `tests/identity/test_invite_again.py`, `apps/web/e2e/staff-invite.spec.ts`.
 - Docs: RUNBOOK (invites are sent again after an `OTP_HMAC_KEY` rotation), APP_GAPS 35 fixed.
 
