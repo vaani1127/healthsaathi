@@ -16,7 +16,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, type Request, test } from "@playwright/test";
 
-import { emailCode, fixture, signIn } from "../../e2e/support";
+import { emailCode, fixture, signIn, tx } from "../../e2e/support";
 
 const ARTIFACTS = "../../audit-artifacts";
 const PACE_MS = 400;
@@ -409,6 +409,134 @@ for (const lang of ["en", "hi"] as const) {
     }
   }
 }
+
+// Clinic B has no work of its own today, so before the clinic B action tests this makes a normal
+// day through the UI as clinic B staff: reception books a patient with the clinic B doctor for
+// today and issues a token, and adds a walk-in; the nurse takes the token patient in and records
+// vitals; the doctor starts the consultation, saves a draft note, adds a prescription and orders
+// a CBC; the lab technician marks the sample collected. Every request that changes data is logged,
+// like the clicks. Results: audit-artifacts/walkthrough/clinic-b-setup-day.json.
+interface SetupStep {
+  step: string;
+  account: string;
+  patient: string | null;
+  changes: string[];
+  responses: string[];
+  error: string | null;
+}
+
+test("clinic b setup day", async ({ browser }) => {
+  test.skip(!process.env.DEMO_AUDIT, "run with make demo-audit");
+  test.setTimeout(900_000);
+  const steps: SetupStep[] = [];
+  const doctor = login("doctor", "b");
+  const names: string[] = [];
+
+  async function as(role: string, step: string, patient: string | null, work: (page: Page) => Promise<void>): Promise<void> {
+    const context = await browser.newContext({ viewport: VIEWPORTS.desktop, baseURL: "http://localhost:8080" });
+    await context.addInitScript(() => {
+      try {
+        localStorage.setItem("hs.lang", "en");
+      } catch {
+        // ignore
+      }
+    });
+    const page = await context.newPage();
+    const ears = listen(page);
+    const me = login(role, "b");
+    let error: string | null = null;
+    try {
+      await signIn(page, role, me);
+      ears.take();
+      await work(page);
+      await settle(page);
+    } catch (err) {
+      error = String(err).slice(0, 300);
+    }
+    const heard = ears.take();
+    steps.push({ step, account: me.email, patient, changes: heard.changes, responses: heard.responses, error });
+    await context.close();
+  }
+
+  // Reception: two patients from the search, one booked for today with a token, one walk-in.
+  await as("reception", "find two patients", null, async (page) => {
+    const ids = await searchPatients(page);
+    writeFileSync(patientsFile("b"), JSON.stringify(ids));
+    for (const id of ids.slice(0, 2)) {
+      await page.goto(`/reception/patients/${id}`);
+      await settle(page);
+      names.push((await page.getByRole("heading", { level: 1 }).or(page.getByRole("heading").first()).first().innerText()).trim());
+    }
+  });
+  const [booked, walkIn] = knownPatients("b");
+  await as("reception", "book today with the clinic B doctor and issue a token", names[0] ?? null, async (page) => {
+    await page.goto(`/reception/patients/${booked}`);
+    await settle(page);
+    await page.locator("#book-doctor").selectOption({ label: doctor.name });
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const done = page.getByText(tx("reception.booked"));
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const at = new Date(Date.now() + (3 + attempt * 7) * 60_000);
+      await page.locator("#book-when").fill(`${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`);
+      await page.getByRole("button", { name: tx("reception.book") }).click();
+      await settle(page);
+      if (await done.isVisible()) {
+        break;
+      }
+    }
+    await page.goto("/reception");
+    await settle(page);
+    await page.getByRole("listitem").filter({ hasText: names[0] ?? "" }).getByRole("button", { name: tx("reception.issueToken") }).first().click();
+  });
+  await as("reception", "add a walk-in for the clinic B doctor", names[1] ?? null, async (page) => {
+    await page.goto(`/reception/patients/${walkIn}`);
+    await settle(page);
+    await page.locator("#walkin-doctor").selectOption({ label: doctor.name });
+    await page.getByRole("button", { name: tx("reception.addWalkIn") }).click();
+  });
+
+  // Nurse: take the token patient in and record vitals.
+  await as("nurse", "take in and record vitals", names[0] ?? null, async (page) => {
+    await page.getByRole("link", { name: new RegExp(names[0] ?? "^$") }).first().click();
+    await settle(page);
+    await page.getByRole("button", { name: tx("queue.takeIn") }).click();
+    await settle(page);
+    await page.getByLabel(tx("vitals.bp_sys")).fill("122");
+    await page.getByLabel(tx("vitals.bp_dia")).fill("80");
+    await page.getByLabel(tx("vitals.pulse")).fill("74");
+    await page.getByLabel(tx("vitals.temp_c")).fill("37.1");
+    await page.getByLabel(tx("vitals.spo2")).fill("98");
+    await page.getByRole("button", { name: tx("vitals.save") }).click();
+  });
+
+  // Doctor: consultation, draft note, prescription, one lab test.
+  await as("doctor", "consultation, draft note, prescription, CBC", names[0] ?? null, async (page) => {
+    await page.getByRole("link", { name: new RegExp(names[0] ?? "^$") }).first().click();
+    await settle(page);
+    await page.getByRole("button", { name: tx("consult.start") }).click();
+    await settle(page);
+    await page.getByLabel(tx("notes.body"), { exact: true }).fill("Audit setup: cough for 3 days, chest clear.");
+    await page.getByRole("button", { name: tx("notes.saveDraft") }).click();
+    await settle(page);
+    await page.getByLabel(tx("rx.drug"), { exact: true }).fill("Paracetamol");
+    await page.getByLabel(tx("rx.strength")).fill("500 mg");
+    await page.getByLabel(tx("rx.dose")).fill("1-0-1");
+    await page.getByLabel(tx("rx.days")).fill("3");
+    await page.getByRole("button", { name: tx("rx.save") }).click();
+    await settle(page);
+    await page.getByRole("checkbox", { name: tx("lab.tests.CBC") }).check();
+    await page.getByRole("button", { name: tx("lab.placeOrder") }).click();
+  });
+
+  // Lab technician: sample collected.
+  await as("lab_tech", "sample collected", names[0] ?? null, async (page) => {
+    const item = page.getByTestId("work-item").filter({ hasText: names[0] ?? "" });
+    await item.getByRole("button", { name: tx("lab.collected") }).first().click();
+  });
+
+  mkdirSync(`${ARTIFACTS}/walkthrough`, { recursive: true });
+  writeFileSync(`${ARTIFACTS}/walkthrough/clinic-b-setup-day.json`, JSON.stringify({ patients: names, steps }, null, 2));
+});
 
 for (const role of ROLES) {
   test(`clinic b ${role} actions en desktop`, async ({ browser }) => {
