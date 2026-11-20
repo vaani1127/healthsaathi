@@ -249,21 +249,42 @@ async function clickEverything(page: Page, report: Report, ears: ReturnType<type
   }
 }
 
+/** Signs a patient in with an emailed code. A patient address may ask for 3 codes a minute; a
+ * 4th request is answered like any other but sends nothing, so if no code arrives this waits for
+ * the next minute and asks again. Fails clearly if the patient portal is not reached. */
 async function patientSignIn(page: Page, email: string): Promise<void> {
-  await page.goto("/patient/login");
-  await page.locator("#p-email").fill(email);
-  const since = Date.now() - 2000;
-  await page.locator("form button[type=submit]").click();
-  let code: string | null = null;
-  for (let i = 0; i < 40 && !code; i++) {
-    code = await emailCode(email, since);
-    if (!code) {
-      await page.waitForTimeout(500);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.goto("/patient/login");
+    await page.locator("#p-email").fill(email);
+    const since = Date.now() - 2000;
+    await page.locator("form button[type=submit]").click();
+    let code: string | null = null;
+    for (let i = 0; i < 30 && !code; i++) {
+      code = await emailCode(email, since);
+      if (!code) {
+        await page.waitForTimeout(500);
+      }
     }
+    if (code) {
+      await page.locator("#p-code").fill(code);
+      await page.locator("form button[type=submit]").click();
+      await page.waitForURL((url) => url.pathname === "/patient", { timeout: 20_000 });
+      return;
+    }
+    await page.waitForTimeout(61_000 - (Date.now() % 60_000));
   }
-  await page.locator("#p-code").fill(code ?? "");
-  await page.locator("form button[type=submit]").click();
-  await page.waitForURL(/\/patient/);
+  throw new Error(`no sign-in code arrived for ${email}`);
+}
+
+/** A different login per test where the clinic has several (patients), so per-address limits
+ * do not carry over from one test to the next. */
+function loginAt(role: string, clinic: string, index: number): Login {
+  const all = (fixture() as unknown as { all: Login[] }).all.filter((u) => u.role === role && u.clinic === clinic);
+  const found = all[index % Math.max(all.length, 1)];
+  if (!found) {
+    throw new Error(`no ${role} in clinic ${clinic}`);
+  }
+  return found;
 }
 
 function patientsFile(clinic: string): string {
@@ -380,8 +401,10 @@ const VIEWPORTS = { desktop: { width: 1280, height: 800 }, "360": { width: 360, 
 
 test.describe.configure({ mode: "serial" });
 
+let comboCounter = 0;
 for (const lang of ["en", "hi"] as const) {
   for (const [viewport, size] of Object.entries(VIEWPORTS)) {
+    const comboIndex = comboCounter++;
     const combos: [string, string | null][] = [["public", null], ...ROLES.map((r): [string, string] => [r, r])];
     for (const [label, role] of combos) {
       test(`clinic a ${label} ${lang} ${viewport}`, async ({ browser }) => {
@@ -396,7 +419,7 @@ for (const lang of ["en", "hi"] as const) {
           }
         }, lang);
         const page = await context.newPage();
-        const me = role ? login(role, "a") : null;
+        const me = role === "patient" ? loginAt(role, "a", comboIndex) : role ? login(role, "a") : null;
         const report: Report = { test: `clinic a ${label} ${lang} ${viewport}`, clinic: "a", role: label, account: me?.email ?? "none", lang, viewport, screens: [], clicks: [], errors: [] };
         try {
           await walk(page, report, me, false);
@@ -592,6 +615,8 @@ async function storage(page: Page): Promise<Storage> {
         const req = indexedDB.open(info.name ?? "");
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
+        req.onblocked = () => reject(new Error(`open of ${info.name ?? ""} blocked`));
+        setTimeout(() => reject(new Error(`open of ${info.name ?? ""} timed out`)), 10_000);
       });
       const stores: Record<string, string[]> = {};
       for (const store of Array.from(db.objectStoreNames)) {
@@ -640,17 +665,30 @@ for (const role of ["doctor", "patient"] as const) {
     // The service worker controls the page only after a reload; then the runtime caching applies.
     await page.reload();
     await settle(page);
-    const pages = role === "patient" ? ["/patient", "/patient/print"] : knownPatients("a").slice(0, 5).map((id) => `/doctor/patients/${id}`);
+    // The doctor's own queue opens charts (explained by the appointment or token); patients found
+    // through the reception search would only show "Reason needed" and fetch no chart.
+    const queue = role === "patient" ? [] : (await internalLinks(page)).filter((h) => h.startsWith("/doctor/patients/"));
+    const doctorPages = [...new Set(queue)].slice(0, 5);
+    if (role !== "patient" && doctorPages.length === 0) {
+      doctorPages.push(...knownPatients("a").slice(0, 5).map((id) => `/doctor/patients/${id}`));
+    }
+    const pages = role === "patient" ? ["/patient", "/patient/print"] : doctorPages;
     for (const url of pages) {
       await go(url);
       for (const print of (await internalLinks(page)).filter((h) => h.startsWith("/print/")).slice(0, 3)) {
         await go(print);
       }
     }
+    console.log(`pwa ${role}: visited ${visited.length} pages, reading storage`);
     const before = await storage(page);
-    await page.getByRole("button", { name: /^(Sign out|साइन आउट)$/ }).click();
-    await page.waitForURL(/\/login/);
+    console.log(`pwa ${role}: signing out`);
+    // Print views have no header, so sign out from the role's home screen.
+    await page.goto(role === "patient" ? "/patient" : "/doctor");
     await settle(page);
+    await page.getByRole("button", { name: /^(Sign out|साइन आउट)$/ }).click({ timeout: 15_000 });
+    await page.waitForURL(/\/login/, { timeout: 15_000 });
+    await settle(page);
+    console.log(`pwa ${role}: reading storage after sign-out`);
     const after = await storage(page);
     const result = {
       role,
@@ -661,7 +699,10 @@ for (const role of ["doctor", "patient"] as const) {
       afterSignOut: after,
       cachedSensitiveBefore: cachedSensitive(before),
       apiCachesAfterSignOut: Object.keys(after.caches).filter((n) => n.startsWith("hs-api")),
-      draftsAfterSignOut: Object.values(after.indexedDB).flatMap((stores) => Object.values(stores).flat()),
+      // Unsent drafts live in the app's own database; workbox-expiration only holds the cache's
+      // bookkeeping (reported, not part of the verdict).
+      draftsAfterSignOut: Object.values(after.indexedDB["hs-drafts"] ?? {}).flat(),
+      workboxMetadataAfterSignOut: Object.values(after.indexedDB["workbox-expiration"] ?? {}).flat(),
     };
     const verdict =
       result.sensitiveResponsesFetched.length === 0
