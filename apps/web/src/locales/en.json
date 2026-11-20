@@ -907,5 +907,10 @@
     "pauseServiceTitle": "Pause this service?",
     "pauseServiceBody": "{{name}} will not be offered on new invoices while it is paused.",
     "pause": "Pause"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "text": "There is no page at this address. It may have moved, or the link may be wrong.",
+    "home": "Go to the home page"
   }
 }
