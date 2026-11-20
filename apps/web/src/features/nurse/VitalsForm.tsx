@@ -88,8 +88,14 @@ export function VitalsForm({ patientId }: { patientId: string }) {
     },
   });
 
+  // Saving needs at least one value; the server still checks each value's range.
+  const filled = FIELDS.some((f) => values[f].trim() !== "");
+  const badFields = save.error instanceof ApiError ? save.error.fields : [];
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    if (!filled) {
+      return;
+    }
     setNotice(null);
     save.mutate();
   };
@@ -98,7 +104,7 @@ export function VitalsForm({ patientId }: { patientId: string }) {
     <form onSubmit={submit} className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {FIELDS.map((f) => (
-          <Field key={f} label={t(`vitals.${f}`)} htmlFor={`v-${f}`}>
+          <Field key={f} label={t(`vitals.${f}`)} htmlFor={`v-${f}`} error={badFields.includes(f) ? t("vitals.badValue") : undefined}>
             <Input
               id={`v-${f}`}
               inputMode="decimal"
@@ -110,7 +116,12 @@ export function VitalsForm({ patientId }: { patientId: string }) {
       </div>
       {save.isError && <Alert tone="error">{errorMessage(save.error)}</Alert>}
       {notice && <Alert tone="success">{notice}</Alert>}
-      <Button type="submit" disabled={save.isPending}>
+      {!filled && (
+        <p id="vitals-hint" className="text-sm text-muted-foreground">
+          {t("vitals.fillOne")}
+        </p>
+      )}
+      <Button type="submit" disabled={save.isPending || !filled} aria-describedby={filled ? undefined : "vitals-hint"}>
         {t("vitals.save")}
       </Button>
       {(drafts.data?.length ?? 0) > 0 && (

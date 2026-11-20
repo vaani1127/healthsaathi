@@ -267,7 +267,9 @@
     "saved": "Vitals saved.",
     "savedOffline": "No connection. Saved on this device and will be sent when you tap send.",
     "drafts": "{{count}} unsent vitals on this device.",
-    "sendDrafts": "Send now"
+    "sendDrafts": "Send now",
+    "fillOne": "Fill in at least one value to save.",
+    "badValue": "Check this value: it is outside the range the clinic accepts."
   },
   "severity": {
     "mild": "Mild",
