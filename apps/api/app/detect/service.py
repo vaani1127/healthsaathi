@@ -466,6 +466,14 @@ async def review_alert(
     alert, event, _ = await _get(db, alert_id)
     if event.user_id == principal.user_id:
         raise ProblemError(403, "own-alert", "Someone else must review an alert about you.")
+    # A review is final, like a break-glass review. The alert row is locked so two reviews sent
+    # at the same time run one after the other, and the second finds the first.
+    locked = await db.scalar(select(Alert).where(Alert.id == alert.id).with_for_update())
+    already = await db.scalar(
+        select(AlertReview.id).where(AlertReview.alert_id == alert.id).limit(1)
+    )
+    if locked is None or locked.status != AlertStatus.OPEN or already is not None:
+        raise ProblemError(409, "already-reviewed", "This alert was already reviewed.")
     at = await db_now(db)
     db.add(
         AlertReview(

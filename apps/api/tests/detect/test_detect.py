@@ -302,3 +302,80 @@ async def test_worker_fits_once_a_day(tmp_path: Path, monkeypatch: pytest.Monkey
     await worker.detect_tick()
     assert calls == ["fit", "score", "score"]
     assert worker.fit_is_due(store, datetime.now(UTC) + worker.FIT_EVERY)
+
+
+# A review is final (AUDIT_REPORT M3) --------------------------------------------------------------
+
+
+async def _scored_alert(
+    client: AsyncClient,
+    engine: AsyncEngine,
+    clinic: uuid.UUID,
+    staff: dict[Role, Actor],
+    patient: uuid.UUID,
+    store: service.ModelStore,
+) -> uuid.UUID:
+    await open_with_reason(client, staff[Role.DOCTOR], patient)
+    await score(engine, clinic, store)
+    return (await alerts_of(engine, clinic))[0].id
+
+
+async def _reviews(engine: AsyncEngine, alert_id: uuid.UUID) -> list[m.AlertReview]:
+    async with AsyncSession(engine) as s:
+        rows = await s.scalars(select(m.AlertReview).where(m.AlertReview.alert_id == alert_id))
+        return list(rows.all())
+
+
+async def test_a_second_review_is_refused(
+    client: AsyncClient,
+    admin_engine: AsyncEngine,
+    clinic: uuid.UUID,
+    staff: dict[Role, Actor],
+    patient: uuid.UUID,
+    store: service.ModelStore,
+) -> None:
+    alert_id = await _scored_alert(client, admin_engine, clinic, staff, patient, store)
+    admin = staff[Role.CLINIC_ADMIN]
+    url = f"/api/v1/alerts/{alert_id}/review"
+    first = await client.post(url, json={"outcome": "misuse"}, headers=admin.headers)
+    assert first.status_code == 200
+    second = await client.post(url, json={"outcome": "benign"}, headers=admin.headers)
+    assert second.status_code == 409
+    assert second.json()["code"] == "already-reviewed"
+    reviews = await _reviews(admin_engine, alert_id)
+    assert [r.outcome for r in reviews] == ["misuse"]
+    async with AsyncSession(admin_engine) as s:
+        alert = await s.get(m.Alert, alert_id)
+        audits = (
+            await s.scalars(
+                select(m.AuditEvent).where(
+                    m.AuditEvent.clinic_id == clinic, m.AuditEvent.kind == "alert_review"
+                )
+            )
+        ).all()
+    assert alert is not None and alert.status == "misuse"
+    assert len(audits) == 1
+
+
+async def test_two_reviews_at_once_leave_exactly_one(
+    client: AsyncClient,
+    admin_engine: AsyncEngine,
+    clinic: uuid.UUID,
+    staff: dict[Role, Actor],
+    patient: uuid.UUID,
+    store: service.ModelStore,
+) -> None:
+    from tests.identity.test_single_use import race
+
+    alert_id = await _scored_alert(client, admin_engine, clinic, staff, patient, store)
+    admin = staff[Role.CLINIC_ADMIN]
+    results = await race(
+        admin_engine,
+        "SELECT 1 FROM alerts WHERE id = :id FOR UPDATE",
+        lambda: client.post(
+            f"/api/v1/alerts/{alert_id}/review", json={"outcome": "unsure"}, headers=admin.headers
+        ),
+        id=alert_id,
+    )
+    assert sorted(r.status_code for r in results) == [200, 409]
+    assert len(await _reviews(admin_engine, alert_id)) == 1
