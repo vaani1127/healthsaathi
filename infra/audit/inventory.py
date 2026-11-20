@@ -239,6 +239,7 @@ def main() -> None:
     parser.add_argument("--pytest-routes", type=Path)
     parser.add_argument("--e2e-log", type=Path)
     parser.add_argument("--demo-log", type=Path)
+    parser.add_argument("--audit-log", type=Path)
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
 
@@ -247,6 +248,7 @@ def main() -> None:
         "API tests": from_pytest(args.pytest_routes),
         "e2e": map_paths(from_request_log(args.e2e_log), routes),
         "demo suite": map_paths(from_request_log(args.demo_log), routes),
+        "audit walkthrough": map_paths(from_request_log(args.audit_log), routes),
     }
     for row in routes:
         key = (row["method"], row["path"])
