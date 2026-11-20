@@ -561,7 +561,7 @@ function AccessReports() {
       await client.invalidateQueries({ queryKey: ["access-queries"] });
     },
   });
-  // Closing a report cannot be undone, so it is confirmed first.
+  // Closing a report cannot be undone on this screen, so it is confirmed first.
   const [ask, setAsk] = useState<Schemas["QueryOut"] | null>(null);
   return (
     <Card>
@@ -580,7 +580,7 @@ function AccessReports() {
         {ask && (
           <>
             <p>{t("confirm.report", { message: ask.message })}</p>
-            <p className="text-destructive">{t("confirm.permanent")}</p>
+            <p className="text-destructive">{t("confirm.closeReportBody")}</p>
           </>
         )}
       </ConfirmDialog>

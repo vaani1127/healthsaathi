@@ -908,7 +908,8 @@
     "pauseScheduleBody": "{{slot}}: no new appointments can be booked in this slot while it is paused.",
     "pauseServiceTitle": "Pause this service?",
     "pauseServiceBody": "{{name}} will not be offered on new invoices while it is paused.",
-    "pause": "Pause"
+    "pause": "Pause",
+    "closeReportBody": "The report leaves this list. It cannot be reopened from this screen."
   },
   "notFound": {
     "title": "Page not found",

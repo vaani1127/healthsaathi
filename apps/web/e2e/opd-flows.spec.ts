@@ -215,11 +215,11 @@ test.describe.serial("OPD day", () => {
     const reports = page.getByRole("article").filter({ hasText: "This is a test report." });
     await expect(reports.first()).toBeVisible();
     const before = await reports.count();
-    // Closing cannot be undone, so the app asks first. Cancel keeps the report open.
+    // Closing cannot be undone on this screen, so the app asks first. Cancel keeps it open.
     await reports.first().getByRole("button", { name: tx("admin.close") }).click();
     const dialog = page.getByRole("dialog", { name: tx("confirm.closeReportTitle") });
     await expect(dialog).toContainText(tx("confirm.report", { message: "This is a test report." }));
-    await expect(dialog).toContainText(tx("confirm.permanent"));
+    await expect(dialog).toContainText(tx("confirm.closeReportBody"));
     await dialog.getByRole("button", { name: tx("confirm.cancel") }).click();
     await expect(dialog).toBeHidden();
     await expect(reports).toHaveCount(before);
