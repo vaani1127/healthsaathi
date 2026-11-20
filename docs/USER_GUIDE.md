@@ -89,8 +89,10 @@ The admin screen has tabs:
 - **Alerts.** Accesses the detector found unusual, highest score first, a few per day. "Open
   alerts, all days" is the default; "One day" picks a date. Open an alert to see the patient, the
   reason the app found (or none), what stands out, any forgery flags and the user's last
-  accesses. Mark it "Misuse", "Justified" or "Not sure", with a note. You cannot review an
-  alert about yourself.
+  accesses. Mark it "Misuse", "Justified" or "Not sure", with a note. The app then shows what
+  will be recorded and asks you to confirm with "Record review": a review is written to the
+  audit log and cannot be changed later. "Cancel" (or Escape) records nothing. You cannot review
+  an alert about yourself.
   - Today's and yesterday's alerts are **Provisional**. Some signs of made-up evidence (the
     appointment never went ahead, or was cancelled after the record was opened) can only be seen
     24 hours later. So two days after a day ends, at midnight clinic time, the app makes that
@@ -104,16 +106,24 @@ The admin screen has tabs:
   - If the app was off for longer than its catch-up window (7 days unless the platform team
     set more), older days are not finalised; their alerts stay provisional and the day view
     says so.
-- **Staff.** Invite staff by email and role; deactivate or activate memberships. "No
-  authenticator yet" marks staff who have not set one up.
+- **Staff.** Invite staff by email and role; deactivate or activate memberships. "Deactivate"
+  asks you to confirm first: the person cannot sign in to this clinic until you press
+  "Activate". "No password yet" marks staff who have not used their invite; "Send invite again"
+  emails a new link, and only the newest link works. "No authenticator yet" marks staff who
+  have not set one up.
 - **Schedules and Shifts.** Doctor schedules (day, hours, slot length) and staff shifts for the
-  coming week.
-- **Services.** Services and prices used for invoices.
+  coming week. "Pause" on a schedule asks you to confirm first; no new appointments can be
+  booked in that slot until you press "Activate".
+- **Services.** Services and prices used for invoices. "Pause" asks you to confirm first; the
+  service is not offered on new invoices until you press "Activate".
 - **Consent notices.** Write a new version in English and Hindi, then "Publish". Patients
   registered after that see the new version.
 - **Emergency access.** Every break-glass use from the last days, with reason. Mark each one
-  "Justified", "Misuse" or "Not sure".
-- **Patient reports.** Accesses patients said they do not recognise. Close them once handled.
+  "Justified", "Misuse" or "Not sure", then confirm with "Record review": the review cannot be
+  changed later.
+- **Patient reports.** Accesses patients said they do not recognise. Close them once handled;
+  "Close" asks you to confirm with "Close report", because a closed report cannot be reopened
+  from this screen.
 - **Revenue.** Money collected on a day.
 - **Audit log.** Whether the access log is intact: number of events, the latest signed
   checkpoint, "Hash chain intact" and "Log matches earlier checkpoints" (Pass or Fail), and the
