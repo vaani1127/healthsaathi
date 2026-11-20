@@ -699,15 +699,18 @@ for (const role of ["doctor", "patient"] as const) {
       afterSignOut: after,
       cachedSensitiveBefore: cachedSensitive(before),
       apiCachesAfterSignOut: Object.keys(after.caches).filter((n) => n.startsWith("hs-api")),
-      // Unsent drafts live in the app's own database; workbox-expiration only holds the cache's
-      // bookkeeping (reported, not part of the verdict).
+      // Unsent drafts live in the app's own database; workbox-expiration holds Workbox's record
+      // of each cached entry, and no hs-api row may be left after sign-out (AUDIT_REPORT m3).
       draftsAfterSignOut: Object.values(after.indexedDB["hs-drafts"] ?? {}).flat(),
       workboxMetadataAfterSignOut: Object.values(after.indexedDB["workbox-expiration"] ?? {}).flat(),
     };
     const verdict =
       result.sensitiveResponsesFetched.length === 0
         ? "inconclusive: no notes, lab or prescription response was fetched"
-        : result.cachedSensitiveBefore.length === 0 && result.apiCachesAfterSignOut.length === 0 && result.draftsAfterSignOut.length === 0
+        : result.cachedSensitiveBefore.length === 0 &&
+            result.apiCachesAfterSignOut.length === 0 &&
+            result.draftsAfterSignOut.length === 0 &&
+            result.workboxMetadataAfterSignOut.every((entry) => !entry.startsWith("hs-api"))
           ? "pass"
           : "fail";
     mkdirSync(`${ARTIFACTS}/walkthrough`, { recursive: true });
