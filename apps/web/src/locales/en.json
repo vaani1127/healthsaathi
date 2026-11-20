@@ -898,6 +898,14 @@
     "noNote": "No note",
     "closeReportTitle": "Close this patient report?",
     "closeReport": "Close report",
-    "report": "Report: {{message}}"
+    "report": "Report: {{message}}",
+    "deactivateTitle": "Deactivate {{name}}?",
+    "deactivateBody": "{{name}} will not be able to sign in to this clinic while the membership is inactive.",
+    "deactivate": "Deactivate",
+    "pauseScheduleTitle": "Pause this schedule?",
+    "pauseScheduleBody": "{{slot}}: no new appointments can be booked in this slot while it is paused.",
+    "pauseServiceTitle": "Pause this service?",
+    "pauseServiceBody": "{{name}} will not be offered on new invoices while it is paused.",
+    "pause": "Pause"
   }
 }

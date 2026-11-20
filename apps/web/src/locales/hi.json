@@ -898,6 +898,14 @@
     "noNote": "कोई टिप्पणी नहीं",
     "closeReportTitle": "यह मरीज़ की रिपोर्ट बंद करें?",
     "closeReport": "रिपोर्ट बंद करें",
-    "report": "रिपोर्ट: {{message}}"
+    "report": "रिपोर्ट: {{message}}",
+    "deactivateTitle": "{{name}} को निष्क्रिय करें?",
+    "deactivateBody": "सदस्यता निष्क्रिय रहने तक {{name}} इस क्लिनिक में साइन इन नहीं कर पाएँगे।",
+    "deactivate": "निष्क्रिय करें",
+    "pauseScheduleTitle": "यह समय-सारिणी रोकें?",
+    "pauseScheduleBody": "{{slot}}: रुके रहने तक इस समय में नई अपॉइंटमेंट बुक नहीं हो सकती।",
+    "pauseServiceTitle": "यह सेवा रोकें?",
+    "pauseServiceBody": "रुके रहने तक {{name}} नए बिलों में नहीं दिखेगी।",
+    "pause": "रोकें"
   }
 }
