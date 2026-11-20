@@ -44,6 +44,9 @@ export default defineConfig({
       cwd: "../api",
       // Many sign-ins from one IP in a minute; the limits themselves are covered by API tests.
       env: { EMAIL_OUTBOX_DIR: OUTBOX, RATE_LIMIT_ENABLED: "false" },
+      // Audit only (docs/AUDIT_REPORT.md): with HS_ROUTE_LOG set, the API's request log is shown,
+      // so `infra/audit/inventory.py` can tell which routes the e2e run called.
+      stdout: process.env.HS_ROUTE_LOG ? "pipe" : "ignore",
       url: "http://localhost:8000/api/v1/health",
       reuseExistingServer: true,
       timeout: 120_000,

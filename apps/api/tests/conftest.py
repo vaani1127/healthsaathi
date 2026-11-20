@@ -40,6 +40,46 @@ from httpx import ASGITransport, AsyncClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine  # noqa: E402
 
+# Audit only (docs/AUDIT_REPORT.md): with HS_ROUTE_LOG=<file>, every API request made during the
+# test run records its method and matched route template, written to that file at the end. Test
+# code only: nothing in the app reads HS_ROUTE_LOG, so it can never be on in production.
+_ROUTE_LOG = os.environ.get("HS_ROUTE_LOG")
+_ROUTES_SEEN: set[tuple[str, str]] = set()
+if _ROUTE_LOG:
+    import app.main as _app_main
+
+    _original_create_app = _app_main.create_app
+
+    class _RouteRecorder:
+        def __init__(self, app: object) -> None:
+            self.app = app
+
+        async def __call__(self, scope: dict, receive: object, send: object) -> None:  # type: ignore[type-arg]
+            try:
+                await self.app(scope, receive, send)  # type: ignore[operator]
+            finally:
+                route = scope.get("route")
+                path = getattr(route, "path", None)
+                if path:
+                    method = scope.get("method", "WS") if scope["type"] == "http" else "WS"
+                    _ROUTES_SEEN.add((method, path))
+
+    def _recording_create_app():  # type: ignore[no-untyped-def]
+        app = _original_create_app()
+        app.add_middleware(_RouteRecorder)
+        return app
+
+    _app_main.create_app = _recording_create_app
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    if _ROUTE_LOG:
+        import json
+
+        with open(_ROUTE_LOG, "w", encoding="utf-8") as f:
+            json.dump(sorted(_ROUTES_SEEN), f, indent=0)
+
+
 from app.main import create_app  # noqa: E402
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
