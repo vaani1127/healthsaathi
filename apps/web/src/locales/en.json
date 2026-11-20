@@ -883,5 +883,21 @@
     "chainReads": "Chain reads",
     "notVerified": "A sample receipt did not verify. These timings are not valid.",
     "download": "Download timings"
+  },
+  "confirm": {
+    "cancel": "Cancel",
+    "permanent": "This is written to the audit log and cannot be changed later.",
+    "undoable": "You can undo this later with \"{{undo}}\".",
+    "reviewTitle": "Record this review?",
+    "recordReview": "Record review",
+    "outcome": "Outcome: {{outcome}}",
+    "patient": "Patient: {{name}}",
+    "accessBy": "Access by: {{name}}",
+    "reason": "Reason given: {{reason}}",
+    "note": "Note: {{note}}",
+    "noNote": "No note",
+    "closeReportTitle": "Close this patient report?",
+    "closeReport": "Close report",
+    "report": "Report: {{message}}"
   }
 }

@@ -50,7 +50,18 @@ test.describe.serial("review", () => {
     const item = page.getByRole("article").filter({ hasText: emergencyName });
     await expect(item).toContainText(user("doctor").name);
     await expect(item).toContainText(tx("breakGlass.codes.unconscious"));
+    // A review cannot be changed, so the app asks first. Cancel records nothing.
+    await item.getByRole("button", { name: tx("outcome.misuse") }).click();
+    const dialog = page.getByRole("dialog", { name: tx("confirm.reviewTitle") });
+    await expect(dialog).toContainText(tx("confirm.outcome", { outcome: tx("outcome.misuse") }));
+    await expect(dialog).toContainText(tx("confirm.patient", { name: emergencyName }));
+    await expect(dialog).toContainText(tx("confirm.permanent"));
+    await expect(dialog.getByRole("button", { name: tx("confirm.cancel") })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(item.getByRole("button", { name: tx("outcome.misuse") })).toBeVisible();
     await item.getByRole("button", { name: tx("outcome.benign") }).click();
+    await dialog.getByRole("button", { name: tx("confirm.recordReview") }).click();
     await expect(item.getByText(tx("outcome.benign"))).toBeVisible();
   });
 
@@ -95,6 +106,7 @@ test.describe.serial("review", () => {
       await own.getByRole("button", { name: tx("admin.alerts.open") }).click();
       const ownDetail = own.getByTestId("alert-detail");
       await ownDetail.getByRole("button", { name: tx("outcome.misuse") }).click();
+      await page.getByRole("dialog").getByRole("button", { name: tx("confirm.recordReview") }).click();
       await expect(ownDetail.getByRole("alert")).toHaveText(tx("errors.own-alert"));
       await own.getByRole("button", { name: tx("admin.alerts.close") }).click();
     }
@@ -121,6 +133,10 @@ test.describe.serial("review", () => {
     // it after the click: the API's answer, then the page-level confirmation outside the list.
     const reviewed = page.waitForResponse((r) => r.request().method() === "POST" && /\/api\/v1\/alerts\/[^/]+\/review$/.test(r.url()));
     await detail.getByRole("button", { name: tx("outcome.misuse") }).click();
+    const dialog = page.getByRole("dialog", { name: tx("confirm.reviewTitle") });
+    await expect(dialog).toContainText(tx("confirm.note", { note: "Not asked for a second opinion" }));
+    await expect(dialog).toContainText(tx("confirm.permanent"));
+    await dialog.getByRole("button", { name: tx("confirm.recordReview") }).click();
     const response = await reviewed;
     expect(response.status()).toBe(200);
     const body = (await response.json()) as { status: string; reviews: { outcome: string }[] };

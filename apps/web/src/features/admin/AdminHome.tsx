@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Confirmation } from "@/components/ui/confirmation";
 import { Alert, Badge, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Empty, QueryStatus } from "@/components/ui/state";
@@ -430,8 +431,33 @@ function BreakGlassQueue() {
       ),
     onSuccess: () => client.invalidateQueries({ queryKey: ["break-glass"] }),
   });
+  // A review is written to the audit log and cannot be changed, so it is confirmed first.
+  const [ask, setAsk] = useState<{ item: Schemas["BreakGlassItem"]; outcome: Schemas["ReviewOutcome"] } | null>(null);
   return (
     <Card>
+      <ConfirmDialog
+        open={ask !== null}
+        title={t("confirm.reviewTitle")}
+        confirmLabel={t("confirm.recordReview")}
+        destructive={ask?.outcome === "misuse"}
+        onCancel={() => setAsk(null)}
+        onConfirm={() => {
+          if (ask) {
+            review.mutate({ id: ask.item.id, outcome: ask.outcome });
+          }
+          setAsk(null);
+        }}
+      >
+        {ask && (
+          <>
+            <p className="font-semibold">{t("confirm.outcome", { outcome: t(`outcome.${ask.outcome}`) })}</p>
+            <p>{t("confirm.accessBy", { name: ask.item.user_name })}</p>
+            <p>{t("confirm.patient", { name: ask.item.patient.name })}</p>
+            <p>{t("confirm.reason", { reason: ask.item.reason_text })}</p>
+            <p className="text-destructive">{t("confirm.permanent")}</p>
+          </>
+        )}
+      </ConfirmDialog>
       <CardHeader>
         <CardTitle>{t("admin.breakGlassQueue")}</CardTitle>
       </CardHeader>
@@ -452,7 +478,7 @@ function BreakGlassQueue() {
             ) : (
               <div className="mt-2 flex gap-2">
                 {(["benign", "misuse", "unsure"] as const).map((o) => (
-                  <Button key={o} size="sm" variant={o === "misuse" ? "destructive" : "outline"} onClick={() => review.mutate({ id: b.id, outcome: o })}>
+                  <Button key={o} size="sm" variant={o === "misuse" ? "destructive" : "outline"} onClick={() => setAsk({ item: b, outcome: o })}>
                     {t(`outcome.${o}`)}
                   </Button>
                 ))}
@@ -482,8 +508,29 @@ function AccessReports() {
       await client.invalidateQueries({ queryKey: ["access-queries"] });
     },
   });
+  // Closing a report cannot be undone, so it is confirmed first.
+  const [ask, setAsk] = useState<Schemas["QueryOut"] | null>(null);
   return (
     <Card>
+      <ConfirmDialog
+        open={ask !== null}
+        title={t("confirm.closeReportTitle")}
+        confirmLabel={t("confirm.closeReport")}
+        onCancel={() => setAsk(null)}
+        onConfirm={() => {
+          if (ask) {
+            close.mutate(ask.id);
+          }
+          setAsk(null);
+        }}
+      >
+        {ask && (
+          <>
+            <p>{t("confirm.report", { message: ask.message })}</p>
+            <p className="text-destructive">{t("confirm.permanent")}</p>
+          </>
+        )}
+      </ConfirmDialog>
       <CardHeader>
         <CardTitle>{t("admin.reports")}</CardTitle>
       </CardHeader>
@@ -497,7 +544,7 @@ function AccessReports() {
               <p>{q.message}</p>
               <p className="text-xs text-muted-foreground">{formatDateTime(q.created_at)}</p>
             </div>
-            <Button size="sm" variant="outline" onClick={() => close.mutate(q.id)}>
+            <Button size="sm" variant="outline" onClick={() => setAsk(q)}>
               {t("admin.close")}
             </Button>
           </article>

@@ -208,6 +208,26 @@ test.describe.serial("OPD day", () => {
     await expect(page.getByText(txIn(OTHER_LANG, "portal.queryStatus.open")).first()).toBeVisible();
     await page.getByRole("button", { name: txIn(OTHER_LANG, "language.switch") }).click();
   });
+
+  test("flow 6: the admin closes the report after confirming", async ({ page }) => {
+    await signIn(page, "clinic_admin");
+    await page.getByRole("tab", { name: tx("admin.tabs.reports") }).click();
+    const reports = page.getByRole("article").filter({ hasText: "This is a test report." });
+    await expect(reports.first()).toBeVisible();
+    const before = await reports.count();
+    // Closing cannot be undone, so the app asks first. Cancel keeps the report open.
+    await reports.first().getByRole("button", { name: tx("admin.close") }).click();
+    const dialog = page.getByRole("dialog", { name: tx("confirm.closeReportTitle") });
+    await expect(dialog).toContainText(tx("confirm.report", { message: "This is a test report." }));
+    await expect(dialog).toContainText(tx("confirm.permanent"));
+    await dialog.getByRole("button", { name: tx("confirm.cancel") }).click();
+    await expect(dialog).toBeHidden();
+    await expect(reports).toHaveCount(before);
+    await reports.first().getByRole("button", { name: tx("admin.close") }).click();
+    await dialog.getByRole("button", { name: tx("confirm.closeReport") }).click();
+    await expect(page.getByTestId("report-confirmation")).toContainText(tx("admin.reportClosed"));
+    await expect(reports).toHaveCount(before - 1);
+  });
 });
 
 test("staff screens fit a 360 px wide phone", async ({ page }) => {
