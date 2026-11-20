@@ -126,9 +126,8 @@ Requirements: Docker, Python 3.12 with [uv](https://docs.astral.sh/uv/), Node 22
 ```sh
 git clone --recurse-submodules https://github.com/vaani1127/healthsaathi.git
 cd healthsaathi
-cp .env.example .env
 make install
-make dev      # postgres, api on :8000, web on :5173
+make dev      # writes .env with fresh secrets the first time (make env), then postgres, api on :8000, web on :5173
 make lint
 make test
 ```
