@@ -156,6 +156,34 @@ async def test_signed_note_cannot_be_changed_even_in_the_database(
                 await conn.execute(text(sql), {"id": note["id"]})
 
 
+async def test_signed_prescription_cannot_be_changed_even_in_the_database(
+    client: AsyncClient, admin_engine: AsyncEngine, staff: dict[Role, Actor], visit: dict[str, str]
+) -> None:
+    """Edit-after-sign (SPEC 7 attack 9) for prescriptions: the API refuses it and so does the
+    database trigger, even for the database owner (migration 0002)."""
+    doctor = staff[Role.DOCTOR]
+    rx = (
+        await client.post(
+            f"/api/v1/patients/{visit['patient']}/prescriptions",
+            json={"encounter_id": visit["encounter"], "items": ITEMS},
+            headers=doctor.headers,
+        )
+    ).json()
+    await client.post(f"/api/v1/prescriptions/{rx['id']}/sign", headers=doctor.headers)
+    edit = await client.patch(
+        f"/api/v1/prescriptions/{rx['id']}", json={"items": ITEMS}, headers=doctor.headers
+    )
+    assert edit.status_code == 409
+    assert edit.json()["code"] == "prescription-signed"
+    for sql in (
+        "UPDATE prescriptions SET advice_en = 'changed' WHERE id = :id",
+        "DELETE FROM prescriptions WHERE id = :id",
+    ):
+        with pytest.raises(DBAPIError, match="is signed"):
+            async with admin_engine.begin() as conn:
+                await conn.execute(text(sql), {"id": rx["id"]})
+
+
 async def test_only_the_author_edits_or_signs(
     client: AsyncClient,
     admin_engine: AsyncEngine,
