@@ -14,7 +14,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 import AxeBuilder from "@axe-core/playwright";
-import { type Page, type Request, test } from "@playwright/test";
+import { expect, type Page, type Request, test } from "@playwright/test";
 
 import { emailCode, fixture, signIn } from "../../e2e/support";
 
@@ -266,6 +266,40 @@ async function patientSignIn(page: Page, email: string): Promise<void> {
   await page.waitForURL(/\/patient/);
 }
 
+function patientsFile(clinic: string): string {
+  return `${ARTIFACTS}/walkthrough/patients-${clinic}.json`;
+}
+
+function knownPatients(clinic: string): string[] {
+  try {
+    return JSON.parse(readFileSync(patientsFile(clinic), "utf-8")) as string[];
+  } catch {
+    return [];
+  }
+}
+
+/** Patient ids from the reception search box (two letters start a search). */
+async function searchPatients(page: Page): Promise<string[]> {
+  mkdirSync(`${ARTIFACTS}/walkthrough`, { recursive: true });
+  const box = page.locator("main input").first();
+  const ids = new Set<string>();
+  for (const term of ["an", "ra"]) {
+    await box.fill(term);
+    await settle(page);
+    for (const href of await internalLinks(page)) {
+      const id = /^\/reception\/patients\/([0-9a-f-]{36})/.exec(href)?.[1];
+      if (id) {
+        ids.add(id);
+      }
+    }
+    if (ids.size >= 3) {
+      break;
+    }
+  }
+  await box.fill("");
+  return [...ids];
+}
+
 async function walk(page: Page, report: Report, me: Login | null, actions: boolean): Promise<void> {
   // Buttons are clicked only for a signed-in clinic B account.
   const clicking = actions && me !== null;
@@ -278,6 +312,16 @@ async function walk(page: Page, report: Report, me: Login | null, actions: boole
   } else if (me) {
     await signIn(page, me.role, me);
     start.push(new URL(page.url()).pathname, "/account/sessions");
+    // Patient pages are reached through search (reception) or today's queue (nurse, doctor), not
+    // through links on the home screen. Reception searches and shares the patients it finds
+    // with the later nurse and doctor tests of the same clinic.
+    if (me.role === "reception") {
+      const found = await searchPatients(page);
+      writeFileSync(patientsFile(report.clinic), JSON.stringify(found));
+      start.push(...found.slice(0, 3).map((id) => `/reception/patients/${id}`));
+    } else if (me.role === "nurse" || me.role === "doctor") {
+      start.push(...knownPatients(report.clinic).slice(0, 3).map((id) => `/${me.role}/patients/${id}`));
+    }
   } else {
     start.push("/login", "/patient/login", "/verify", "/status", "/dev/mailbox", "/invite", "/bench/receipt", "/select-clinic", "/no-such-page");
   }
@@ -388,5 +432,118 @@ for (const role of ROLES) {
     }
     save(report);
     await context.close();
+  });
+}
+
+// PWA offline rules (SPEC 4): notes, lab results and prescriptions are never cached, and signing
+// out removes the cached API responses and unsent drafts. On the demo's production build, as the
+// clinic A doctor and as a clinic A patient: open records with notes, lab results and
+// prescriptions, list every Cache Storage cache with its URLs and every IndexedDB store with its
+// keys, then sign out and list them again. Results in audit-artifacts/walkthrough/pwa-*.json.
+const SENSITIVE = /\/api\/v1\/.*(notes|prescriptions|lab|chart|vitals|allergies|conditions|documents|portal)/;
+
+interface Storage {
+  controlled: boolean;
+  caches: Record<string, string[]>;
+  indexedDB: Record<string, Record<string, string[]>>;
+}
+
+async function storage(page: Page): Promise<Storage> {
+  return page.evaluate(async () => {
+    const out: Storage = { controlled: Boolean(navigator.serviceWorker?.controller), caches: {}, indexedDB: {} };
+    for (const name of await caches.keys()) {
+      const cache = await caches.open(name);
+      out.caches[name] = (await cache.keys()).map((r) => new URL(r.url).pathname + new URL(r.url).search);
+    }
+    const dbs = "databases" in indexedDB ? await indexedDB.databases() : [];
+    for (const info of dbs) {
+      if (!info.name) {
+        continue;
+      }
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const req = indexedDB.open(info.name ?? "");
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      const stores: Record<string, string[]> = {};
+      for (const store of Array.from(db.objectStoreNames)) {
+        stores[store] = await new Promise<string[]>((resolve) => {
+          const req = db.transaction(store, "readonly").objectStore(store).getAllKeys();
+          req.onsuccess = () => resolve(req.result.map((k) => String(k)));
+          req.onerror = () => resolve(["<error>"]);
+        });
+      }
+      db.close();
+      out.indexedDB[info.name] = stores;
+    }
+    return out;
+  });
+}
+
+function cachedSensitive(s: Storage): string[] {
+  return Object.entries(s.caches).flatMap(([name, urls]) => urls.filter((u) => SENSITIVE.test(u)).map((u) => `${name}: ${u}`));
+}
+
+for (const role of ["doctor", "patient"] as const) {
+  test(`pwa cache check clinic a ${role}`, async ({ browser }) => {
+    test.skip(!process.env.DEMO_AUDIT, "run with make demo-audit");
+    test.setTimeout(600_000);
+    const context = await browser.newContext({ viewport: VIEWPORTS.desktop, baseURL: "http://localhost:8080" });
+    const page = await context.newPage();
+    const fetched: string[] = [];
+    page.on("response", (resp) => {
+      const path = new URL(resp.url()).pathname;
+      if (resp.request().method() === "GET" && resp.ok() && SENSITIVE.test(path)) {
+        fetched.push(path);
+      }
+    });
+    const me = login(role, "a");
+    const visited: string[] = [];
+    const go = async (url: string) => {
+      await page.goto(url);
+      await settle(page);
+      visited.push(url);
+    };
+    if (role === "patient") {
+      await patientSignIn(page, me.email);
+    } else {
+      await signIn(page, role, me);
+    }
+    // The service worker controls the page only after a reload; then the runtime caching applies.
+    await page.reload();
+    await settle(page);
+    const pages = role === "patient" ? ["/patient", "/patient/print"] : knownPatients("a").slice(0, 5).map((id) => `/doctor/patients/${id}`);
+    for (const url of pages) {
+      await go(url);
+      for (const print of (await internalLinks(page)).filter((h) => h.startsWith("/print/")).slice(0, 3)) {
+        await go(print);
+      }
+    }
+    const before = await storage(page);
+    await page.getByRole("button", { name: /^(Sign out|साइन आउट)$/ }).click();
+    await page.waitForURL(/\/login/);
+    await settle(page);
+    const after = await storage(page);
+    const result = {
+      role,
+      account: me.email,
+      visited,
+      sensitiveResponsesFetched: [...new Set(fetched)],
+      beforeSignOut: before,
+      afterSignOut: after,
+      cachedSensitiveBefore: cachedSensitive(before),
+      apiCachesAfterSignOut: Object.keys(after.caches).filter((n) => n.startsWith("hs-api")),
+      draftsAfterSignOut: Object.values(after.indexedDB).flatMap((stores) => Object.values(stores).flat()),
+    };
+    const verdict =
+      result.sensitiveResponsesFetched.length === 0
+        ? "inconclusive: no notes, lab or prescription response was fetched"
+        : result.cachedSensitiveBefore.length === 0 && result.apiCachesAfterSignOut.length === 0 && result.draftsAfterSignOut.length === 0
+          ? "pass"
+          : "fail";
+    mkdirSync(`${ARTIFACTS}/walkthrough`, { recursive: true });
+    writeFileSync(`${ARTIFACTS}/walkthrough/pwa-${role}.json`, JSON.stringify({ verdict, ...result }, null, 2));
+    await context.close();
+    expect(verdict, JSON.stringify(result.cachedSensitiveBefore)).toBe("pass");
   });
 }

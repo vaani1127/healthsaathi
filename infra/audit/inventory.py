@@ -30,6 +30,17 @@ ROOT = Path(__file__).resolve().parents[2]
 API_PREFIX = "/api/v1"
 
 
+def make_target_names(makefile_text: str) -> list[str]:
+    """Every target a Makefile defines, including several names on one line and continued lines."""
+    joined = re.sub(r"\\\r?\n", " ", makefile_text)
+    names: list[str] = []
+    for line in joined.splitlines():
+        match = re.match(r"^([a-z][a-z0-9\s%-]*?)\s*:(?!=)", line)
+        if match:
+            names += [n for n in match.group(1).split() if "%" not in n]
+    return list(dict.fromkeys(names))
+
+
 def _app() -> Any:
     for name, value in {
         "JWT_SECRET": "j" * 40,
@@ -211,8 +222,7 @@ def worker_loops() -> list[dict[str, str]]:
 def make_targets() -> list[dict[str, str]]:
     text = (ROOT / "Makefile").read_text(encoding="utf-8")
     help_lines = dict(re.findall(r'@echo "([a-z][\w-]*)\s+(.*?)"', text))
-    targets = re.findall(r"^([a-z][a-z0-9-]*):", text, re.M)
-    return [{"target": t, "help": help_lines.get(t, "")} for t in dict.fromkeys(targets)]
+    return [{"target": t, "help": help_lines.get(t, "")} for t in make_target_names(text)]
 
 
 def table(rows: list[dict[str, str]], columns: list[str]) -> str:
