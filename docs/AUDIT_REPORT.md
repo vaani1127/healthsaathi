@@ -21,11 +21,12 @@ Defined before the walkthrough:
 |---|---|
 | Blocker | 0 |
 | Major | 4 |
-| Minor | 6 |
+| Minor | 8 |
 | Cosmetic | 1 |
 
 After review (21 November 2026): the irreversible reviews were split out of m4 as M2; M3 and M4
-were added from the review of the fixes; m6 was found while adding browser coverage (item 7).
+were added from the review of the fixes; m6 was found while adding browser coverage (item 7);
+m7 and m8 come from the FHIR validation result.
 
 ## Status of findings
 
@@ -36,13 +37,15 @@ Fixes are on branch `fix/audit-findings`, one finding per commit, each with a te
 | M1 README development setup does not start the API | Major | Fixed in `6395078` (`apps/api/tests/test_gen_env.py`; checked in a fresh clone) |
 | M2 Irreversible reviews take effect on one click | Major | Fixed in `8380af2`, report dialog text corrected in `367e686` (`apps/web/test/confirmDialog.test.tsx`, flows 6, 7 and 8) |
 | M3 Alert reviews can be overwritten through the API | Major | Fixed in `4012358` (`tests/detect/test_detect.py`: second review 409, two at once leave one) |
-| M4 Closing or reopening a patient report leaves no audit record | Major | Implemented and tested, not committed: waiting for the decision on reopening (SPEC 3.1 lists the `status` column only and says nothing about reopening) |
+| M4 Closing or reopening a patient report leaves no audit record | Major | Fixed in `a7bb8a2`: one `access_query` audit event per change, a status set to itself is a no-op, closed to open is refused (409; SPEC 3.1 lists the `status` column only and gives no way back). `tests/portal/test_portal_api.py`: event in the chain, chain, audit page and receipt verify after a checkpoint, reopen refused, closing twice records one change, another clinic's admin gets 404 |
 | m1 Unknown address shows a bare English "Not Found" | Minor | Fixed in `91adb1b` (demo crawler checks an unknown address) |
 | m2 Empty vitals form gives a generic message | Minor | Fixed in `e0a23d1` (`apps/web/test/vitalsForm.test.tsx`, `apps/web/test/client.test.ts`) |
 | m3 Workbox keeps the cached queue address after sign-out | Minor | Fixed in `2957ee5` (`apps/web/test/offline.test.ts`; the PWA audit check now fails on a leftover row) |
 | m4 Deactivate and Pause take effect on one click | Minor | Fixed in `09254a4` (`apps/web/e2e/staff-invite.spec.ts`) |
 | m5 User guide misses sending an invite again | Minor | Fixed in `c60404a` |
-| m6 Voiding a draft invoice takes effect on one click | Minor | Open: reported, not fixed (waiting for a decision) |
+| m6 Voiding a draft invoice takes effect on one click | Minor | Fixed in `9f6d0eb` (`apps/web/e2e/secondary-flows.spec.ts` cancels once, then confirms) |
+| m7 FHIR AuditEvents have no purposeOfEvent code | Minor | Fixed in `5b175f4`: v3-ActReason code per template, break-glass always ETREAT, table in `docs/FHIR_EXPORT.md` (`tests/fhir/test_bundle.py`) |
+| m8 FHIR Observations have no performer | Minor | Fixed in `2175881`: the recording or releasing staff member as a Practitioner in the bundle; the rest of the download unchanged (`tests/fhir/test_bundle.py`, `tests/portal/test_portal_api.py`) |
 | c1 "Reason needed" page logs a console error | Cosmetic | Won't fix: the browser logs every 4xx answer itself, and the app cannot hide it; the 428 is the designed "reason required" answer |
 
 Every main flow (1 to 9) finishes: `make e2e` 12 passed and `make demo-e2e` 56 passed, both on the
@@ -170,6 +173,19 @@ of the fixes.)
 - Actual: the invoice is void at once. Only drafts show the button (an invoice with payments
   cannot be voided), so the loss is a draft to create again.
 
+**m7. FHIR AuditEvents have no purposeOfEvent code.** (From the FHIR validation.)
+
+- Steps: `make fhir-validate` on the demo.
+- Expected: a purpose code where the access has a clear purpose.
+- Actual: 7,088 warnings "No code provided, and a code should be provided from the value set
+  'PurposeOfUse'": `purposeOfEvent` had text only.
+
+**m8. FHIR Observations have no performer.** (From the FHIR validation.)
+
+- Steps: `make fhir-validate` on the demo.
+- Expected: each vital and lab Observation names who recorded or released it.
+- Actual: 223 warnings "In general, all observations should have a performer".
+
 **m5. The user guide does not mention sending an invite again.**
 
 - Screen: docs, `docs/USER_GUIDE.md`, "Clinic admin" > "Staff".
@@ -214,7 +230,7 @@ of the fixes.)
 | "I do not recognise this access" end to end | Pass (flow 6, patient report; the admin's "Patient reports" tab reached in the walkthrough) | final gate, walkthrough |
 | Receipt verification | Pass (demo flow 9 receipt check; `apps/web/test/verify.test.tsx` shows a tampered receipt as not verified) | final gate |
 | Audit page checks | Pass (flow 9 chain, consistency and witness; `e2e-demo/tamper.spec.ts` shows FAIL after a rewrite) | final gate |
-| FHIR export | Pass: `make fhir-validate` on the demo, 10 bundles, 0 errors, 14,948 warnings, 844 notes (HAPI validator 7.0.1, IG `ndhm.in#6.5.0`, no terminology server). Most warnings are "a resource should have narrative" (`dom-6`, 7,267) and "no PurposeOfUse code" on AuditEvents (7,088); the rest are 223 observations without a performer and unit codes the validator cannot check offline | `.demo/fhir/validation.txt`, `audit-artifacts/fhir-validate.log` |
+| FHIR export | Pass: `make fhir-validate` on the demo, 10 bundles, 0 errors, guide `ndhm.in#6.5.0` unchanged (HAPI validator 7.0.1, no terminology server). Before m7 and m8: 14,948 warnings, 844 notes. After: 9,124 warnings, 844 notes. Per group, before and after: no narrative (`dom-6`) 7,267 and 7,289 (the same 10 patients gained 22 accesses during the audit runs); no PurposeOfUse code 7,088 and 1,465 (the typed-reason and unexplained accesses, left without a code on purpose); observation without performer 223 and 0; unit codes not checked offline 370 and 370; notes unchanged in all 11 groups. No new kind of warning. Narrative is optional in FHIR and is left out on purpose (`docs/FHIR_EXPORT.md`) | `audit-artifacts/fhir-validation-before.txt`, `audit-artifacts/fhir-validation-after.txt` |
 | Edit after sign (SPEC 7 attack 9) | Pass: `PATCH /notes/{id}` and `PATCH /prescriptions/{id}` refuse a signed record with 409, and the migration 0002 trigger refuses it even for the database owner | `tests/clinical/test_clinical_api.py`: `test_note_draft_sign_and_version`, `test_signed_note_cannot_be_changed_even_in_the_database`, `test_prescription_versions_and_print`, and `test_signed_prescription_cannot_be_changed_even_in_the_database` (added in `85730b5`) |
 | Daily job | Pass in the API tests (`tests/detect/test_daily*.py`); the alert day view reached in flow 8 | final gate |
 | Invite and resend | Pass (`e2e/staff-invite.spec.ts` in both suites) | final gate |
