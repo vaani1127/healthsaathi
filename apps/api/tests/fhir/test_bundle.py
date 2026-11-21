@@ -2,6 +2,7 @@ import json
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 from app.chart.schemas import LabOrderOut, LabResultOut, PrescriptionOut, VitalOut
@@ -16,7 +17,7 @@ DOCTOR = uuid.uuid4()
 PATIENT = uuid.uuid4()
 
 
-def bundle() -> dict[str, Any]:
+def bundle(access_log: list[AccessLogEntry] | None = None) -> dict[str, Any]:
     rx = uuid.uuid4()
     return build_bundle(
         patient=PatientOut(
@@ -133,7 +134,8 @@ def bundle() -> dict[str, Any]:
                 events=[],
             )
         ],
-        access_log=[
+        access_log=access_log
+        or [
             AccessLogEntry(
                 id=uuid.uuid4(),
                 at=NOW,
@@ -223,3 +225,57 @@ def test_clinical_content() -> None:
 def test_no_em_dash_and_json_serialisable() -> None:
     text = json.dumps(bundle(), ensure_ascii=False)
     assert "—" not in text
+
+
+ROOT = Path(__file__).resolve().parents[4]
+
+
+def entry(template: str | None, *, break_glass: bool = False) -> AccessLogEntry:
+    return AccessLogEntry(
+        id=uuid.uuid4(),
+        at=NOW,
+        user_name="Dr Demo",
+        role="doctor",
+        resource="notes",
+        action="view",
+        decision="allow",
+        break_glass=break_glass,
+        because=Because(template=template),
+        query_status=None,
+    )
+
+
+def test_every_template_has_a_purpose_entry() -> None:
+    """A template with no clear purpose is listed as None on purpose, never forgotten."""
+    import yaml
+
+    from app.fhir.bundle import PURPOSE_OF_EVENT
+
+    templates = yaml.safe_load(
+        (ROOT / "packages/e2d-core/src/e2d_core/explain/templates.yaml").read_text(encoding="utf-8")
+    )["templates"]
+    assert set(templates) == set(PURPOSE_OF_EVENT)
+
+
+def test_purpose_of_event_codes() -> None:
+    log = [
+        entry("T_APPT"),
+        # Break-glass wins over any template.
+        entry("T_REASON", break_glass=True),
+        entry("T_BILLING"),
+        entry("T_REASON"),
+    ]
+    events = {e["id"]: e for e in resources(bundle(log), "AuditEvent")}
+    purposes = [events[str(e.id)]["purposeOfEvent"][0] for e in log]
+    system = "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+    assert [p.get("coding", [{}])[0].get("code") for p in purposes] == [
+        "TREAT",
+        "ETREAT",
+        "HPAYMT",
+        None,
+    ]
+    for purpose in purposes[:3]:
+        assert purpose["coding"][0]["system"] == system
+    # The text is kept exactly as before.
+    assert [p["text"] for p in purposes] == ["T_APPT", "T_REASON", "T_BILLING", "T_REASON"]
+    assert "coding" not in purposes[3]

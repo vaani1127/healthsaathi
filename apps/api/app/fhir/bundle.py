@@ -23,6 +23,25 @@ from app.portal.schemas import AccessLogEntry
 NRCES = "https://nrces.in/ndhm/fhir/r4/StructureDefinition/"
 LOINC = "http://loinc.org"
 UCUM = "http://unitsofmeasure.org"
+ACT_REASON = "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+
+# AuditEvent.purposeOfEvent per explanation template (docs/FHIR_EXPORT.md). Every template of
+# packages/e2d-core/src/e2d_core/explain/templates.yaml is listed; None means no clear match, so
+# the event keeps only its text. A break-glass access is always ETREAT, whatever its template.
+PURPOSE_OF_EVENT: dict[str, tuple[str, str] | None] = {
+    "T_APPT": ("TREAT", "treatment"),
+    "T_QUEUE": ("TREAT", "treatment"),
+    "T_LAB": ("TREAT", "treatment"),
+    "T_REFERRAL": ("TREAT", "treatment"),
+    "T_CARETEAM": ("TREAT", "treatment"),
+    "T_FOLLOWUP": ("TREAT", "treatment"),
+    "T_FRONTDESK": ("HOPERAT", "healthcare operations"),
+    "T_BILLING": ("HPAYMT", "healthcare payment"),
+    "T_BREAKGLASS": ("ETREAT", "Emergency Treatment"),
+    "T_SELF": ("PATRQT", "patient requested"),
+    "T_REASON": None,
+}
+BREAK_GLASS_PURPOSE = ("ETREAT", "Emergency Treatment")
 SNOMED = "http://snomed.info/sct"
 V2_0203 = "http://terminology.hl7.org/CodeSystem/v2-0203"
 OBS_CATEGORY = "http://terminology.hl7.org/CodeSystem/observation-category"
@@ -392,6 +411,14 @@ class BundleBuilder:
         for e in log:
             action, resource, role = str(e.action), str(e.resource), str(e.role)
             why = e.because.template or ("break_glass" if e.break_glass else "unexplained")
+            purpose: dict[str, Any] = {"text": why}
+            code = (
+                BREAK_GLASS_PURPOSE
+                if e.break_glass
+                else PURPOSE_OF_EVENT.get(e.because.template or "")
+            )
+            if code is not None:
+                purpose["coding"] = [_coding(ACT_REASON, *code)]
             self.add(
                 {
                     "resourceType": "AuditEvent",
@@ -404,7 +431,7 @@ class BundleBuilder:
                     "action": AUDIT_ACTION.get(action, "R"),
                     "recorded": _instant(e.at),
                     "outcome": "0" if str(e.decision) == "allow" else "4",
-                    "purposeOfEvent": [{"text": f"{why}"}],
+                    "purposeOfEvent": [purpose],
                     "agent": [
                         {
                             "who": {"display": e.user_name},
