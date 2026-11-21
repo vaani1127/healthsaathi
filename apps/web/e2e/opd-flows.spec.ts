@@ -32,7 +32,12 @@ test.describe.serial("OPD day", () => {
     await register.click();
 
     await expect(page.getByRole("heading", { name: patientName })).toBeVisible();
-    await expect(page.getByText(tx("consent.given", { version: 1 }))).toBeVisible();
+    // Consent is given under the clinic's current notice. secondary-flows.spec.ts publishes a new
+    // notice, so on a stack that ran the suite before this is not always version 1.
+    const [givenBefore, givenAfter] = tx("consent.given", { version: "@@" })
+      .split("@@")
+      .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    await expect(page.getByText(new RegExp(`${givenBefore}\\d+${givenAfter}`))).toBeVisible();
 
     await page.getByLabel(tx("reception.doctor")).first().selectOption({ label: user("doctor").name });
     // A few minutes ahead, so the appointment explains the visit. A stack that already has
