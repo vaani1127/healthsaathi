@@ -3,8 +3,9 @@
 // addresses, such as /api/v1/queue?doctor_user_id=<id>.
 const BOOKKEEPING_DB = "workbox-expiration";
 const BOOKKEEPING_STORE = "cache-entries";
-// Row ids are "<cache name>|<url>".
-const API_ENTRIES = IDBKeyRange.bound("hs-api", "hs-api￿");
+// Row ids are "<cache name>|<url>". Built only when needed, so importing this module works where
+// IndexedDB does not exist.
+const apiEntries = (): IDBKeyRange => IDBKeyRange.bound("hs-api", "hs-api￿");
 
 /** Removes Workbox's bookkeeping rows for the hs-api caches. Never creates the database. */
 export async function clearCacheBookkeeping(): Promise<void> {
@@ -31,7 +32,7 @@ export async function clearCacheBookkeeping(): Promise<void> {
         return;
       }
       const tx = db.transaction(BOOKKEEPING_STORE, "readwrite");
-      tx.objectStore(BOOKKEEPING_STORE).delete(API_ENTRIES);
+      tx.objectStore(BOOKKEEPING_STORE).delete(apiEntries());
       const done = () => {
         db.close();
         resolve();
