@@ -175,7 +175,8 @@
     "rate-limit-unavailable": "Sign-in is not available right now. Try again in a minute.",
     "membership-inactive": "This membership is not active. Make it active first.",
     "already-has-password": "This person has already set a password, so no new invite is needed.",
-    "invite-email-failed": "The invite email could not be sent. Try again."
+    "invite-email-failed": "The invite email could not be sent. Try again.",
+    "query-closed": "This report is closed and cannot be reopened."
   },
   "sex": {
     "female": "Female",
