@@ -213,7 +213,16 @@ test.describe.serial("secondary flows", () => {
     await page.getByLabel(/^Consultation/).fill("1");
     await page.getByRole("button", { name: tx("billing.create"), exact: true }).click();
     await expect(page).toHaveURL(/\/reception\/invoices\//);
+    // Voiding cannot be undone, so the app asks first (AUDIT_REPORT m6). Cancel keeps the draft.
     await page.getByRole("button", { name: tx("billing.void"), exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: tx("confirm.voidTitle") });
+    await expect(dialog).toContainText(tx("confirm.voidBody"));
+    await expect(dialog.getByRole("button", { name: tx("confirm.cancel"), exact: true })).toBeFocused();
+    await dialog.getByRole("button", { name: tx("confirm.cancel"), exact: true }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText(tx("invoiceStatus.draft"), { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: tx("billing.void"), exact: true }).click();
+    await dialog.getByRole("button", { name: tx("confirm.void"), exact: true }).click();
     await expect(page.getByText(tx("invoiceStatus.void"), { exact: true })).toBeVisible();
   });
 

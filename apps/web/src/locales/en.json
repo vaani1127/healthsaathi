@@ -910,7 +910,10 @@
     "pauseServiceTitle": "Pause this service?",
     "pauseServiceBody": "{{name}} will not be offered on new invoices while it is paused.",
     "pause": "Pause",
-    "closeReportBody": "The report leaves this list. It cannot be reopened from this screen."
+    "closeReportBody": "The report leaves this list. It cannot be reopened from this screen.",
+    "voidTitle": "Void this invoice?",
+    "voidBody": "A void invoice cannot be restored. Create a new invoice if one is needed.",
+    "void": "Void invoice"
   },
   "notFound": {
     "title": "Page not found",

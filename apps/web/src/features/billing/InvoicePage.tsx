@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Alert, Badge, Field, Input, Select } from "@/components/ui/form";
 import { api, call, type Schemas } from "@/lib/api/client";
 import { errorMessage, formatDateTime, formatMoney } from "@/lib/format";
@@ -26,6 +27,8 @@ export function InvoicePage() {
       call(() => api.POST("/api/v1/invoices/{invoice_id}/issue", { params: { path: { invoice_id: invoiceId } } })),
     onSuccess: refresh,
   });
+  // A void invoice cannot be restored, so voiding is confirmed first.
+  const [askVoid, setAskVoid] = useState(false);
   const voidIt = useMutation({
     mutationFn: () =>
       call(() => api.POST("/api/v1/invoices/{invoice_id}/void", { params: { path: { invoice_id: invoiceId } } })),
@@ -79,12 +82,25 @@ export function InvoicePage() {
           </ul>
         )}
         {(issue.isError || voidIt.isError) && <Alert tone="error">{errorMessage(issue.error ?? voidIt.error)}</Alert>}
+        <ConfirmDialog
+          open={askVoid}
+          title={t("confirm.voidTitle")}
+          confirmLabel={t("confirm.void")}
+          destructive
+          onCancel={() => setAskVoid(false)}
+          onConfirm={() => {
+            voidIt.mutate();
+            setAskVoid(false);
+          }}
+        >
+          <p className="text-destructive">{t("confirm.voidBody")}</p>
+        </ConfirmDialog>
         {inv.status === "draft" && (
           <div className="flex gap-2">
             <Button onClick={() => issue.mutate()} disabled={issue.isPending}>
               {t("billing.issue")}
             </Button>
-            <Button variant="ghost" onClick={() => voidIt.mutate()} disabled={voidIt.isPending}>
+            <Button variant="ghost" onClick={() => setAskVoid(true)} disabled={voidIt.isPending}>
               {t("billing.void")}
             </Button>
           </div>
