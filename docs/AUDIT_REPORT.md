@@ -367,6 +367,34 @@ path.
 
 ## Final gate
 
+### After the fixes (21 November 2026, commit `6a0db7b`)
+
+Run on branch `fix/audit-findings` after `make demo-reset`, with no demo container running for
+`make lint` and `make test` (checked with `docker ps` first). Logs: `audit-artifacts/final-gate.log`,
+`final-e2e.log`, `final-demo.log`, `final-crawl.log`.
+
+| Step | Result |
+|---|---|
+| `make lint` | exit 0: ruff all checks passed, 314 files formatted; mypy no issues in 281 files; contracts 3 kept, 0 broken; eslint, tsc, forge fmt clean |
+| `make test` (one run, 480 s) | exit 0: pytest 1019 passed, 0 failed, coverage 99.71% (436.7 s); receipt-verify 63 passed; web 37 passed (13 files); `forge test` 30 passed; `forge snapshot --check` 21 passed |
+| `make e2e` | exit 0: 24 passed, 2 passed |
+| `make demo` | exit 0, fresh seed |
+| Crawl, public pages only (`--project=crawl-desktop -g "public pages"`) | 1 passed. Row counts of all 66 tables, taken with read-only SELECTs before and after: 16,757 both times, no table changed (counts also stayed the same over 75 s with nothing running) |
+| Demo ready to present (read-only SQL) | each clinic has one consent notice, version 1, without the test text; all staff of both clinics active; break-glass items only from the seed (2 in clinic A, 4 in clinic B, none from today, none reviewed); `chain_ok`, consistency and witness true for both clinics (1,313 and 1,230 events), from the function behind `/api/v1/audit/status` run in a read-only transaction |
+
+The signed-in crawl was not run on the presented demo: signing in and opening records writes
+sessions and access and audit events by design, which would show on the demo patients' receipts.
+
+Before this run the gate was split. The first `make test` exited 2 on a web unit test file
+(`IDBKeyRange is not defined`, fixed in `5952530`). The second ran with the demo up and stalled:
+one test request took 36 minutes (2,176,773.65 ms in the API request log), its sign-in token expired and the test got a 401;
+everything else passed (1018 pytest, then JS and Solidity run separately). `make demo-audit` (37
+passed) and `make demo-e2e` ran in that session; the first `make demo-e2e` failed one test that
+expected consent notice v1 after an earlier run had published v2 (fixed in `6a0db7b`), and the
+rerun passed 68. Those split runs are not counted as the gate; the table above is.
+
+### At the time of the audit
+
 Run after the walkthrough, with the demo stopped for `make test`:
 
 | Step | Result |
