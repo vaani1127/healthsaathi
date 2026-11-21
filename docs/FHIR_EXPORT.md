@@ -46,3 +46,11 @@ fits. A break-glass access is always `ETREAT`, whatever its template.
 
 The map is `PURPOSE_OF_EVENT` in `apps/api/app/fhir/bundle.py`; a test fails if a template in
 `packages/e2d-core/src/e2d_core/explain/templates.yaml` is missing from it.
+
+## Observation performer
+
+Each vital-sign Observation names the staff member who recorded the vitals, and each lab
+Observation the staff member who saved and released the result, as a reference to a Practitioner
+in the same bundle (added once per person). The export code reads who did it
+(`portal/service.py` `observation_performers`) and passes it only into the FHIR bundle; the rest
+of the patient download is unchanged.

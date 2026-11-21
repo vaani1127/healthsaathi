@@ -17,7 +17,15 @@ DOCTOR = uuid.uuid4()
 PATIENT = uuid.uuid4()
 
 
-def bundle(access_log: list[AccessLogEntry] | None = None) -> dict[str, Any]:
+VITAL = uuid.uuid4()
+RESULT = uuid.uuid4()
+NURSE = uuid.uuid4()
+LAB_TECH = uuid.uuid4()
+
+
+def bundle(
+    access_log: list[AccessLogEntry] | None = None, *, performers: bool = False
+) -> dict[str, Any]:
     rx = uuid.uuid4()
     return build_bundle(
         patient=PatientOut(
@@ -35,7 +43,11 @@ def bundle(access_log: list[AccessLogEntry] | None = None) -> dict[str, Any]:
         clinic=ClinicOut(
             id=CLINIC, name="Demo Clinic", city="Jaipur", state="Rajasthan", timezone="Asia/Kolkata"
         ),
-        staff={DOCTOR: StaffRef(DOCTOR, "Dr Demo", "RJ-1234")},
+        staff={
+            DOCTOR: StaffRef(DOCTOR, "Dr Demo", "RJ-1234"),
+            NURSE: StaffRef(NURSE, "Nurse Demo"),
+            LAB_TECH: StaffRef(LAB_TECH, "Lab Demo"),
+        },
         appointments=[
             AppointmentOut(
                 id=uuid.uuid4(),
@@ -51,7 +63,7 @@ def bundle(access_log: list[AccessLogEntry] | None = None) -> dict[str, Any]:
         ],
         vitals=[
             VitalOut(
-                id=uuid.uuid4(),
+                id=VITAL,
                 recorded_at=NOW,
                 bp_sys=130,
                 bp_dia=84,
@@ -97,7 +109,7 @@ def bundle(access_log: list[AccessLogEntry] | None = None) -> dict[str, Any]:
                 ordered_by=DOCTOR,
                 created_at=NOW,
                 result=LabResultOut(
-                    id=uuid.uuid4(),
+                    id=RESULT,
                     document_id=None,
                     resulted_at=NOW,
                     released_at=NOW,
@@ -150,6 +162,8 @@ def bundle(access_log: list[AccessLogEntry] | None = None) -> dict[str, Any]:
             )
         ],
         exported_at=NOW,
+        vital_performers={VITAL: NURSE} if performers else None,
+        lab_performers={RESULT: LAB_TECH} if performers else None,
     )
 
 
@@ -279,3 +293,29 @@ def test_purpose_of_event_codes() -> None:
     # The text is kept exactly as before.
     assert [p["text"] for p in purposes] == ["T_APPT", "T_REASON", "T_BILLING", "T_REASON"]
     assert "coding" not in purposes[3]
+
+
+def test_every_observation_has_a_performer_in_the_bundle() -> None:
+    b = bundle(performers=True)
+    practitioners = {f"urn:uuid:{p['id']}" for p in resources(b, "Practitioner")}
+    observations = resources(b, "Observation")
+    assert observations
+    for obs in observations:
+        performers = obs.get("performer")
+        assert performers, obs["id"]
+        assert all(ref["reference"] in practitioners for ref in performers)
+    vital_refs = {
+        o["performer"][0]["reference"]
+        for o in observations
+        if o["category"][0]["coding"][0]["code"] == "vital-signs"
+    }
+    lab_refs = {
+        o["performer"][0]["reference"]
+        for o in observations
+        if o["category"][0]["coding"][0]["code"] == "laboratory"
+    }
+    assert vital_refs == {f"urn:uuid:{NURSE}"}
+    assert lab_refs == {f"urn:uuid:{LAB_TECH}"}
+    # Each Practitioner is in the bundle once.
+    ids = [p["id"] for p in resources(b, "Practitioner")]
+    assert len(ids) == len(set(ids))

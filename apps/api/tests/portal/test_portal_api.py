@@ -520,3 +520,84 @@ async def test_another_clinics_admin_cannot_change_a_report(
     assert resp.json()["code"] == "query-not-found"
     assert await _query_events(admin_engine, clinic) == 0
     assert await _query_events(admin_engine, other_clinic) == 0
+
+
+async def test_observation_performers_change_only_the_fhir_part(
+    client: AsyncClient,
+    admin_engine: AsyncEngine,
+    clinic: uuid.UUID,
+    staff: dict[Role, Actor],
+    patient_actor: Actor,
+    patient: uuid.UUID,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AUDIT_REPORT m8: the patient download outside "fhir" is byte for byte the same with and
+    without the Observation performers, for the same data. Both exports run on the same database
+    state (each rolled back to a savepoint) at a fixed time."""
+    import json
+
+    from app.access.service import RequestInfo
+    from app.core.db import tenant_session
+    from app.portal import service as portal
+
+    await visit_with_token(client, staff, patient)
+    nurse = staff[Role.NURSE]
+    vitals = await client.post(
+        f"/api/v1/patients/{patient}/vitals",
+        json={"pulse": 76, "spo2": 98},
+        headers=nurse.headers,
+    )
+    assert vitals.status_code == 201, vitals.text
+    fixed = datetime(2026, 11, 21, 12, 0, tzinfo=UTC)
+
+    async def at_fixed_time(_db: object) -> datetime:
+        return fixed
+
+    monkeypatch.setattr(portal, "db_now", at_fixed_time)
+    real = portal.observation_performers
+
+    async def none(_db: object, _v: object, _l: object) -> dict[str, dict[uuid.UUID, uuid.UUID]]:
+        return {"vital_performers": {}, "lab_performers": {}}
+
+    async def export(with_performers: bool) -> dict[str, object]:
+        monkeypatch.setattr(portal, "observation_performers", real if with_performers else none)
+        async with tenant_session(patient_actor.ctx) as db:
+            savepoint = await db.begin_nested()
+            out = await portal.export(db, patient_actor.principal, patient, RequestInfo())
+            await savepoint.rollback()
+        data: dict[str, object] = json.loads(out.model_dump_json())
+        return data
+
+    before, after = await export(False), await export(True)
+
+    def outside_fhir(data: dict[str, object]) -> str:
+        rest = {k: v for k, v in data.items() if k != "fhir"}
+        # The export's own access entry is new in each run (a new id); everything else is the
+        # same data.
+        log = rest["access_log"]
+        assert isinstance(log, list)
+        rest["access_log"] = [e for e in log if e["action"] != "export"]
+        return json.dumps(rest, ensure_ascii=False)
+
+    assert outside_fhir(before) == outside_fhir(after)
+    record = after["record"]
+    assert isinstance(record, dict)
+    assert all("recorded_by" not in v for v in record["vitals"])
+    fhir = after["fhir"]
+    assert isinstance(fhir, dict)
+    observations = [
+        e["resource"] for e in fhir["entry"] if e["resource"]["resourceType"] == "Observation"
+    ]
+    assert observations
+    nurse_ref = f"urn:uuid:{nurse.user_id}"
+    assert all(
+        o["performer"] == [{"reference": nurse_ref, "display": o["performer"][0]["display"]}]
+        for o in observations
+    )
+    before_fhir = before["fhir"]
+    assert isinstance(before_fhir, dict)
+    assert all(
+        "performer" not in e["resource"]
+        for e in before_fhir["entry"]
+        if e["resource"]["resourceType"] == "Observation"
+    )

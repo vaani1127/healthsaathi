@@ -106,11 +106,18 @@ def _number(value: Any) -> float | int:
 
 class BundleBuilder:
     def __init__(
-        self, patient: PatientOut, clinic: ClinicOut, staff: dict[uuid.UUID, StaffRef]
+        self,
+        patient: PatientOut,
+        clinic: ClinicOut,
+        staff: dict[uuid.UUID, StaffRef],
+        performers: dict[uuid.UUID, uuid.UUID] | None = None,
     ) -> None:
         self.patient = patient
         self.clinic = clinic
         self.staff = staff
+        # Who recorded each vital or released each lab result: vital id or lab result id to the
+        # staff member's user id. Their Observations get that Practitioner as performer.
+        self.performers = performers or {}
         self.entries: list[dict[str, Any]] = []
         self.practitioners: set[uuid.UUID] = set()
         self.patient_ref = {"reference": _urn(patient.id), "display": patient.name}
@@ -239,9 +246,14 @@ class BundleBuilder:
                 "code": {"coding": [_coding(LOINC, *code)], "text": code[1]},
                 "subject": self.patient_ref,
                 "effectiveDateTime": _instant(vital.recorded_at),
+                **self._performer(vital.id),
                 **extra,
             }
         )
+
+    def _performer(self, record_id: uuid.UUID) -> dict[str, Any]:
+        user_id = self.performers.get(record_id)
+        return {"performer": [self.practitioner(user_id)]} if user_id else {}
 
     def vitals(self, vitals: list[VitalOut]) -> None:
         for v in vitals:
@@ -341,6 +353,7 @@ class BundleBuilder:
                     "code": {"text": label},
                     "subject": self.patient_ref,
                     "effectiveDateTime": _instant(result.resulted_at),
+                    **self._performer(result.id),
                 }
                 number = value.get("value")
                 unit = str(value.get("unit") or "")
@@ -473,8 +486,12 @@ def build_bundle(
     consents: list[ConsentOut],
     access_log: list[AccessLogEntry],
     exported_at: datetime,
+    vital_performers: dict[uuid.UUID, uuid.UUID] | None = None,
+    lab_performers: dict[uuid.UUID, uuid.UUID] | None = None,
 ) -> dict[str, Any]:
-    builder = BundleBuilder(patient, clinic, staff)
+    builder = BundleBuilder(
+        patient, clinic, staff, {**(vital_performers or {}), **(lab_performers or {})}
+    )
     builder.organization()
     builder.patient_resource()
     builder.encounters(appointments)
