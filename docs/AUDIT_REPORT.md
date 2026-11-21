@@ -40,7 +40,7 @@ Fixes are on branch `fix/audit-findings`, one finding per commit, each with a te
 | M4 Closing or reopening a patient report leaves no audit record | Major | Fixed in `a7bb8a2`: one `access_query` audit event per change, a status set to itself is a no-op, closed to open is refused (409; SPEC 3.1 lists the `status` column only and gives no way back). `tests/portal/test_portal_api.py`: event in the chain, chain, audit page and receipt verify after a checkpoint, reopen refused, closing twice records one change, another clinic's admin gets 404 |
 | m1 Unknown address shows a bare English "Not Found" | Minor | Fixed in `91adb1b` (demo crawler checks an unknown address) |
 | m2 Empty vitals form gives a generic message | Minor | Fixed in `e0a23d1` (`apps/web/test/vitalsForm.test.tsx`, `apps/web/test/client.test.ts`) |
-| m3 Workbox keeps the cached queue address after sign-out | Minor | Fixed in `2957ee5` (`apps/web/test/offline.test.ts`; the PWA audit check now fails on a leftover row) |
+| m3 Workbox keeps the cached queue address after sign-out | Minor | Fixed in `2957ee5`, follow-up `5952530` so the module still imports where IndexedDB does not exist (`apps/web/test/offline.test.ts`, `apps/web/test/offlineNoIndexedDb.test.ts`; the PWA audit check now fails on a leftover row) |
 | m4 Deactivate and Pause take effect on one click | Minor | Fixed in `09254a4` (`apps/web/e2e/staff-invite.spec.ts`) |
 | m5 User guide misses sending an invite again | Minor | Fixed in `c60404a` |
 | m6 Voiding a draft invoice takes effect on one click | Minor | Fixed in `9f6d0eb` (`apps/web/e2e/secondary-flows.spec.ts` cancels once, then confirms) |
