@@ -56,7 +56,8 @@
     "selectClinic": "Choose a clinic",
     "noClinics": "You are not a member of any clinic yet. Ask your clinic admin.",
     "showPassword": "Show",
-    "hidePassword": "Hide"
+    "hidePassword": "Hide",
+    "forgotLink": "Forgot password?"
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -176,7 +177,9 @@
     "membership-inactive": "This membership is not active. Make it active first.",
     "already-has-password": "This person has already set a password, so no new invite is needed.",
     "invite-email-failed": "The invite email could not be sent. Try again.",
-    "query-closed": "This report is closed and cannot be reopened."
+    "query-closed": "This report is closed and cannot be reopened.",
+    "invalid-reset-link": "This reset link or code is not valid. Ask for a new link.",
+    "authenticator-code-required": "Type the current code from your authenticator app."
   },
   "sex": {
     "female": "Female",
@@ -838,6 +841,21 @@
     "submit": "Save password",
     "done": "Your password is set. Sign in and set up your authenticator app.",
     "toSignIn": "Go to sign in"
+  },
+  "reset": {
+    "forgotTitle": "Reset your password",
+    "forgotSubtitle": "Type the email you sign in with. If it has a staff account, we send it a link to choose a new password.",
+    "send": "Send link",
+    "sent": "If this email has an account, we sent a link. It works for 30 minutes. Check your inbox.",
+    "backToSignIn": "Back to sign in",
+    "title": "Choose a new password",
+    "subtitle": "For {{email}}. You will be signed out on every device.",
+    "code": "Authenticator code",
+    "codeHint": "If you use an authenticator app for HealthSaathi, type its current 6 digit code.",
+    "submit": "Save new password",
+    "done": "Your password is changed and every device is signed out. Sign in again; you still need your authenticator code.",
+    "noLink": "Open this page from the link in the reset email.",
+    "askAgain": "Ask for a new link"
   },
   "careTeam": {
     "title": "Care team",

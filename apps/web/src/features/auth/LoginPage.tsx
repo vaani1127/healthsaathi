@@ -57,6 +57,9 @@ export function LoginPage() {
         <Button type="submit" disabled={login.isPending}>
           {t("auth.signIn")}
         </Button>
+        <Link to="/forgot-password" className="text-center text-sm text-primary underline">
+          {t("auth.forgotLink")}
+        </Link>
         <Link to="/patient/login" className="text-center text-sm text-primary underline">
           {t("auth.patientLink")}
         </Link>
