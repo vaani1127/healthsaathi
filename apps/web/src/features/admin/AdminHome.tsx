@@ -69,6 +69,22 @@ function Staff() {
       ),
     onSuccess: () => client.invalidateQueries({ queryKey: ["members"] }),
   });
+  // Sending an invite again: the button is disabled while the request runs, and the result is
+  // shown outside the list, which refetches.
+  const [resent, setResent] = useState<string | null>(null);
+  const inviteAgain = useMutation({
+    mutationFn: (m: Schemas["StaffMemberOut"]) =>
+      call(() =>
+        api.POST("/api/v1/staff/members/{membership_id}/invite", {
+          params: { path: { membership_id: m.membership_id } },
+        }),
+      ),
+    onMutate: () => setResent(null),
+    onSuccess: async (_, m) => {
+      setResent(t("admin.invitedAgain", { email: m.email }));
+      await client.invalidateQueries({ queryKey: ["members"] });
+    },
+  });
   const [form, setForm] = useState({ email: "", name: "", role: "reception" as Role });
   const invite = useMutation({
     mutationFn: () => call(() => api.POST("/api/v1/staff/invites", { body: form })),
@@ -88,6 +104,7 @@ function Staff() {
           <CardTitle>{t("admin.staff")}</CardTitle>
         </CardHeader>
         <CardContent>
+          <Confirmation message={resent} onDismiss={() => setResent(null)} testId="invite-again-confirmation" />
           <QueryStatus query={members} />
           {members.data?.length === 0 && <Empty>{t("admin.noStaff")}</Empty>}
           <ul className="divide-y text-sm">
@@ -99,8 +116,14 @@ function Staff() {
                     {t(`roles.${m.role}`)} · {m.email}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {!m.password_set && <Badge tone="warning">{t("admin.noPassword")}</Badge>}
                   {!m.mfa_enabled && <Badge tone="warning">{t("admin.noMfa")}</Badge>}
+                  {m.is_active && !m.password_set && (
+                    <Button size="sm" variant="outline" onClick={() => inviteAgain.mutate(m)} disabled={inviteAgain.isPending}>
+                      {t("admin.inviteAgain")}
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={() => toggle.mutate(m)}>
                     {m.is_active ? t("admin.deactivate") : t("admin.activate")}
                   </Button>
@@ -109,6 +132,7 @@ function Staff() {
             ))}
           </ul>
           {toggle.isError && <Alert tone="error">{errorMessage(toggle.error)}</Alert>}
+          {inviteAgain.isError && <Alert tone="error">{errorMessage(inviteAgain.error)}</Alert>}
         </CardContent>
       </Card>
       <Card>

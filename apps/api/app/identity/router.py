@@ -231,6 +231,16 @@ async def list_staff(
     return [schemas.StaffMemberOut(**r.__dict__) for r in rows]
 
 
+@staff_router.post("/members/{membership_id}/invite", status_code=status.HTTP_204_NO_CONTENT)
+async def invite_again(
+    principal: Annotated[ClinicPrincipal, Depends(require_roles(Role.CLINIC_ADMIN))],
+    membership_id: uuid.UUID,
+) -> Response:
+    """A new invite for a staff member without a password; earlier links stop working."""
+    await service.invite_again(principal.tenant(), membership_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @staff_router.patch("/members/{membership_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_membership(
     principal: Annotated[ClinicPrincipal, Depends(require_roles(Role.CLINIC_ADMIN))],

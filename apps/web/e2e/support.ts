@@ -139,3 +139,24 @@ export async function emailCode(email: string, sinceMs: number, baseURL = "http:
   }
   return null;
 }
+
+/** The invite tokens emailed to this address after `sinceMs`, oldest first: from the files the
+ * test API writes, or from the dev mailbox of the demo stack. */
+export async function inviteTokens(email: string, sinceMs: number, baseURL = "http://localhost:8080"): Promise<string[]> {
+  const token = (text: string) => /token=([^\s&]+)/.exec(text)?.[1];
+  if (DEMO) {
+    const resp = await fetch(`${baseURL}/api/v1/dev/mailbox?to=${encodeURIComponent(email)}`);
+    const mails = (await resp.json()) as { text: string; sent_at: string | null }[];
+    return mails
+      .filter((m) => m.sent_at && Date.parse(m.sent_at) >= sinceMs)
+      .sort((a, b) => Date.parse(a.sent_at ?? "") - Date.parse(b.sent_at ?? ""))
+      .map((m) => token(m.text))
+      .filter((t): t is string => Boolean(t));
+  }
+  const key = `${email.replace("@", "_at_")}.json`;
+  return readdirSync(OUTBOX)
+    .filter((f) => f.endsWith(key) && Number(f.split("-")[0]) / 1e6 >= sinceMs)
+    .sort()
+    .map((f) => token((JSON.parse(readFileSync(join(OUTBOX, f), "utf-8")) as { text: string }).text))
+    .filter((t): t is string => Boolean(t));
+}

@@ -199,17 +199,16 @@ takes up to a minute.
 All five derived keys (email codes, invites, IP hash, consent commitments, rate counters) come
 from this one secret, so rotating it changes all of them at once.
 
-1. Pick a quiet time and count the open invites:
+1. Pick a quiet time and count the open invites, which stop working at the rotation:
    `SELECT count(*) FROM email_otps WHERE purpose = 'invite' AND used_at IS NULL AND expires_at > now();`
-   The app cannot resend an invite yet (`docs/APP_GAPS.md` 35), and a rotation makes every open
-   invite stop working. Rotate only when this prints 0, unless the key may be leaked: then rotate
-   at once and ask those people to be invited again after APP_GAPS 35 is fixed.
 2. Generate a new value: `make env` on a laptop prints a full set; copy only the `OTP_HMAC_KEY` line.
 3. Keep a sealed offline copy of the old value. Without it, consent commitments and `ip_hash`
    values made before the rotation cannot be checked again.
 4. Put the new value in `/opt/healthsaathi/.env`, then
    `docker compose -f /opt/healthsaathi/docker-compose.prod.yml up -d api worker`.
-5. Email codes in flight fail; patients ask for a new one. Rate counts start again.
+5. Each clinic admin sends the open invites again: Staff tab, "Send invite again" on every member
+   marked "No password yet". The new links use the new key. Email codes in flight fail; patients
+   ask for a new one. Rate counts start again.
 6. Write the rotation date in the operations log, so a person comparing `ip_hash` values by hand
    knows where they stop matching.
 

@@ -172,7 +172,10 @@
     },
     "same-password": "Choose a password you have not used here.",
     "push-off": "Notifications are not available here.",
-    "rate-limit-unavailable": "Sign-in is not available right now. Try again in a minute."
+    "rate-limit-unavailable": "Sign-in is not available right now. Try again in a minute.",
+    "membership-inactive": "This membership is not active. Make it active first.",
+    "already-has-password": "This person has already set a password, so no new invite is needed.",
+    "invite-email-failed": "The invite email could not be sent. Try again."
   },
   "sex": {
     "female": "Female",
@@ -745,7 +748,10 @@
     "noSchedules": "No doctor schedules yet. Add one so patients can be booked.",
     "noServices": "No services yet. Add the services the clinic bills for.",
     "noNotices": "No consent notice yet. Write the first version below.",
-    "reportClosed": "Report closed. It is no longer in the open list."
+    "reportClosed": "Report closed. It is no longer in the open list.",
+    "inviteAgain": "Send invite again",
+    "invitedAgain": "A new invite was sent to {{email}}. Only the newest link works; earlier links no longer do.",
+    "noPassword": "No password yet"
   },
   "verify": {
     "title": "Check an access receipt",

@@ -27,7 +27,7 @@ the row.
 | 2.2.2 | Email and SMS only as a secondary factor | Accepted | Patients sign in with an email code alone (SPEC 1.1). A patient account only reaches that patient's own record, the code expires in 10 minutes and allows 5 attempts |
 | 2.2.3 | Notify after changes to authentication details | Pass | Emails on a new device and on a password change |
 | 2.3.1 | Initial secrets random, at least 6 characters, expire | Pass | Invite tokens are random and expire after 72 hours |
-| 2.5.1 | Recovery secret not sent in clear text | N/A | No self-service password recovery |
+| 2.5.1 | Recovery secret not sent in clear text | Accepted | Staff invite links are initial activation secrets and are sent by email, the only channel the app has. Each link is single use, expires after 72 hours, is stored only as a keyed hash (derived invite key, ADR 0009), and sending a new invite makes every older link stop working (`identity/service.py` `invite_again`). There is no self-service password recovery |
 | 2.5.2 | No password hints or knowledge questions | Pass | None |
 | 2.5.3 | Recovery does not reveal the password | N/A | No recovery flow |
 | 2.5.4 | No shared or default accounts | Pass | Every account is personal; the demo prints per-person logins |

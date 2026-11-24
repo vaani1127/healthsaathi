@@ -4951,6 +4951,10 @@
             "title": "Name",
             "type": "string"
           },
+          "password_set": {
+            "title": "Password Set",
+            "type": "boolean"
+          },
           "role": {
             "$ref": "#/components/schemas/Role"
           },
@@ -4967,7 +4971,8 @@
           "email",
           "role",
           "is_active",
-          "mfa_enabled"
+          "mfa_enabled",
+          "password_set"
         ],
         "title": "StaffMemberOut",
         "type": "object"
@@ -11144,6 +11149,48 @@
           }
         ],
         "summary": "Update Membership",
+        "tags": [
+          "staff"
+        ]
+      }
+    },
+    "/api/v1/staff/members/{membership_id}/invite": {
+      "post": {
+        "description": "A new invite for a staff member without a password; earlier links stop working.",
+        "operationId": "invite_again_api_v1_staff_members__membership_id__invite_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Membership Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Invite Again",
         "tags": [
           "staff"
         ]
