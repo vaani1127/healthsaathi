@@ -122,6 +122,24 @@ async def tenant_session(ctx: TenantContext) -> AsyncIterator[AsyncSession]:
         yield session
 
 
+async def set_scope(
+    db: AsyncSession, *, clinic_id: uuid.UUID | None, user_id: uuid.UUID | None
+) -> None:
+    """Change `app.clinic_id` and `app.user_id` for the rest of this transaction only (SET LOCAL,
+    like the start of a tenant session). For identity work that spans the clinics of one user,
+    such as writing one audit event to each of their clinics in a single transaction."""
+    await db.execute(
+        text(
+            "SELECT set_config('app.clinic_id', :clinic_id, true),"
+            " set_config('app.user_id', :user_id, true)"
+        ),
+        {
+            "clinic_id": str(clinic_id) if clinic_id else "",
+            "user_id": str(user_id) if user_id else "",
+        },
+    )
+
+
 async def get_session() -> AsyncIterator[AsyncSession]:
     """FastAPI dependency for routes that need no tenant (health checks, login lookups)."""
     async with new_session(ANONYMOUS) as session:

@@ -110,6 +110,10 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(min_length=1, max_length=256)
 
 
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
 class AcceptInviteRequest(BaseModel):
     email: EmailStr
     token: str = Field(min_length=10, max_length=128)

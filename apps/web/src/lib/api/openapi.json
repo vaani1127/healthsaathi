@@ -3178,6 +3178,21 @@
         "title": "Page[PatientSummary]",
         "type": "object"
       },
+      "PasswordResetRequest": {
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "PasswordResetRequest",
+        "type": "object"
+      },
       "PatientChart": {
         "description": "What a patient sees of their own record: signed notes and prescriptions, released results.",
         "properties": {
@@ -6662,6 +6677,52 @@
           }
         ],
         "summary": "Change Password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/password-reset/request": {
+      "post": {
+        "description": "Always the same answer, straight after the per-IP limit. Looking up the email, the\nper-email limit, the new link, the audit event and the email all happen after the response\n(ADR 0010), so neither the answer nor its timing shows whether the email has an account.",
+        "operationId": "password_reset_request_api_v1_auth_password_reset_request_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Password Reset Request Api V1 Auth Password Reset Request Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Password Reset Request",
         "tags": [
           "auth"
         ]

@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
@@ -11,7 +11,7 @@ from app.core.errors import ProblemError, problem_response
 from app.core.ratelimit import LOGIN_SHARED_IP, per_ip
 from app.db.enums import Role
 from app.db.models import User
-from app.identity import schemas, service
+from app.identity import recovery, schemas, service
 from app.identity.deps import ClinicPrincipal, CurrentPrincipal, require_roles
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -202,6 +202,21 @@ async def logout(principal: CurrentPrincipal) -> Response:
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     _clear_refresh_cookie(response)
     return response
+
+
+@router.post(
+    "/password-reset/request",
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[per_ip("password-reset-request")],
+)
+async def password_reset_request(
+    body: schemas.PasswordResetRequest, background: BackgroundTasks
+) -> dict[str, str]:
+    """Always the same answer, straight after the per-IP limit. Looking up the email, the
+    per-email limit, the new link, the audit event and the email all happen after the response
+    (ADR 0010), so neither the answer nor its timing shows whether the email has an account."""
+    background.add_task(recovery.process_reset_request, body.email)
+    return {"status": "sent_if_registered"}
 
 
 @router.post("/invite/accept", status_code=status.HTTP_204_NO_CONTENT)
