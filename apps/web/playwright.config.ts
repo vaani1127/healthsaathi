@@ -40,7 +40,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: "uv run uvicorn app.main:app --port 8000",
+      command: "uv run uvicorn app.main:app --port 8000 --no-proxy-headers",
       cwd: "../api",
       // Many sign-ins from one IP in a minute; the limits themselves are covered by API tests.
       env: { EMAIL_OUTBOX_DIR: OUTBOX, RATE_LIMIT_ENABLED: "false" },

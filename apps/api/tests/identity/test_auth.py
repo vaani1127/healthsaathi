@@ -19,6 +19,7 @@ from app.identity.passwords import hash_password
 from app.main import create_app
 from app.notify.email import outbox
 from tests.factories import ClinicGraph, build_clinic_graph
+from tests.helpers import within_one_window
 
 PASSWORD = "correct-horse-battery-staple"
 
@@ -137,16 +138,18 @@ async def test_account_locks_after_five_wrong_passwords(
 
 
 async def test_login_is_rate_limited_per_ip(client: AsyncClient) -> None:
+    await within_one_window()
     statuses = [
         (
             await client.post(
                 "/api/v1/auth/login", json={"email": f"x{i}@auth.test", "password": "x" * 12}
             )
         ).status_code
-        for i in range(6)
+        for i in range(21)
     ]
-    assert statuses[:5] == [401] * 5
-    assert statuses[5] == 429
+    # 20 a minute per IP: staff behind one clinic router share an address.
+    assert statuses[:20] == [401] * 20
+    assert statuses[20] == 429
 
 
 async def test_inactive_user_cannot_log_in(
@@ -551,12 +554,17 @@ async def test_email_code_locks_after_five_wrong_attempts(
 async def test_email_code_requests_are_limited_per_email(
     client: AsyncClient, clinic: ClinicGraph, admin_engine: AsyncEngine
 ) -> None:
+    await within_one_window()
     email = await make_patient(admin_engine, clinic)
+    before = len([mail for mail in outbox.sent if mail.to == email])
     statuses = [
         (await client.post("/api/v1/auth/otp/request", json={"email": email})).status_code
         for _ in range(4)
     ]
-    assert statuses == [202, 202, 202, 429]
+    # The 4th gets the same answer (so it does not reveal whether the email exists), but no code
+    # is sent.
+    assert statuses == [202, 202, 202, 202]
+    assert len([mail for mail in outbox.sent if mail.to == email]) - before == 3
 
 
 async def test_email_code_request_does_not_reveal_unknown_emails(client: AsyncClient) -> None:

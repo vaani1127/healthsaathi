@@ -105,6 +105,8 @@ async def test_every_table_has_row_level_security_or_is_identity(
         "jobs",
         "policy_versions",
         "push_subscriptions",
+        # Rate limit windows: no clinic, keys are HMACs (migration 0007).
+        "rate_counters",
     }
     async with admin_engine.connect() as conn:
         enabled = await conn.scalar(

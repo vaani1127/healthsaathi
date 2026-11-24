@@ -14,7 +14,10 @@ x-demo: &demo
     PUBLIC_APP_URL: http://localhost:8080
     COOKIE_SECURE: "true"
     RATE_LIMIT_ENABLED: ${DEMO_RATE_LIMIT:-true}
-    FORWARDED_ALLOW_IPS: "*"
+    # Only the demo Caddy (web service, fixed address below) may set the client IP.
+    TRUSTED_PROXY_IPS: 10.250.1.2
+    # For an older image only (the current one runs uvicorn with --no-proxy-headers).
+    FORWARDED_ALLOW_IPS: 10.250.1.2
     EMAIL_BACKEND: console
     EMAIL_OUTBOX_DIR: /state/outbox
     STORAGE_DIR: /state/blobs
@@ -107,7 +110,7 @@ services:
   api:
     <<: *demo
     command:
-      ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers"]
+      ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--no-proxy-headers"]
     ports:
       - "127.0.0.1:8081:8000"
     healthcheck:
@@ -133,11 +136,25 @@ services:
     image: healthsaathi-demo-web:local
     ports:
       - "127.0.0.1:8080:80"
+    networks:
+      default:
+        ipv4_address: 10.250.1.2
     volumes:
       - demo_state:/state:ro
     depends_on:
       api:
         condition: service_healthy
+
+# A fixed subnet so the demo Caddy has a fixed address (TRUSTED_PROXY_IPS). Other containers
+# get addresses from ip_range. Not the production subnet, so both can exist on one machine.
+networks:
+  default:
+    name: healthsaathi-demo_edge
+    ipam:
+      config:
+        - subnet: 10.250.1.0/24
+          ip_range: 10.250.1.128/25
+          gateway: 10.250.1.1
 
 volumes:
   demo_pg:

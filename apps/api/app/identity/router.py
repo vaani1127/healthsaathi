@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.core.config import get_settings
 from app.core.db import ANONYMOUS, tenant_session
 from app.core.errors import ProblemError, problem_response
-from app.core.ratelimit import LOGIN, client_ip, limiter
+from app.core.ratelimit import LOGIN_SHARED_IP, per_ip
 from app.db.enums import Role
 from app.db.models import User
 from app.identity import schemas, service
@@ -66,9 +66,10 @@ def _token_response(response: Response, issued: service.IssuedTokens) -> schemas
     )
 
 
-@router.post("/login", response_model=schemas.LoginResponse)
-@limiter.limit(LOGIN, key_func=client_ip)
-async def login(request: Request, body: schemas.LoginRequest) -> schemas.LoginResponse:
+@router.post(
+    "/login", response_model=schemas.LoginResponse, dependencies=[per_ip("login", LOGIN_SHARED_IP)]
+)
+async def login(body: schemas.LoginRequest) -> schemas.LoginResponse:
     challenge = await service.login_with_password(body.email, body.password)
     return schemas.LoginResponse(
         status=challenge.status,
@@ -77,8 +78,11 @@ async def login(request: Request, body: schemas.LoginRequest) -> schemas.LoginRe
     )
 
 
-@router.post("/totp/verify", response_model=schemas.TokenResponse)
-@limiter.limit(LOGIN, key_func=client_ip)
+@router.post(
+    "/totp/verify",
+    response_model=schemas.TokenResponse,
+    dependencies=[per_ip("totp-verify", LOGIN_SHARED_IP)],
+)
 async def totp_verify(
     request: Request, response: Response, body: schemas.TotpVerifyRequest
 ) -> schemas.TokenResponse:
@@ -100,14 +104,17 @@ async def totp_activate(
     return _token_response(response, issued)
 
 
-@router.post("/otp/request", status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/otp/request", status_code=status.HTTP_202_ACCEPTED, dependencies=[per_ip("otp-request")]
+)
 async def email_code_request(body: schemas.EmailCodeRequest) -> dict[str, str]:
     await service.request_email_code(body.email)
     return {"status": "sent_if_registered"}
 
 
-@router.post("/otp/verify", response_model=schemas.TokenResponse)
-@limiter.limit(LOGIN, key_func=client_ip)
+@router.post(
+    "/otp/verify", response_model=schemas.TokenResponse, dependencies=[per_ip("otp-verify")]
+)
 async def email_code_verify(
     request: Request, response: Response, body: schemas.EmailCodeVerify
 ) -> schemas.TokenResponse:
@@ -179,10 +186,9 @@ async def revoke_session(principal: CurrentPrincipal, session_id: uuid.UUID) -> 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
-@limiter.limit(LOGIN, key_func=client_ip)
+@router.post("/password", status_code=status.HTTP_204_NO_CONTENT, dependencies=[per_ip("password")])
 async def change_password(
-    request: Request, principal: CurrentPrincipal, body: schemas.ChangePasswordRequest
+    principal: CurrentPrincipal, body: schemas.ChangePasswordRequest
 ) -> Response:
     await service.change_password(
         principal.user_id, principal.session_id, body.current_password, body.new_password

@@ -45,10 +45,10 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 
 | Threat | Control | Where |
 |---|---|---|
-| Password guessing | Argon2id hashes, 10 character minimum and a common-password list, 5 failures per 15 minutes lock the account, 5 logins per minute per IP. Residual: the lockout and the login limit are counted in each API process's memory, so with 2 workers up to twice as many attempts get through, and a restart clears them (`docs/APP_GAPS.md` 31) | `identity/passwords.py`, `password_policy.py`, `lockout.py`, `core/ratelimit.py` |
+| Password guessing | Argon2id hashes, 10 character minimum and a common-password list, 5 attempts per 15 minutes lock the account (counted before the password is checked, cleared by a correct password), 20 logins per minute per IP (staff behind one clinic router share an address; the per-account lockout is what limits guessing one account). Both are counted in the database, shared by the API workers and kept across restarts. The IP is the client's: X-Forwarded-For is believed only from Caddy's fixed address. Residual: fixed windows let up to twice a limit through in a short burst across a window edge; anyone who knows an email can lock that account for 15 minutes | `identity/passwords.py`, `password_policy.py`, `lockout.py`, `core/ratelimit.py` |
 | Stolen staff password | TOTP is required for every staff role before any patient data (amr `otp` checked on clinic selection) | `identity/service.py` `_check_membership` |
 | Replaying an authenticator code seen over someone's shoulder or intercepted | A code is valid for its 30 second step and one step either side, and each step is accepted once per user: the last accepted step is kept in the database and taken with one atomic update, so a second use is refused on any worker and after a restart. An attacker who uses a seen code before its owner gets in only with the password too | `identity/totp.py`, `identity/service.py` `_claim_step` |
-| Patient account takeover by guessing codes | 6 digit email code, 10 minutes, 5 attempts per code (counted on the code's row under a row lock), 3 requests per minute per email. Residual: the requests limit is counted per API process, so with 2 workers up to 6 codes per minute can be requested (`docs/APP_GAPS.md` 31) | `identity/service.py`, `core/ratelimit.py` |
+| Patient account takeover by guessing codes | 6 digit email code, 10 minutes, 5 attempts per code (counted on the code's row under a row lock), 3 requests per minute per email and 5 per minute per IP, counted in the database. Over the per-email limit the answer is still 202, so the limit does not reveal which emails exist. Residual: the fixed-window edge (up to twice a limit in a short burst) | `identity/service.py`, `core/ratelimit.py` |
 | Stolen refresh token | Stored hashed, rotated on every use, reuse of an old token revokes the whole family; HttpOnly, Secure, SameSite=Lax cookie | `identity/service.py`, `identity/router.py` |
 | Session on an unknown device | New-device email alert; "My sessions" page lists and revokes sessions | `identity/service.py`, `SessionsPage.tsx` |
 | Shared staff login (SPEC 7 type 7) | Not prevented; device and session features feed the detector | `e2d-core` features (residual) |
@@ -91,10 +91,12 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 
 | Threat | Control | Where |
 |---|---|---|
-| Request floods | Per-route rate limits (slowapi, in memory, single VM). Counted per API process: with 2 workers up to twice the limit | `core/ratelimit.py` |
+| Request floods | Search, export and print limits (slowapi, in memory). Counted per API process: with 2 workers up to twice the limit. Residual: the default 120 requests per minute per user is not applied (`docs/APP_GAPS.md` 32) | `core/ratelimit.py` |
 | Large uploads | 10 MB limit | `core/config.py` |
 | Witness outage | Each witness is independent; a failed one does not stop the others; the worker runs the job if the scheduler is late | `anchor/job.py`, `worker.py` |
-| Rate limits are per process | Residual: in-memory limits reset on restart and are not shared between Uvicorn workers | accepted for a single-VM deployment |
+| Rate limits are per process | Sign-in limits and the lockout are in the database. Residual: the search, export and print limits are in memory, reset on restart and are not shared between Uvicorn workers | accepted for a single-VM deployment |
+| Staging client sets its own IP with X-Forwarded-For | Accepted: Render staging trusts the header from any peer (`render.yaml`), but it holds synthetic data only and has no real users; prod-demo believes the header only from Caddy (`docs/APP_GAPS.md` 33) | `render.yaml` |
+| A client sets its own IP with X-Forwarded-For to skip per-IP limits | The header is believed only from Caddy's fixed address (`TRUSTED_PROXY_IPS`, `10.250.0.2`); Caddy replaces any value the client sent. From any other peer the header is ignored | `main.py`, `docker-compose.prod.yml` |
 
 ### Elevation of privilege
 
@@ -107,9 +109,13 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 
 ## 5. Residual risks
 
-- Rate limits, the password lockout and the authenticator attempt limit are counted in each
-  API process's memory: with 2 workers up to twice the stated number gets through, and a restart
-  clears the counts (`docs/APP_GAPS.md` 31).
+- Sign-in limits use fixed windows: up to twice a limit can get through in a short burst across
+  a window edge.
+- The search, export and print limits are counted in each API process's memory (up to twice the
+  limit with 2 workers, cleared on restart), and the default 120 requests per minute per user is
+  not applied (`docs/APP_GAPS.md` 32).
+- Per-IP limits trust Caddy's X-Forwarded-For. If the API's DNS record were proxied through a CDN,
+  every user would share the CDN's few addresses; it must stay DNS only (`docs/RUNBOOK.md`).
 - An insider with a genuine care relationship (on the care team, or treating the patient) is
   explained by that relationship; the research results show this is the main source of false
   explanations (`docs/results-v1.md`, section 6).
@@ -124,5 +130,4 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
   deployment design, 2 minutes in the local demo).
 - The server operator holds `LEDGER_SIGNING_SEED`; a compromised operator could sign a new
   history for events that were never anchored.
-- Rate limits are in memory per process.
 - Email codes depend on the security of the patient's mailbox.

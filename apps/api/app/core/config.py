@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     cookie_domain: str | None = Field(default=None, alias="COOKIE_DOMAIN")
     cookie_secure: bool = Field(default=True, alias="COOKIE_SECURE")
     rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
+    # Comma separated addresses or networks of the reverse proxy whose X-Forwarded-For is
+    # believed (Caddy's fixed address in the compose files). Empty: no proxy is trusted and the
+    # client is the connecting peer. "*" is refused, so a client cannot choose its own address.
+    trusted_proxy_ips: str = Field(default="", alias="TRUSTED_PROXY_IPS")
     # Load test only (SPEC 8, RQ5): authorise accesses but skip their explanation and logging, to
     # measure what recording costs. Refused unless APP_ENV=test, so the live demo always records.
     benchmark_skip_recording: bool = Field(default=False, alias="BENCHMARK_SKIP_RECORDING")
@@ -168,6 +172,17 @@ class Settings(BaseSettings):
         if self.benchmark_skip_recording and self.env != "test":
             raise ValueError("BENCHMARK_SKIP_RECORDING is only allowed with APP_ENV=test")
         return self
+
+    @field_validator("trusted_proxy_ips")
+    @classmethod
+    def _no_wildcard_proxy(cls, value: str) -> str:
+        if "*" in value:
+            raise ValueError("name the proxy's address; '*' would let any client set its own IP")
+        return value
+
+    @property
+    def trusted_proxies(self) -> list[str]:
+        return [part.strip() for part in self.trusted_proxy_ips.split(",") if part.strip()]
 
     @field_validator("jwt_secret", "otp_hmac_key", "ledger_signing_seed")
     @classmethod

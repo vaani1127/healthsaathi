@@ -1,17 +1,29 @@
-"""Rate limits from SPEC 4, kept in memory (one VM).
+"""Rate limits from SPEC 4.
 
-slowapi handles the per-route limits keyed by IP or user. Limits keyed by something in the request
-body (OTP requests per email) use the same limiter storage through `hit()`.
+The limits that protect sign-in (login per IP, email codes per address and per IP, authenticator
+attempts per user, and the password lockout in `identity/lockout.py`) are counted in Postgres
+through `hit()` and `allow()` (`core/counters.py`), so they hold across API workers and restarts.
+
+slowapi keeps the coarse per-route limits (search, export and print) in each process's memory.
+With 2 Uvicorn workers those are counted per worker, so up to twice the limit gets through, and a
+restart clears them.
 """
 
-from fastapi import Request
-from limits import RateLimitItem, parse
+from typing import Any
+
+from fastapi import Depends, Request
+from limits import parse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from app.core import counters
 from app.core.config import get_settings
 from app.core.errors import ProblemError
 
+# Per IP, for password sign-in and the authenticator check. Staff of one clinic often share
+# one router address, so this is higher than the per-account limits below it.
+LOGIN_SHARED_IP = "20/minute"
+# Per IP for email codes and password changes.
 LOGIN = "5/minute"
 OTP_PER_EMAIL = "3/minute"
 SEARCH = "30/minute"
@@ -45,13 +57,30 @@ limiter = Limiter(
 )
 
 
-def hit(limit: str, *identifiers: str) -> None:
-    """Count one request against `limit` for the given key; raise 429 when it is used up."""
+async def allow(limit: str, scope: str, *identifiers: str) -> bool:
+    """Count one request against `limit` for this key in the database. False once the limit for
+    the current window is used up. Every call counts, refused ones too. Always true when rate
+    limits are switched off (RATE_LIMIT_ENABLED=false)."""
     if not limiter.enabled:
-        return
-    item: RateLimitItem = parse(limit)
-    if not limiter.limiter.hit(item, *identifiers):
+        return True
+    count = await counters.increment(limit, scope, *identifiers)
+    return count <= parse(limit).amount
+
+
+async def hit(limit: str, scope: str, *identifiers: str) -> None:
+    """Like `allow()`, but raise 429 when the limit is used up."""
+    if not await allow(limit, scope, *identifiers):
         raise ProblemError(429, "rate-limited", "Too many requests. Try again in a minute.")
+
+
+def per_ip(route: str, limit: str = LOGIN) -> Any:
+    """A route dependency: `limit` per client IP for this route, counted in the database. The IP
+    is the client's as set by the trusted proxy (`TRUSTED_PROXY_IPS`)."""
+
+    async def check(request: Request) -> None:
+        await hit(limit, "login-ip", route, client_ip(request))
+
+    return Depends(check)
 
 
 def reset() -> None:

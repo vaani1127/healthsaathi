@@ -5,6 +5,7 @@
   due (app.detect.daily: from 00:00 clinic time two days after the day). Once a day it fits the
   provisional models on the last 30 days.
 - Web push: sends the queued access notifications every few seconds.
+- Rate counters: every minute it deletes the windows that have ended (app.core.counters).
 - Anchor timer: the GitHub Actions schedule is the main trigger for the anchor job; if it has
   not run for ANCHOR_FALLBACK_MINUTES the worker runs the job itself. The job's advisory lock
   keeps the two from overlapping. Each timer run is logged at its start and finish and is
@@ -28,6 +29,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import func, select, text
 
 from app.anchor import job
+from app.core import counters
 from app.core.config import get_settings
 from app.core.db import TenantContext, get_engine, tenant_session, wait_for_database
 from app.core.logging import configure_logging
@@ -307,12 +309,31 @@ async def push_loop() -> None:
         await asyncio.sleep(PUSH_INTERVAL_SECONDS)
 
 
+async def prune_counters_tick() -> int:
+    deleted = await counters.prune()
+    if deleted:
+        logger.info("rate counters pruned", extra={"deleted": deleted})
+    return deleted
+
+
+async def prune_loop() -> None:
+    """Deletes ended rate limit windows so the table stays small."""
+    while True:
+        try:
+            await prune_counters_tick()
+        except Exception:
+            logger.exception("rate counter pruning failed")
+        await asyncio.sleep(CHECK_INTERVAL_SECONDS)
+
+
 async def main() -> None:
     configure_logging()
     await wait_for_database()
     await run_startup_tasks()
     try:
-        await asyncio.gather(maintenance_loop(), anchor_fallback_loop(), detect_loop(), push_loop())
+        await asyncio.gather(
+            maintenance_loop(), anchor_fallback_loop(), detect_loop(), push_loop(), prune_loop()
+        )
     finally:
         await get_engine().dispose()
 
