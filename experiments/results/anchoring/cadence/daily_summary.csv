@@ -1,0 +1,10 @@
+period,backend,clinic_days,median_per_day,min_per_day,max_per_day
+clean,amoy,28,26.0,10,29
+clean,github,28,26.0,10,29
+clean,ots,28,9.0,4,9
+stalled,amoy,12,2.0,1,2
+stalled,github,12,2.0,1,2
+stalled,ots,12,2.0,1,2
+timer-working,amoy,9,22.0,1,26
+timer-working,github,9,24.0,1,28
+timer-working,ots,9,9.0,1,9

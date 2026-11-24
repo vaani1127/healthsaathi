@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Anchoring snapshot B
+
+- Snapshot B of the live demo, taken 24 November 2026 at 19:03:34 UTC (25 November, 00:33 IST)
+  with a read-only session through the SSH tunnel: `experiments/results/anchoring/live`
+  (events, checkpoints and receipts: positions, times, tree sizes and transaction references
+  only), enriched with block times and gas from the public Amoy RPC and Blockstream. Snapshot A
+  (18 November) was not taken.
+- `python -m e2d_experiments.anchoring cadence`, `bench` and `report` rewrote
+  `experiments/results/anchoring/cadence`, `experiments/results/anchoring/bench`,
+  `paper/tables/anchoring_*.tex` and `paper/figures/fig_rewrite_window.{pdf,png}`.
+  `bench-receipts` was not run, so `apps/web/public/bench/receipts.json` is unchanged.
+- New `python -m e2d_experiments.anchoring.summary`: for one study period, anchors per clinic and
+  witness, gas per clinic, every gap between anchors longer than 30 minutes, and the events after
+  14 days, reusing the study's own functions. Output: `experiments/results/anchoring/summary_clean.json`.
+  Tests in `experiments/tests/test_anchoring.py`.
+
 ### Docs: anchoring snapshot plan
 
 - `docs/PROGRESS.md`: the single snapshot "around 15 November 2026" is replaced by two planned

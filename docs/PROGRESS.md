@@ -103,7 +103,7 @@ Every result is a committed file written by a script; no numbers are typed by ha
 | Receipt check time in the browser (laptop, Android phone) | `/bench/receipt` page | `experiments/results/anchoring/browser` |
 | Which check catches a rewritten log | `make tamper-study` | `experiments/results/anchoring/tamper/detection.json` |
 | Latency with and without access recording, both run orders | `make load-run`, `make load-run-reversed`, `python -m e2d_experiments.load` | `experiments/results/load`, `paper/tables/load_overhead.tex` |
-| Rewrite window and gas on the live demo | `python -m e2d_experiments.anchoring` | after the snapshots planned below |
+| Rewrite window and gas on the live demo | `python -m e2d_experiments.anchoring`, `python -m e2d_experiments.anchoring.summary` | `experiments/results/anchoring/live`, `cadence`, `summary_clean.json`, `paper/tables/anchoring_*.tex` |
 
 Two snapshots of the clean period are planned. The clean period starts when the v0.1.5 worker
 started, on 10 November 2026 at 18:47:10 UTC (11 November, 00:17 IST):
@@ -114,9 +114,15 @@ started, on 10 November 2026 at 18:47:10 UTC (11 November, 00:17 IST):
 - Snapshot B, on 25 November 2026 after 00:17 IST: 14 clean days. This is the primary snapshot
   and meets the SPEC.
 
+Snapshot A was not taken. Snapshot B was taken on 24 November 2026 at 19:03:34 UTC (25 November,
+00:33 IST), read only, through the SSH tunnel (`experiments/results/anchoring/live/snapshot.txt`).
+The clean period runs from 10 November 18:47:10 UTC to the snapshot; no event was written after
+the 14 day mark (`summary_clean.json`, `events_after_14_days`). The tables are in
+`paper/tables/anchoring_*.tex`, the figure in `paper/figures/fig_rewrite_window.pdf`.
+
 ## What remains
 
-- Anchoring study: take the two snapshots of the live demo and write its tables.
+- Anchoring study: write it up in the paper (Snapshot B and its tables are committed).
 - Paper: not started. A fuller literature search (Google Scholar and the ACM Digital Library) is
   needed before writing the related work and the novelty claim.
 - Hosting after the Azure Free Trial ends (about 30 November 2026): move to Azure for Students,
