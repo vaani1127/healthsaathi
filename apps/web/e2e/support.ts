@@ -160,3 +160,24 @@ export async function inviteTokens(email: string, sinceMs: number, baseURL = "ht
     .map((f) => token((JSON.parse(readFileSync(join(OUTBOX, f), "utf-8")) as { text: string }).text))
     .filter((t): t is string => Boolean(t));
 }
+
+/** The reset links emailed to this address after `sinceMs`, oldest first, as the path and
+ * fragment to open (`/reset-password#email=...&token=...`). */
+export async function resetLinks(email: string, sinceMs: number, baseURL = "http://localhost:8080"): Promise<string[]> {
+  const link = (text: string) => /(\/reset-password#\S+)/.exec(text)?.[1];
+  if (DEMO) {
+    const resp = await fetch(`${baseURL}/api/v1/dev/mailbox?to=${encodeURIComponent(email)}`);
+    const mails = (await resp.json()) as { text: string; sent_at: string | null }[];
+    return mails
+      .filter((m) => m.sent_at && Date.parse(m.sent_at) >= sinceMs)
+      .sort((a, b) => Date.parse(a.sent_at ?? "") - Date.parse(b.sent_at ?? ""))
+      .map((m) => link(m.text))
+      .filter((l): l is string => Boolean(l));
+  }
+  const key = `${email.replace("@", "_at_")}.json`;
+  return readdirSync(OUTBOX)
+    .filter((f) => f.endsWith(key) && Number(f.split("-")[0]) / 1e6 >= sinceMs)
+    .sort()
+    .map((f) => link((JSON.parse(readFileSync(join(OUTBOX, f), "utf-8")) as { text: string }).text))
+    .filter((l): l is string => Boolean(l));
+}
