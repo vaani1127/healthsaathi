@@ -28,8 +28,9 @@ INVITE = "healthsaathi/invite/v1"
 IP_HASH = "healthsaathi/ip-hash/v1"
 CONSENT_COMMITMENT = "healthsaathi/consent-commitment/v1"
 RATE_COUNTERS = "healthsaathi/rate-counters/v2"
+RESET_LINK = "healthsaathi/password-reset/v1"
 
-LABELS = (EMAIL_CODE, INVITE, IP_HASH, CONSENT_COMMITMENT, RATE_COUNTERS)
+LABELS = (EMAIL_CODE, INVITE, IP_HASH, CONSENT_COMMITMENT, RATE_COUNTERS, RESET_LINK)
 
 
 def hkdf_sha256(ikm: bytes, salt: bytes, info: bytes, length: int = KEY_BYTES) -> bytes:
