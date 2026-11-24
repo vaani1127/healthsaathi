@@ -72,16 +72,27 @@ function usedSteps(): Record<string, number> {
   return existsSync(USED) ? (JSON.parse(readFileSync(USED, "utf-8")) as Record<string, number>) : {};
 }
 
+// How far the server's clock may lag this machine's. The demo API runs in Docker, whose clock
+// drifts from the host's by a second or two; a sign-in failed when it lagged by about 0.6 s.
+const SERVER_LAG_MS = 5_000;
+
 /**
- * A TOTP code the server has not seen yet for this user. The server accepts the current step or
+ * A TOTP code the server has not seen yet for this user. The server accepts its current step or
  * one either side, each only once, so after many sign-ins in a row this waits for the clock.
+ * A code for step `next` is sent only once this machine is SERVER_LAG_MS into step `next - 1`:
+ * a server whose clock is up to that much behind is then in step `next - 1` or later, and still
+ * accepts `next`.
  */
 async function freshCode(secret: string): Promise<string> {
   const used = usedSteps();
   const step = Math.floor(Date.now() / 30_000);
   const next = Math.max(step, (used[secret] ?? -1) + 1);
-  if (next > step + 1) {
-    await new Promise((resolve) => setTimeout(resolve, (next - 1) * 30_000 - Date.now() + 500));
+  if (next > step) {
+    const ready = (next - 1) * 30_000 + SERVER_LAG_MS;
+    const wait = ready - Date.now();
+    if (wait > 0) {
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
   }
   writeFileSync(USED, JSON.stringify({ ...usedSteps(), [secret]: next }));
   return new TOTP({ secret, digits: 6, period: 30 }).generate({ timestamp: next * 30_000 });

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Confirmation } from "@/components/ui/confirmation";
 import { Alert, Badge, Field } from "@/components/ui/form";
 import { PasswordInput } from "@/components/ui/password";
 import { Empty, QueryStatus } from "@/components/ui/state";
@@ -26,10 +27,15 @@ function Sessions() {
   const { t } = useTranslation();
   const client = useQueryClient();
   const sessions = useQuery({ queryKey: ["sessions"], queryFn: () => call(() => api.GET("/api/v1/auth/sessions")) });
+  const [done, setDone] = useState<string | null>(null);
   const revoke = useMutation({
     mutationFn: (id: string) =>
       call(() => api.DELETE("/api/v1/auth/sessions/{session_id}", { params: { path: { session_id: id } } })),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["sessions"] }),
+    onSuccess: async () => {
+      // A signed-out session leaves the list, so the confirmation is shown outside it.
+      setDone(t("sessions.revoked"));
+      await client.invalidateQueries({ queryKey: ["sessions"] });
+    },
   });
 
   return (
@@ -39,6 +45,7 @@ function Sessions() {
         <p className="text-sm text-muted-foreground">{t("sessions.explain")}</p>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        <Confirmation message={done} onDismiss={() => setDone(null)} testId="session-confirmation" />
         <QueryStatus query={sessions} />
         {revoke.isError && <Alert tone="error">{errorMessage(revoke.error)}</Alert>}
         {sessions.data?.length === 0 && <Empty>{t("sessions.none")}</Empty>}

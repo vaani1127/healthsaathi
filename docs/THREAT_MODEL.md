@@ -47,6 +47,7 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 |---|---|---|
 | Password guessing | Argon2id hashes, 10 character minimum and a common-password list, 5 failures per 15 minutes lock the account, 5 logins per minute per IP | `identity/passwords.py`, `password_policy.py`, `lockout.py`, `core/ratelimit.py` |
 | Stolen staff password | TOTP is required for every staff role before any patient data (amr `otp` checked on clinic selection) | `identity/service.py` `_check_membership` |
+| Replaying an authenticator code seen over someone's shoulder or intercepted | A code is valid for its 30 second step and one step either side. Residual: reuse is refused only within one API process, and the API runs 2 workers, so a code can be accepted once per worker (and again after a restart) inside that window (`docs/APP_GAPS.md` 30) | `identity/totp.py` |
 | Patient account takeover by guessing codes | 6 digit email code, 10 minutes, 5 attempts, 3 requests per minute per email | `identity/service.py`, `core/ratelimit.py` |
 | Stolen refresh token | Stored hashed, rotated on every use, reuse of an old token revokes the whole family; HttpOnly, Secure, SameSite=Lax cookie | `identity/service.py`, `identity/router.py` |
 | Session on an unknown device | New-device email alert; "My sessions" page lists and revokes sessions | `identity/service.py`, `SessionsPage.tsx` |
@@ -62,7 +63,7 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 | Changing a signed note or prescription | Signed rows are immutable (trigger); edits create a new version | migration `0002`, `clinical/service.py` |
 | Forged workflow evidence to make an access look explained (SPEC 7 type 10) | Forgery indicators in the explanation engine, scored by the detector | `e2d-core` (research result H4) |
 | Changing workflow rows after an access so that a later look at it finds different evidence, to escape the late forgery flags (no progress, cancelled after access) | The daily job computes the late flags for the evidence the stored explanation named when the access happened, as of 24 hours later, without choosing the template again; if that record cannot be found the flags stay undecided and the access id is in the day's `detect_daily` audit event. Residual: queue tokens and shifts have no status history (`docs/APP_GAPS.md` 24) | `detect/daily.py` |
-| Cancelling the evidence in the same request that records an access (for example the request that cancels an appointment also records a view of that patient) | Residual: timestamps are the transaction's start time, so the cancellation is dated before that access and the access does not get `cancelled_after_access`; accesses earlier than the cancelling request do. Fix planned (`docs/APP_GAPS.md` 27) | `app/db/base.py`, `app/db/status_history.py` |
+| Cancelling the evidence in the same request that records an access (for example the request that cancels an appointment also records a view of that patient) | Evidence and status rows are stamped at statement time (`clock_timestamp()`, migration 0005), so the cancellation is dated after the access recorded before it in that request, and that access gets `cancelled_after_access` (`tests/db/test_statement_time.py`). Residual: rows written before migration 0005 keep transaction-time stamps | `app/db/base.py`, `app/db/models/workflow.py` |
 | Editing the daily feature cache in `MODEL_DIR` to change a final model | The cache is never the source of truth: its sha256 is in each daily audit event, and a missing or unreadable file is rebuilt from the database. Residual: a cache edited consistently by someone with server access changes the next final models until it is rebuilt | `detect/daily.py` |
 | Malicious file upload | PDF, PNG or JPEG only, checked by declared type and file signature, 10 MB limit, stored with its SHA-256 and served as an attachment with `nosniff` | `clinical/service.py`, `clinical/router.py` |
 
@@ -106,16 +107,15 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 
 ## 5. Residual risks
 
+- An authenticator code can be accepted once per API worker (2 workers), and again after a
+  restart, within its validity window (`docs/APP_GAPS.md` 30).
 - An insider with a genuine care relationship (on the care team, or treating the patient) is
   explained by that relationship; the research results show this is the main source of false
   explanations (`docs/results-v1.md`, section 6).
-- An access recorded in the same request as a cancellation of its own evidence does not get
-  `cancelled_after_access`, because the cancellation is stamped with the transaction's start time,
-  before the access (`docs/APP_GAPS.md` 27, next branch).
-- Workflow times stamped by the API host's clock and by the database's clock are compared in
-  explanation tie-breaks, so with clocks a fraction of a second apart the explaining evidence,
-  and whether `self_created_recent` gates the access, can differ from run to run
-  (`docs/APP_GAPS.md` 28, next branch).
+- Rows written before migration 0005 keep transaction-time stamps, so for that older data an
+  access recorded in the same request as a cancellation of its own evidence does not get
+  `cancelled_after_access`, and a row created after an access in the same request looks older
+  than the access.
 - Final alerts come 24 to 48 hours after the access (ADR 0008); until then only the provisional
   alerts exist.
 - Anchoring proves the log was not changed after a checkpoint; events written between two

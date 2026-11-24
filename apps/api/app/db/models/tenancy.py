@@ -8,6 +8,7 @@ from app.db.base import (
     Base,
     ClinicScopedMixin,
     CreatedAtMixin,
+    EvidenceCreatedAtMixin,
     IdMixin,
     scoped_args,
     str_enum,
@@ -56,7 +57,7 @@ class StaffProfile(ClinicScopedMixin, Base):
     department: Mapped[str | None] = mapped_column(Text)
 
 
-class Patient(ClinicScopedMixin, CreatedAtMixin, Base):
+class Patient(ClinicScopedMixin, EvidenceCreatedAtMixin, Base):
     __tablename__ = "patients"
     __table_args__ = scoped_args(UniqueConstraint("clinic_id", "mrn"))
 

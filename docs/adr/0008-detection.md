@@ -121,6 +121,18 @@ starter rules are used, and their version is the sha256 of the rules. A final mo
 each finalised day and not kept; the sha256 of its serialised form is the `model_version` of every
 final alert of that day and is in the daily audit event. No table is added for models.
 
+**One clock, statement time (16 November 2026).** Every time the explanation engine compares
+comes from the database clock and is taken when the row is written: `created_at` of the evidence
+tables, `status_events.at`, `vitals.recorded_at`, `lab_results.resulted_at` and
+`break_glass_events.at` default to `clock_timestamp()` (migration 0005), access times already use
+it (`db_now()`), and the walk-in slot, care team start and end and the clinic's today take
+`db_now()` instead of the API host's clock. A row created or a status set after an access in the
+same request is therefore dated after it, and tie-breaks between evidence no longer depend on
+the offset between two clocks. Audit and anchoring stamps (`audit_events.at`,
+`access_events.at`'s default, `merkle_checkpoints.signed_at`, `anchor_receipts`) are unchanged:
+none of them feeds a hash through its default, and the anchoring study reads the receipt times.
+Rows written before migration 0005 keep transaction-time stamps.
+
 **Stored explanations.** The per-minute scorer uses the explanation and forgery flags stored when
 the access happened, so the late flags are undecided in provisional alerts. The daily job
 recomputes them as described above and stores them on final alerts under
