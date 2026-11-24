@@ -61,6 +61,9 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 | Rewriting history and re-signing | The signing key is derived from `LEDGER_SIGNING_SEED`; anchored roots on the chain cannot be replaced by the operator; the anchor job refuses to anchor a log that no longer matches the anchored root | `anchor/job.py` `anchor_on_chain` |
 | Changing a signed note or prescription | Signed rows are immutable (trigger); edits create a new version | migration `0002`, `clinical/service.py` |
 | Forged workflow evidence to make an access look explained (SPEC 7 type 10) | Forgery indicators in the explanation engine, scored by the detector | `e2d-core` (research result H4) |
+| Changing workflow rows after an access so that a later look at it finds different evidence, to escape the late forgery flags (no progress, cancelled after access) | The daily job computes the late flags for the evidence the stored explanation named when the access happened, as of 24 hours later, without choosing the template again; if that record cannot be found the flags stay undecided and the access id is in the day's `detect_daily` audit event. Residual: queue tokens and shifts have no status history (`docs/APP_GAPS.md` 24) | `detect/daily.py` |
+| Cancelling the evidence in the same request that records an access (for example the request that cancels an appointment also records a view of that patient) | Residual: timestamps are the transaction's start time, so the cancellation is dated before that access and the access does not get `cancelled_after_access`; accesses earlier than the cancelling request do. Fix planned (`docs/APP_GAPS.md` 27) | `app/db/base.py`, `app/db/status_history.py` |
+| Editing the daily feature cache in `MODEL_DIR` to change a final model | The cache is never the source of truth: its sha256 is in each daily audit event, and a missing or unreadable file is rebuilt from the database. Residual: a cache edited consistently by someone with server access changes the next final models until it is rebuilt | `detect/daily.py` |
 | Malicious file upload | PDF, PNG or JPEG only, checked by declared type and file signature, 10 MB limit, stored with its SHA-256 and served as an attachment with `nosniff` | `clinical/service.py`, `clinical/router.py` |
 
 ### Repudiation
@@ -106,6 +109,15 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 - An insider with a genuine care relationship (on the care team, or treating the patient) is
   explained by that relationship; the research results show this is the main source of false
   explanations (`docs/results-v1.md`, section 6).
+- An access recorded in the same request as a cancellation of its own evidence does not get
+  `cancelled_after_access`, because the cancellation is stamped with the transaction's start time,
+  before the access (`docs/APP_GAPS.md` 27, next branch).
+- Workflow times stamped by the API host's clock and by the database's clock are compared in
+  explanation tie-breaks, so with clocks a fraction of a second apart the explaining evidence,
+  and whether `self_created_recent` gates the access, can differ from run to run
+  (`docs/APP_GAPS.md` 28, next branch).
+- Final alerts come 24 to 48 hours after the access (ADR 0008); until then only the provisional
+  alerts exist.
 - Anchoring proves the log was not changed after a checkpoint; events written between two
   checkpoints are protected only by the hash chain until the next anchor (15 minutes in the
   deployment design, 2 minutes in the local demo).

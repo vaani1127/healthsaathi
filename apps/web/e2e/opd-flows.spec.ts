@@ -102,8 +102,26 @@ test.describe.serial("OPD day", () => {
     await page.getByRole("button", { name: tx("lab.placeOrder") }).click();
     await expect(page.getByText(tx("lab.ordered"))).toBeVisible();
 
-    await page.getByRole("button", { name: tx("followUp.book") }).click();
-    await expect(page.getByText(tx("followUp.booked"))).toBeVisible();
+    // The form proposes a slot two weeks ahead. A stack that already has bookings (the demo)
+    // may have it taken: then try a later slot, as reception does above.
+    const followUpBooked = page.getByText(tx("followUp.booked"));
+    const proposed = await page.locator("#fu-when").inputValue();
+    for (let attempt = 0; attempt < 8; attempt++) {
+      if (attempt > 0) {
+        const at = new Date(new Date(proposed).getTime() + attempt * 37 * 60_000);
+        const two = (n: number) => String(n).padStart(2, "0");
+        await page
+          .locator("#fu-when")
+          .fill(`${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())}T${two(at.getHours())}:${two(at.getMinutes())}`);
+      }
+      await page.getByRole("button", { name: tx("followUp.book") }).click();
+      await page.waitForLoadState("networkidle");
+      await expect(followUpBooked.or(page.getByText(tx("errors.slot-taken")))).toBeVisible();
+      if (await followUpBooked.isVisible()) {
+        break;
+      }
+    }
+    await expect(followUpBooked).toBeVisible();
 
     await page.getByRole("button", { name: tx("rx.sign"), exact: true }).click();
     await page.getByRole("link", { name: tx("rx.print") }).click();

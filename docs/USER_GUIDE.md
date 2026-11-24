@@ -91,6 +91,19 @@ The admin screen has tabs:
   reason the app found (or none), what stands out, any forgery flags and the user's last
   accesses. Mark it "Misuse", "Justified" or "Not sure", with a note. You cannot review an
   alert about yourself.
+  - Today's and yesterday's alerts are **Provisional**. Some signs of made-up evidence (the
+    appointment never went ahead, or was cancelled after the record was opened) can only be seen
+    24 hours later. So two days after a day ends, at midnight clinic time, the app makes that
+    day's **Final** list. It can add alerts the provisional list missed and retire provisional
+    alerts that did not make the final list. The "One day" view tells you whether the day's list
+    is final and, if not, when it will be.
+  - An alert you have already reviewed is never changed. If it is not in the final list it is
+    shown as "Reviewed, not in final list".
+  - Retired alerts are not open for review and are hidden. In "One day", tick "Show retired
+    alerts" to see them.
+  - If the app was off for longer than its catch-up window (7 days unless the platform team
+    set more), older days are not finalised; their alerts stay provisional and the day view
+    says so.
 - **Staff.** Invite staff by email and role; deactivate or activate memberships. "No
   authenticator yet" marks staff who have not set one up.
 - **Schedules and Shifts.** Doctor schedules (day, hours, slot length) and staff shifts for the

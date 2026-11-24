@@ -72,7 +72,7 @@ Other commands:
 |---|---|
 | `make demo` | Build and start, or start again (the data is kept) |
 | `make demo-down` | Stop the demo, keep its data |
-| `make demo-reset` | Stop and delete all demo data; the next `make demo` starts fresh |
+| `make demo-reset` | Stop and delete all demo data, including the local witness folder; the next `make demo` starts fresh |
 | `make demo-e2e` | Browser tests against the running demo |
 | `make fhir-validate` | FHIR export of 10 patients checked by the HAPI validator |
 

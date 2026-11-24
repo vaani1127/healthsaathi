@@ -2,6 +2,98 @@
 
 ## Unreleased
 
+### Deviations
+
+Changes that depart from docs/SPEC.md, from what the experiments did, or from an earlier ADR,
+each with its date, reason and effect. Deviations from the registered experiment plan made before
+this heading existed are in section 9 of experiments/PREREGISTRATION.md.
+
+- **13 November 2026: daily final alert list (ADR 0008, amended).** Reason: the product never
+  computed the two late forgery flags (`no_progress`, `cancelled_after_access`), and it raised
+  alerts one access at a time against a calibrated threshold, so its alerts were not the ranking
+  the registered E2D results describe (forgery flags as of 24 hours after each access, top B per
+  clinic day). What changes against the experiments and the earlier design:
+  - Two stages. The per-minute scorer still raises provisional alerts. A daily job makes each
+    clinic day's final list once every access of the day is 24 hours old; it adds alerts and
+    retires unreviewed provisional ones, and never changes a reviewed alert.
+  - Delay. A day becomes due at 00:00 clinic time two days after it, so an access reaches the
+    final list 24 hours (access at 23:59:59) to 48 hours (access at 00:00) later, 28 hours for an
+    access at 20:00 and 38.5 hours for one at 09:30, plus up to one worker tick (60 s) and the
+    job's run time. The paper times every E2D alert at 24 hours.
+  - Training window. The registered runs fit one model per clinic on days 1 to 120 and score days
+    121 to 180. The product fits a final model for each day D on the gated staff accesses of the
+    30 days before D (per clinic with at least 500 rows, otherwise one model over all clinics, as
+    in the experiments), with seed 0; the experiments seed each run with its index. The 30-day
+    window is the one SPEC 5.5 names.
+  - Late flags. The experiments re-explain every access from the final data as of 24 hours
+    after it and take the late flags of whatever evidence that picks. On live data the product
+    computes the late flags for the evidence that explained the access when it happened (its
+    stored explanation), as of 24 hours after it, and does not choose the template again. The
+    two can differ only when later rows would change the chosen evidence (for example a token
+    assigned to the nurse after her access). On the parity test's SaathiBench run, 0 of 5,447
+    accesses change template or evidence between the access time and 24 hours later, and the
+    product's late flags equal the experiments' for every staff access of the days it ranks
+    (`infra/demo/tests/test_daily_parity.py`, which counts and checks both). The flags stay
+    undecided only if the named record cannot be found; those accesses are listed in the daily
+    audit event. Accesses whose evidence the late flags do not look at (queue token,
+    registration, typed reason, break-glass) are counted as not applicable.
+  - Naming. The product's fallback scorer is now called the starter rules in code, API values,
+    docs and UI (`scorer: "starter_rules"`; alerts raised earlier keep `"rules"`). Its rules,
+    points, threshold and version hash are unchanged. SPEC 1.2 still says "Rules baseline
+    running"; SPEC is not changed here.
+  - Data. No schema change: the stage is under `features.lifecycle`, the recomputed flags under
+    `features.late_flags`, and each finalised or skipped day writes one audit event of the new
+    kind `detect_daily`. The feature cache is a file in `MODEL_DIR`.
+  - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
+    `experiments/results/v1` and the pre-registration are not touched, so no v1 number can change.
+
+### Daily final alert list
+
+- `app/detect/daily.py`: the daily final ranking (ADR 0008). Runs from the worker after the
+  per-minute scoring and by hand with `python -m app.detect.job --daily`. Session advisory lock,
+  one transaction per clinic day, one `detect_daily` audit event per clinic day (finalised or
+  skipped), 15-minute retry after a failed clinic. Catch-up window `DETECT_CATCH_UP_DAYS`
+  (default 7; `--catch-up N` on the command line for the first run on a database with history).
+  The worker caps each tick at one clinic day with accesses and 3 days of training features, so
+  per-minute scoring and the anchor timer are not held up behind a long run.
+- `hs_demo.seed` makes the final alert list of every loaded day that is due.
+- `GET /alerts?status=open` never returns retired alerts; the open view has no retired switch,
+  and its empty message no longer says every alert was reviewed when some were retired.
+- `app/detect/days.py`: when a clinic day is due, and which days have their audit event.
+- `app/detect/starter_rules.py`: the product's fallback scorer under its new name.
+- API: alerts carry `stage`, `list_state` and `day_final`; `GET /alerts` hides retired alerts
+  unless `include_retired=true`; new `GET /alerts/days/{day}` says whether a day's list is
+  provisional, final or skipped, and from when it can be final.
+- Web: alerts show Provisional, Final, Retired or "Reviewed, not in final list"; the one-day view
+  says whether the list is final and when it will be; a switch shows retired alerts; the scorer
+  name is translated. English and Hindi.
+- Tests: `apps/api/tests/detect/test_daily.py` (rerun changes nothing, a reviewed provisional
+  alert survives, a crash before commit leaves the day to be redone, skipped days, late flags
+  computed for the stored evidence and left undecided when it is missing,
+  cache rebuild, role and clinic checks, worker order) and `infra/demo/tests/test_daily_parity.py`
+  (the product and the experiments' E2D path pick the same top-B set, in the same order, for the
+  same SaathiBench clinic days with one fitted model, and give every staff access the same two
+  late flags) and `apps/api/tests/detect/test_daily_lifecycle.py` (a day recorded through the API,
+  with and without the nurse assigned to the token: undecided late flags on at most 1% of the
+  accesses where the flags apply).
+
+### Tooling
+
+- `make demo-e2e`, `demo-videos` and `demo-code` pick the native demo only when the pid in
+  `.demo/pids/api.pid` is a running process that runs the command the demo started
+  (`python -m hs_demo.native alive api`), not whenever the file exists. A stale pid file from an
+  earlier native demo sent a run against the Docker demo to a native API it could not use.
+- `hs_demo.native stop` stops a process only if its pid is still running the command the demo
+  started (the command is now kept in the pid file and compared with the live command line).
+  A stale pid file is removed and reported as "not running", so a pid that Windows has given to
+  another program is never killed. Old pid files that hold only a number are never acted on.
+  Tests: `infra/demo/tests/test_native.py`.
+- `make demo-reset` also empties `.demo/witness`. The local witness is a bind mount, not a Docker
+  volume, so it survived the reset, and the seeded clinics get the same ids every time: the audit
+  page's witness check then compared a fresh log with the largest head left by the earlier demo
+  (`the log is shorter than the published head`). The native reset already removed the folder.
+  Flow 9 now also requires the witness check to show Pass.
+
 ### Docs: anchoring snapshot plan
 
 - `docs/PROGRESS.md`: the single snapshot "around 15 November 2026" is replaced by two planned

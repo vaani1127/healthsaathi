@@ -81,11 +81,24 @@ test.describe.serial("review", () => {
         stdio: "inherit",
       });
     }
-    await signIn(page, "clinic_admin");
+    const admin = await signIn(page, "clinic_admin");
     await expect(page.getByRole("tab", { name: tx("admin.tabs.alerts") })).toHaveAttribute("aria-selected", "true");
     // The reason-only access was gated and scored; the queue shows today's top alerts.
-    await expect(page.getByTestId("alert")).not.toHaveCount(0);
-    const first = page.getByTestId("alert").first();
+    const alerts = page.getByTestId("alert");
+    await expect(alerts).not.toHaveCount(0);
+    // Alerts about the signed-in admin's own accesses can be listed (the admin opens records
+    // too), but nobody may review an alert about themselves.
+    const aboutMe = `${admin.name} (${tx("roles.clinic_admin")})`;
+    const mine = alerts.filter({ hasText: aboutMe });
+    if ((await mine.count()) > 0) {
+      const own = mine.first();
+      await own.getByRole("button", { name: tx("admin.alerts.open") }).click();
+      const ownDetail = own.getByTestId("alert-detail");
+      await ownDetail.getByRole("button", { name: tx("outcome.misuse") }).click();
+      await expect(ownDetail.getByRole("alert")).toHaveText(tx("errors.own-alert"));
+      await own.getByRole("button", { name: tx("admin.alerts.close") }).click();
+    }
+    const first = alerts.filter({ hasNotText: aboutMe }).first();
     await expect(first).toContainText(/#\d+/);
     await expect(first).toContainText(tx("admin.alerts.score"));
     await first.getByRole("button", { name: tx("admin.alerts.open") }).click();
@@ -93,7 +106,16 @@ test.describe.serial("review", () => {
     await expect(detail).toContainText(`${tx("admin.alerts.patient")}:`);
     await expect(detail).toContainText(tx("admin.alerts.topFeatures"));
     await expect(detail).toContainText(tx("admin.alerts.timeline"));
-    await expect(detail).toContainText(DEMO ? tx("admin.alerts.scorer", { scorer: "" }).trim() : tx("admin.alerts.scorer", { scorer: "rules" }));
+    await expect(detail).toContainText(
+      DEMO
+        ? tx("admin.alerts.scorer", { scorer: "" }).trim()
+        : tx("admin.alerts.scorer", { scorer: tx("admin.alerts.scorers.starter_rules") }),
+    );
+    // Today's alerts are provisional until the day's final list is made (the demo also holds
+    // finalised past days, so its first alert can be either).
+    if (!DEMO) {
+      await expect(first.getByTestId("alert-state")).toHaveText(tx("admin.alerts.listState.provisional"));
+    }
     await detail.getByLabel(tx("admin.alerts.note")).fill("Not asked for a second opinion");
     await detail.getByRole("button", { name: tx("outcome.misuse") }).click();
     await expect(detail.getByRole("status")).toHaveText(tx("admin.alerts.reviewed", { outcome: tx("outcome.misuse") }));

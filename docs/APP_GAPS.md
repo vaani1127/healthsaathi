@@ -61,6 +61,18 @@ Method:
 | The web app had no CSP; inline styles in print views | ZAP baseline, ASVS 14.4.3 | CSP on the hosted app and the demo, styles moved to a class |
 | `/config.js` missed `nosniff`; no `Cross-Origin-Resource-Policy` | ZAP baseline | Headers added in Caddy, `_headers` and the API |
 
+## Found while building the daily final list (open, not built)
+
+| # | Gap | Where | Fix | Status |
+|---|---|---|---|---|
+| 24 | Queue tokens and shifts have no status history, so explaining an access later reads their current status and assignment, not the ones at the access. The daily job no longer depends on this (it computes late flags for the stored evidence), but any later re-explanation of product data does. | `app/db/status_history.py` tracks appointments, lab orders, referrals and invoices only | Add status history for queue tokens and shifts, and use it in both repository backends. | open |
+| 25 | The rules in `e2d_core.detect.scoring` are labelled "(B0)" in a comment, but they are the product's starter rules, not the experiments' B0 baseline. | `packages/e2d-core/src/e2d_core/detect/scoring.py` | Fix the comment the next time e2d-core is opened (frozen for the v1 results). | open |
+| 26 | A typed reason's evidence ref (T_REASON) stores the temporary id given to the engine's event, not the id of the stored access event: `record_and_explain` and `_record_batch` create one id for each. | `app/access/service.py` | Give the engine the access event's own id. | open |
+
+| 27 | Timestamps are the transaction's start time, not the statement's: `server_default=func.now()`. A row created in the same request as an access, after it, is stamped before the access, and a status change made after an access in the same request is dated before it. So a later explanation sees an appointment that the access could not have seen, and an access recorded in the request that cancels its own evidence never gets `cancelled_after_access`. Columns the explanation engine reads: `created_at` of `patients`, `appointments`, `queue_tokens`, `encounters`, `referrals`, `care_team_assignments`, `invoices`, `lab_orders`, `shifts`, `schedules`, `clinical_notes`, `prescriptions`, `vitals`; `status_events.at`; `vitals.recorded_at`; `lab_results.resulted_at`; `break_glass_events.at`. | `app/db/base.py` (`CreatedAtMixin`, `WorkflowMixin`), `app/db/models/*.py`, `app/db/status_history.py` | One Alembic revision changing these server defaults (and the other `now()` defaults, for one rule) to `clock_timestamp()`; existing rows unchanged. Needs a Deviations entry. | open, next branch |
+| 28 | Some workflow times come from the API host's clock while access times and `created_at` come from the database's, and the two clocks differ (0.55 to 0.60 s on the dev stack, drifting). Explanation tie-breaks compare them, so which evidence explains a reception access, and whether `self_created_recent` gates it, changed between runs of the same scenario (66 gated accesses in one run, 0 in the next). | `app/clinic/service.py`: walk-in `slot_start` and `slot_end` (`_now()`), care team `starts_at` default and `ends_at` on end, `local_today` | Take these times from the database clock. | open, next branch |
+| 29 | The daily job finds the record a stored explanation names with the private `e2d_core.explain.forgery._find`. | `app/detect/daily.py` | Add a public `late_flags` helper in e2d-core when it is next opened, and call it from the daily job. | open |
+
 ## Accepted as is
 
 | Item | Reason |

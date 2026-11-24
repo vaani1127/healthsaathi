@@ -207,6 +207,10 @@
             "title": "Day",
             "type": "string"
           },
+          "day_final": {
+            "title": "Day Final",
+            "type": "boolean"
+          },
           "evidence": {
             "additionalProperties": true,
             "title": "Evidence",
@@ -227,6 +231,16 @@
           "id": {
             "format": "uuid",
             "title": "Id",
+            "type": "string"
+          },
+          "list_state": {
+            "enum": [
+              "provisional",
+              "final",
+              "retired",
+              "outside_final"
+            ],
+            "title": "List State",
             "type": "string"
           },
           "model_version": {
@@ -273,6 +287,15 @@
           },
           "scorer": {
             "title": "Scorer",
+            "type": "string"
+          },
+          "stage": {
+            "enum": [
+              "provisional",
+              "final",
+              "retired"
+            ],
+            "title": "Stage",
             "type": "string"
           },
           "status": {
@@ -337,6 +360,9 @@
           "template_code",
           "strength",
           "top_features",
+          "stage",
+          "list_state",
+          "day_final",
           "patient_id",
           "patient_name",
           "patient_mrn",
@@ -374,9 +400,23 @@
             "title": "Day",
             "type": "string"
           },
+          "day_final": {
+            "title": "Day Final",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
+            "type": "string"
+          },
+          "list_state": {
+            "enum": [
+              "provisional",
+              "final",
+              "retired",
+              "outside_final"
+            ],
+            "title": "List State",
             "type": "string"
           },
           "model_version": {
@@ -403,6 +443,15 @@
           },
           "scorer": {
             "title": "Scorer",
+            "type": "string"
+          },
+          "stage": {
+            "enum": [
+              "provisional",
+              "final",
+              "retired"
+            ],
+            "title": "Stage",
             "type": "string"
           },
           "status": {
@@ -459,7 +508,10 @@
           "action",
           "template_code",
           "strength",
-          "top_features"
+          "top_features",
+          "stage",
+          "list_state",
+          "day_final"
         ],
         "title": "AlertOut",
         "type": "object"
@@ -1759,6 +1811,79 @@
           "invoices_paid"
         ],
         "title": "DailyRevenue",
+        "type": "object"
+      },
+      "DayStatus": {
+        "description": "Whether a clinic day's alert list is final, and when it will be.",
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "final_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Count"
+          },
+          "finalised_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalised At"
+          },
+          "ready_after": {
+            "format": "date-time",
+            "title": "Ready After",
+            "type": "string"
+          },
+          "retired_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retired Count"
+          },
+          "state": {
+            "enum": [
+              "provisional",
+              "final",
+              "skipped"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day",
+          "state",
+          "timezone",
+          "ready_after",
+          "finalised_at",
+          "final_count",
+          "retired_count"
+        ],
+        "title": "DayStatus",
         "type": "object"
       },
       "DoctorChart": {
@@ -5743,6 +5868,7 @@
     },
     "/api/v1/alerts": {
       "get": {
+        "description": "Retired alerts (provisional, not in the day's final list, never reviewed) are left out\nunless `include_retired` is true. They are never in `status=open`: they are not open for\nreview.",
         "operationId": "list_alerts_api_v1_alerts_get",
         "parameters": [
           {
@@ -5776,6 +5902,16 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_retired",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Retired",
+              "type": "boolean"
             }
           }
         ],
@@ -5811,6 +5947,55 @@
           }
         ],
         "summary": "List Alerts",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/v1/alerts/days/{day}": {
+      "get": {
+        "description": "Whether the day's alert list is final, and from when it can be.",
+        "operationId": "day_status_api_v1_alerts_days__day__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Day Status",
         "tags": [
           "alerts"
         ]
