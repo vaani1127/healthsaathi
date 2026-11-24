@@ -17,6 +17,14 @@
   witness, gas per clinic, every gap between anchors longer than 30 minutes, and the events after
   14 days, reusing the study's own functions. Output: `experiments/results/anchoring/summary_clean.json`.
   Tests in `experiments/tests/test_anchoring.py`.
+- `anchoring_gas.tex` now has one row per study period (by the time each anchor was sent) and
+  the Besu bench row, like the windows table. The two first anchors of the clinics (85,639 gas,
+  sent before the first period) are left out, as events outside every period are in the windows
+  table. Test: `test_gas_table_has_one_row_per_period_and_the_bench_row`. The snapshot data is
+  unchanged.
+- `docs/PROGRESS.md` explains the 85,639 maximum and the Amoy lag of the timer-working period
+  (15 checkpoints with no Amoy receipt, on 2 and 4 November; the cause of the failed sends is not
+  proven), and records the clinic ids.
 
 ### Docs: anchoring snapshot plan
 

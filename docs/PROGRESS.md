@@ -120,6 +120,44 @@ The clean period runs from 10 November 18:47:10 UTC to the snapshot; no event wa
 the 14 day mark (`summary_clean.json`, `events_after_14_days`). The tables are in
 `paper/tables/anchoring_*.tex`, the figure in `paper/figures/fig_rewrite_window.pdf`.
 
+Clinic ids in the snapshot: `018b7266-7840-7319-9498-c18c799e670c` is Saathi Demo Clinic A and
+`018b7266-7840-76c6-b6ad-fa7be7efed79` is Saathi Demo Clinic B (one read-only SELECT on the live
+`clinics` table, 25 November 2026).
+
+**Gas by period.** `anchoring_gas.tex` has one row per study period (by the time the anchor was
+sent) and the Besu bench row. The 85,639 gas maximum of the earlier version of the table was each
+clinic's first Amoy anchor (clinic A tree size 1,283, sent 31 October 16:54:59 UTC; clinic B tree
+size 1,200, 16:55:27 UTC). Both were sent before the timer-working period starts (17:20 UTC), so
+they are in no period and are left out of the table now, as the windows table leaves out events
+outside every period. Why the first anchor costs more: `AuditAnchor` keeps one
+`Head(uint64 treeSize, bytes32 root)` per clinic, two storage slots, and the first anchor writes
+both from zero, which costs more than changing them later. The Besu bench shows the same step:
+its first anchor used 75,439 gas and the later ones 41,587 to 41,635 (the "Bench run" row). The
+gas difference was not traced unit by unit.
+
+**Why Amoy lagged in the timer-working period** (Amoy P95 115.7 minutes, GitHub 14.7). Of the
+172 checkpoints signed in that period, 15 have a GitHub receipt and no Amoy receipt (snapshot
+`receipts.parquet`). They fall in two spans, both clinics at once:
+
+- 2 November, 12:00 to 13:21 IST: no Amoy anchor between 11:29 and 13:36 IST for clinic A and
+  between 11:45 and 13:37 IST for clinic B; GitHub published every 15 minute checkpoint.
+- 4 November, 19:33 to 19:48 IST: no Amoy anchor between 19:17 and 20:03 IST for either clinic.
+
+Events in those checkpoints wait for the next Amoy anchor. All 2,370 events of the period with an
+Amoy window over 30 minutes were written in these two spans (2 November 11:45 to 13:29 IST, 1,643
+events; 4 November 19:20 to 19:59 IST, 727 events). That is 11.2% of the period's 21,213 events,
+more than the 5% above the P95, so these spans set the P95 and the 197 minute maximum. Every
+Amoy anchor that was sent was mined within a second of being sent.
+
+What is not proven is why the Amoy step failed in those spans. When `send_anchor` raises (for
+example an RPC error or too little POL for gas), the job logs "anchor step failed" and writes no
+receipt (`app/anchor/job.py` `anchor_on_chain`), so the database has no record of the attempts;
+the worker logs of those days were lost at a later redeploy. The poster wallet's balance at those
+blocks could not be read: the public Amoy RPC refuses balance queries at past blocks without a
+personal token. The gas price of the anchors around both spans was a steady 30 gwei. The
+"Anchoring fixes found on the live demo" entry in `docs/CHANGELOG.md` covers OpenTimestamps and
+the worker fallback interval, not this.
+
 ## What remains
 
 - Anchoring study: write it up in the paper (Snapshot B and its tables are committed).
