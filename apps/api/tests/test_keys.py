@@ -45,6 +45,7 @@ def test_every_label_and_its_version() -> None:
         "healthsaathi/ip-hash/v1",
         "healthsaathi/consent-commitment/v1",
         "healthsaathi/rate-counters/v2",
+        "healthsaathi/password-reset/v1",
     )
 
 

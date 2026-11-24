@@ -70,6 +70,17 @@ const inviteRoute = createRoute({
   }),
   component: lazyRouteComponent(() => import("@/features/auth/InvitePage"), "InvitePage"),
 });
+const forgotPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/forgot-password",
+  component: lazyRouteComponent(() => import("@/features/auth/ForgotPasswordPage"), "ForgotPasswordPage"),
+});
+// The token is in the fragment (#email=...&token=...), read by the page itself (ADR 0010).
+const resetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reset-password",
+  component: lazyRouteComponent(() => import("@/features/auth/ResetPasswordPage"), "ResetPasswordPage"),
+});
 const devMailboxRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/dev/mailbox",
@@ -229,6 +240,8 @@ const routeTree = rootRoute.addChildren([
   receiptBenchRoute,
   patientLoginRoute,
   inviteRoute,
+  forgotPasswordRoute,
+  resetPasswordRoute,
   devMailboxRoute,
   appRoute.addChildren([
     receptionRoute,

@@ -18,6 +18,16 @@ If you belong to more than one clinic, choose the clinic after signing in.
 **Invited by email.** The invite link opens "Set your password". Choose a password of at least 10
 characters, then sign in and set up the authenticator.
 
+**Forgot your password.** On the sign-in page press "Forgot password?", type your clinic email
+and press "Send link". The page always says "If this email has an account, we sent a link", so it
+does not show which emails have accounts. Open the link in the email within 30 minutes (it works
+once; asking again makes older links stop working). Choose a new password, type it again, and if
+you use an authenticator app type its current 6 digit code too. After that every device is
+signed out; sign in again with the new password and your authenticator code. You get an email
+saying your password was changed: if it was not you, tell your clinic admin straight away. If you
+lost your authenticator, ask your clinic admin instead. In the local demo the email appears in the
+dev mailbox (`/dev/mailbox`).
+
 **My sessions.** Your name in the header (or "My sessions" on a phone) lists every device signed
 in to your account. "Sign out this device" ends a session you do not recognise. You also get an
 email when your account signs in from a new device.

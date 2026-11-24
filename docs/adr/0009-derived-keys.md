@@ -25,6 +25,7 @@ label as `info`. No new environment variables.
 | Access log IP hash | `healthsaathi/ip-hash/v1` | `access_events.ip_hash` (append-only) |
 | Consent commitment | `healthsaathi/consent-commitment/v1` | `consents.salt_hash` |
 | Rate counter keys | `healthsaathi/rate-counters/v2` | `rate_counters.key` (15 minutes at most) |
+| Staff password reset link (added with ADR 0010) | `healthsaathi/password-reset/v1` | `email_otps.code_hash` (30 minutes) |
 
 A label changes version only when its key must change; the others are not affected. The module
 hands out digests; the only function that returns key bytes is used to key a hash. Keys are
