@@ -9,7 +9,7 @@ in under the limit.
 
 from app.core import counters
 from app.core.errors import ProblemError
-from app.core.ratelimit import allow, limiter
+from app.core.ratelimit import allow, limiter, retry_after
 
 MAX_FAILURES = "5/15 minutes"
 SCOPE = "login-failures"
@@ -23,7 +23,10 @@ async def count_attempt(email: str) -> None:
     """Count this attempt; raise 429 account-locked when it is over the limit."""
     if not await allow(MAX_FAILURES, SCOPE, _key(email)):
         raise ProblemError(
-            429, "account-locked", "Too many wrong passwords. Try again in 15 minutes."
+            429,
+            "account-locked",
+            "Too many wrong passwords. Try again in 15 minutes.",
+            headers={"Retry-After": retry_after(MAX_FAILURES)},
         )
 
 

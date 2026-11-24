@@ -66,6 +66,23 @@ for an unknown address, so the limit does not reveal which emails exist. The per
 **Route limits kept in memory.** Search, export and print limits stay in slowapi's memory: per
 worker (up to twice the limit) and cleared on restart.
 
+**Default limit (amended 18 November 2026).** 120 requests a minute for every API request, in a
+small ASGI middleware (`DefaultRateLimitMiddleware`), because slowapi's middleware could not find
+the routes inside FastAPI 0.142's included routers and limited nothing. The key is the user for
+a valid token of type "access"; with no token, an invalid one, a login challenge or an enrolment
+token it is the client IP. Health checks, WebSockets and OPTIONS are not counted. It sits inside
+the CORS middleware so a 429 still carries the CORS headers. In memory, per worker, like the
+route limits: a Postgres counter would add a database write to every request. Every 429 has a
+Retry-After header.
+
+Measured with `make demo-measure` (`apps/web/e2e-demo/measure/requests.spec.ts`, report in
+`apps/web/test-results/measure-requests.json`): six users (reception, nurse, doctor, lab, admin,
+patient) on one address, each acting every 5 s with a full page load for 2 minutes while another
+account adds a walk-in every 10 s. In the run of 18 November 2026, with the default limit on, the
+busiest user made 90 requests in its busiest 60 s (reception), and requests without a token from
+that one address (all `/auth/refresh`, one per page load) reached 60 in the busiest 60 s, with 12
+more while signing everyone in. Both are under 120, and no request was refused.
+
 **Each TOTP step once, in the database (amended 17 November 2026).** The last accepted 30 second
 step per user is kept in `mfa_secrets.last_step` (migration 0006). A code is accepted only if one
 `UPDATE mfa_secrets SET last_step = :step WHERE user_id = :user AND (last_step IS NULL OR

@@ -1,12 +1,13 @@
 import asyncio
 import logging
+import math
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
@@ -23,7 +24,7 @@ from app.core.db import wait_for_database
 from app.core.errors import install_error_handlers, problem_response
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
-from app.core.ratelimit import limiter
+from app.core.ratelimit import DefaultRateLimitMiddleware, limiter
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.detect.router import router as detect_router
 from app.identity.router import router as auth_router
@@ -40,8 +41,19 @@ logger = logging.getLogger(__name__)
 API_PREFIX = "/api/v1"
 
 
-def _rate_limited(_: Request, __: Exception) -> Response:
-    return problem_response(429, "rate-limited", "Too many requests. Try again in a minute.")
+def _rate_limited(request: Request, __: Exception) -> Response:
+    """A search, export or print limit (slowapi decorator) is used up."""
+    retry = "60"
+    stats = getattr(request.state, "view_rate_limit", None)
+    if stats is not None:
+        reset, _ = limiter.limiter.get_window_stats(stats[0], *stats[1])
+        retry = str(max(1, math.ceil(reset - time.time())))
+    return problem_response(
+        429,
+        "rate-limited",
+        "Too many requests. Try again in a minute.",
+        headers={"Retry-After": retry},
+    )
 
 
 @asynccontextmanager
@@ -76,7 +88,9 @@ def create_app() -> FastAPI:
     # Middleware runs bottom-up: the client address first, then request context, security
     # headers, CORS and limits. The address comes first so every later step (limits, access
     # events) sees the client, not the proxy.
-    app.add_middleware(SlowAPIMiddleware)
+    # The default limit (120 a minute per user or IP). Search, export and print have their own
+    # slowapi decorators, which need no middleware.
+    app.add_middleware(DefaultRateLimitMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
