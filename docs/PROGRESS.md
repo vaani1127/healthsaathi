@@ -121,7 +121,7 @@ started, on 10 November 2026 at 18:47:10 UTC (11 November, 00:17 IST):
   needed before writing the related work and the novelty claim.
 - Hosting after the Azure Free Trial ends (about 30 November 2026): move to Azure for Students,
   upgrade, or take the demo offline. This is the project owner's decision.
-- Smaller items: password recovery for staff, a password strength meter, and a 12-character
+- Smaller items: a password strength meter and a 12-character
   minimum password (the specification currently says 10).
 
 Designed to support obligations under the DPDP Act 2023 and DPDP Rules 2025. Not legally

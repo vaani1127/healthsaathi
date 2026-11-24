@@ -97,6 +97,49 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
   - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
     `experiments/results/v1` and the pre-registration are not touched, so no v1 number can change.
 
+- **24 November 2026: staff password recovery (ADR 0010, ADR 0009 table amended).** Reason:
+  staff who forgot their password could only ask the platform team; `docs/PROGRESS.md` listed
+  recovery as an open item. What changes against SPEC:
+  - SPEC 1.2 (Identity) does not list password recovery; it is added for staff only.
+  - SPEC 4 lists every rate limit; two endpoints are added, each 5 per minute per IP, and reset
+    links are limited to 3 an hour per email (over it the request still answers 202).
+  - `docs/SECURITY_CHECKLIST.md` 2.5.6 had kept recovery out because a flow by email alone would
+    weaken the two-factor staff login. The flow added here asks for the authenticator code when
+    the account has one, so that reason no longer holds; 2.5.1, 2.5.3 and 2.5.6 are updated.
+  - Data: no schema change. Reset links are rows in `email_otps` with purpose `password_reset`,
+    hashed under the new derived key label `healthsaathi/password-reset/v1`.
+  - SPEC 1.2 and 4 are edited in the local copy only (SPEC.md is not in the repository).
+  - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
+    `experiments/results/v1` and the pre-registration are not touched.
+
+### Staff password recovery
+
+- "Forgot password?" on the staff sign-in page (`/forgot-password`).
+  `POST /api/v1/auth/password-reset/request` answers 202 with the same body for every email,
+  straight after the per-IP limit; the rest runs in a background task. A link goes only to an
+  active user with a password and an active staff membership; patients and invited people
+  without a password get nothing.
+- The link is `/reset-password#email=...&token=...`: the token is in the fragment, never sent to
+  a server, and the page removes it from the address bar at once. 30 minutes, single use, stored
+  only as a keyed hash (derived key `healthsaathi/password-reset/v1`); a new link cancels older
+  ones under a lock on the user row.
+- `POST /api/v1/auth/password-reset/confirm` sets the new password. A person with an
+  authenticator also gives a current code (single-use step claim and attempt limit as at
+  sign-in); a wrong or reused code gets the same 400 `invalid-reset-link` as a bad link and
+  leaves the link unused; a missing code gets 400 `authenticator-code-required`. Two requests
+  with one link at once succeed once.
+- After a reset every session is signed out, the password lockout is cleared, and an email says
+  the password was changed. The next sign-in still asks for the authenticator (or its setup).
+- Limits in `rate_counters`: 5 a minute per IP for each endpoint, 3 links an hour per email.
+- Audit: kind `staff`, `{type: "password_reset", action: "requested" | "completed", at,
+  user_id}` in each of the person's clinics, without email, token, password or address. None for
+  unknown emails.
+- English and Hindi; the browser test runs at 360 px.
+- Tests: `tests/identity/test_password_reset.py`, `tests/test_keys.py`,
+  `apps/web/test/passwordReset.test.tsx`, `apps/web/e2e/password-reset.spec.ts`.
+- Docs: ADR 0010, USER_GUIDE, APP_GAPS 36 fixed and 37 open, SECURITY_CHECKLIST 2.5.1, 2.5.3,
+  2.5.6.
+
 ### Send a staff invite again
 
 - `POST /api/v1/staff/members/{membership_id}/invite` (clinic admin, own clinic): for a member
