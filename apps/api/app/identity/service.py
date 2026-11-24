@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -151,15 +151,41 @@ def _user_from(token: str, token_type: tokens.TokenType) -> uuid.UUID:
         raise ProblemError(401, "invalid-token", "Sign in again.") from exc
 
 
+async def _claim_step(db: AsyncSession, user_id: uuid.UUID, step: int | None) -> bool:
+    """Take an authenticator time step for this user, at most once.
+
+    One conditional update: it changes the row only if the step is later than the last accepted
+    one. Two requests with the same code (on any worker) both try it; Postgres runs them one
+    after the other on the row lock and re-checks the condition, so exactly one changes the row.
+    The step is kept in the database, so a restart does not forget it.
+    """
+    if step is None:
+        return False
+    result = await db.execute(
+        update(MfaSecret)
+        .where(
+            MfaSecret.user_id == user_id,
+            or_(MfaSecret.last_step.is_(None), MfaSecret.last_step < step),
+        )
+        .values(last_step=step)
+        .execution_options(synchronize_session=False)
+    )
+    return bool(result.rowcount == 1)  # type: ignore[attr-defined]
+
+
 async def verify_totp(challenge_token: str, code: str, device: DeviceInfo) -> IssuedTokens:
     user_id = _user_from(challenge_token, "mfa_challenge")
     hit(TOTP_ATTEMPTS, "totp", str(user_id))
     async with tenant_session(ANONYMOUS) as db:
         mfa = await db.get(MfaSecret, user_id)
-    if mfa is None or mfa.enabled_at is None:
-        raise ProblemError(400, "mfa-not-enrolled")
-    if not totp.verify(totp.decrypt_secret(mfa.totp_secret_enc, str(user_id)), code, str(user_id)):
-        raise ProblemError(401, "invalid-code", "The code is wrong or has expired.")
+        if mfa is None or mfa.enabled_at is None:
+            raise ProblemError(400, "mfa-not-enrolled")
+        step = totp.matching_step(totp.decrypt_secret(mfa.totp_secret_enc, str(user_id)), code)
+        if not await _claim_step(db, user_id, step):
+            raise ProblemError(401, "invalid-code", "The code is wrong or has expired.")
+    # The claimed step is committed before the session is created. If creating the session
+    # fails, the step stays used and the user signs in with the next code. That is on purpose:
+    # a code must never work twice, even after an error.
     return await create_session(user_id, "mfa", device)
 
 
@@ -177,7 +203,9 @@ async def start_totp_enrolment(enroll_token: str) -> tuple[str, str]:
         if mfa is None:
             db.add(MfaSecret(user_id=user_id, totp_secret_enc=encrypted))
         else:
+            # A new secret: steps accepted for the old one say nothing about the new one.
             mfa.totp_secret_enc = encrypted
+            mfa.last_step = None
         return secret, totp.provisioning_uri(secret, user.email)
 
 
@@ -190,11 +218,12 @@ async def activate_totp(enroll_token: str, code: str, device: DeviceInfo) -> Iss
             raise ProblemError(400, "mfa-enrolment-not-started")
         if mfa.enabled_at is not None:
             raise ProblemError(409, "mfa-already-enrolled")
-        if not totp.verify(
-            totp.decrypt_secret(mfa.totp_secret_enc, str(user_id)), code, str(user_id)
-        ):
+        step = totp.matching_step(totp.decrypt_secret(mfa.totp_secret_enc, str(user_id)), code)
+        if not await _claim_step(db, user_id, step):
             raise ProblemError(401, "invalid-code", "The code is wrong or has expired.")
         mfa.enabled_at = _now()
+    # As in verify_totp: the step is committed with enabled_at, before the session is created.
+    # If creating the session fails, the step stays used. That is fine.
     return await create_session(user_id, "mfa", device)
 
 

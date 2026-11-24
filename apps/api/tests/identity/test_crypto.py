@@ -69,20 +69,27 @@ def test_password_equal_to_email_is_rejected() -> None:
     check_password("a sensible pass phrase", "someone@clinic.test")
 
 
-def test_totp_code_cannot_be_reused() -> None:
+def test_totp_code_matches_its_step_only_within_one_step() -> None:
+    """The pure code check. That each step is accepted once per user is tested against the
+    database in tests/identity/test_single_use.py."""
     import pyotp
 
     from app.identity import totp
 
     secret = totp.new_secret()
-    now = 1_900_000_000.0
-    code = pyotp.TOTP(secret).at(int(now))
-    assert totp.verify(secret, code, "user-replay", now=now)
-    assert not totp.verify(secret, code, "user-replay", now=now)
-    # The next step's code still works.
-    later = pyotp.TOTP(secret).at(int(now) + 30)
-    assert totp.verify(secret, later, "user-replay", now=now + 30)
-    assert not totp.verify(secret, "12345", "user-replay", now=now)
+    now = 1_900_000_020.0
+    step = int(now // totp.STEP_SECONDS)
+    otp = pyotp.TOTP(secret)
+    code = otp.at(step * 30)
+    assert totp.matching_step(secret, code, now=now) == step
+    assert totp.matching_step(secret, otp.at((step - 1) * 30), now=now) == step - 1
+    assert totp.matching_step(secret, otp.at((step + 1) * 30), now=now) == step + 1
+    assert totp.matching_step(secret, f" {code[:3]} {code[3:]} ", now=now) == step
+    far = otp.at((step + 2) * 30)
+    if far not in {otp.at((step + d) * 30) for d in (-1, 0, 1)}:
+        assert totp.matching_step(secret, far, now=now) is None
+    assert totp.matching_step(secret, "12345", now=now) is None
+    assert totp.matching_step(secret, "abcdef", now=now) is None
 
 
 def test_default_limit_is_keyed_by_user() -> None:

@@ -45,10 +45,10 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 
 | Threat | Control | Where |
 |---|---|---|
-| Password guessing | Argon2id hashes, 10 character minimum and a common-password list, 5 failures per 15 minutes lock the account, 5 logins per minute per IP | `identity/passwords.py`, `password_policy.py`, `lockout.py`, `core/ratelimit.py` |
+| Password guessing | Argon2id hashes, 10 character minimum and a common-password list, 5 failures per 15 minutes lock the account, 5 logins per minute per IP. Residual: the lockout and the login limit are counted in each API process's memory, so with 2 workers up to twice as many attempts get through, and a restart clears them (`docs/APP_GAPS.md` 31) | `identity/passwords.py`, `password_policy.py`, `lockout.py`, `core/ratelimit.py` |
 | Stolen staff password | TOTP is required for every staff role before any patient data (amr `otp` checked on clinic selection) | `identity/service.py` `_check_membership` |
-| Replaying an authenticator code seen over someone's shoulder or intercepted | A code is valid for its 30 second step and one step either side. Residual: reuse is refused only within one API process, and the API runs 2 workers, so a code can be accepted once per worker (and again after a restart) inside that window (`docs/APP_GAPS.md` 30) | `identity/totp.py` |
-| Patient account takeover by guessing codes | 6 digit email code, 10 minutes, 5 attempts, 3 requests per minute per email | `identity/service.py`, `core/ratelimit.py` |
+| Replaying an authenticator code seen over someone's shoulder or intercepted | A code is valid for its 30 second step and one step either side, and each step is accepted once per user: the last accepted step is kept in the database and taken with one atomic update, so a second use is refused on any worker and after a restart. An attacker who uses a seen code before its owner gets in only with the password too | `identity/totp.py`, `identity/service.py` `_claim_step` |
+| Patient account takeover by guessing codes | 6 digit email code, 10 minutes, 5 attempts per code (counted on the code's row under a row lock), 3 requests per minute per email. Residual: the requests limit is counted per API process, so with 2 workers up to 6 codes per minute can be requested (`docs/APP_GAPS.md` 31) | `identity/service.py`, `core/ratelimit.py` |
 | Stolen refresh token | Stored hashed, rotated on every use, reuse of an old token revokes the whole family; HttpOnly, Secure, SameSite=Lax cookie | `identity/service.py`, `identity/router.py` |
 | Session on an unknown device | New-device email alert; "My sessions" page lists and revokes sessions | `identity/service.py`, `SessionsPage.tsx` |
 | Shared staff login (SPEC 7 type 7) | Not prevented; device and session features feed the detector | `e2d-core` features (residual) |
@@ -91,7 +91,7 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 
 | Threat | Control | Where |
 |---|---|---|
-| Request floods | Per-route rate limits (slowapi, in memory, single VM) | `core/ratelimit.py` |
+| Request floods | Per-route rate limits (slowapi, in memory, single VM). Counted per API process: with 2 workers up to twice the limit | `core/ratelimit.py` |
 | Large uploads | 10 MB limit | `core/config.py` |
 | Witness outage | Each witness is independent; a failed one does not stop the others; the worker runs the job if the scheduler is late | `anchor/job.py`, `worker.py` |
 | Rate limits are per process | Residual: in-memory limits reset on restart and are not shared between Uvicorn workers | accepted for a single-VM deployment |
@@ -107,8 +107,9 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 
 ## 5. Residual risks
 
-- An authenticator code can be accepted once per API worker (2 workers), and again after a
-  restart, within its validity window (`docs/APP_GAPS.md` 30).
+- Rate limits, the password lockout and the authenticator attempt limit are counted in each
+  API process's memory: with 2 workers up to twice the stated number gets through, and a restart
+  clears the counts (`docs/APP_GAPS.md` 31).
 - An insider with a genuine care relationship (on the care team, or treating the patient) is
   explained by that relationship; the research results show this is the main source of false
   explanations (`docs/results-v1.md`, section 6).

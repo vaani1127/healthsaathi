@@ -36,8 +36,18 @@ patient data gate rejects staff tokens without `otp` in `amr`.
 domain from `COOKIE_DOMAIN` so `app.` and `api.` subdomains share it.
 
 **Limits kept in memory.** SPEC rate limits use slowapi with in-memory storage. Account lockout
-(5 wrong passwords in 15 minutes) and TOTP replay protection (each 30 second step accepted once per
-user) use the same in-memory approach. This matches the single VM deployment; a restart clears them.
+(5 wrong passwords in 15 minutes) and the TOTP attempt limit (5 per user in 15 minutes) use the
+same storage. The API runs 2 Uvicorn workers, so each of these is counted per worker (up to twice
+the stated number), and a restart clears them (`docs/APP_GAPS.md` 31).
+
+**Each TOTP step once, in the database (amended 17 November 2026).** The last accepted 30 second
+step per user is kept in `mfa_secrets.last_step` (migration 0006). A code is accepted only if one
+`UPDATE mfa_secrets SET last_step = :step WHERE user_id = :user AND (last_step IS NULL OR
+last_step < :step)` changes the row, so two requests with the same code on different workers get
+exactly one session, and a restart forgets nothing. The step is committed before the session is
+created; if creating the session then fails, the step stays used and the user signs in with the
+next code. Starting enrolment again with a new secret clears `last_step`. This replaces the
+earlier in-memory replay check, which refused a second use only within one process.
 
 **Secrets.** `JWT_SECRET`, `OTP_HMAC_KEY` and `DATA_KEYS` come from the environment. `make env`
 creates a local `.env` with random values. Email codes and invite tokens are stored as HMAC-SHA256
@@ -46,6 +56,7 @@ with `OTP_HMAC_KEY`; TOTP secrets are stored with AES-256-GCM using a key id pre
 ## Consequences
 
 - A stolen password alone never yields a session.
-- Lockout counters and TOTP replay state are lost on restart, which briefly weakens those two
-  checks; rate limits and Argon2id still apply.
+- Lockout counters and rate limit counts are lost on restart and counted per worker, which
+  weakens those checks (up to twice the stated limits); Argon2id still applies.
+- A TOTP code works once per user whatever the number of workers, and also after a restart.
 - Platform admin sign-in is not handled yet; it will be added with the clinic onboarding flow.
