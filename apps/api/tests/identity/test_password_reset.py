@@ -15,12 +15,19 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from app.core.counters import counter_key
 from app.db import models as m
 from app.db.enums import Role
-from app.identity import recovery
+from app.identity import recovery, service
 from app.ledger.checkpoint import load_tree
 from app.notify.email import outbox
 from tests.helpers import make_clinic
-from tests.identity.test_auth import StaffUser, make_user
-from tests.identity.test_single_use import race
+from tests.identity.test_auth import (
+    PASSWORD,
+    StaffUser,
+    bearer,
+    make_user,
+    refresh_with,
+    sign_in,
+)
+from tests.identity.test_single_use import race, split
 
 REQUEST = "/api/v1/auth/password-reset/request"
 SAME_ANSWER = {"status": "sent_if_registered"}
@@ -295,3 +302,210 @@ async def test_a_failure_in_the_background_is_swallowed(
     monkeypatch.setattr(recovery, "_process_reset_request", broken)
     await recovery.process_reset_request(staff.email)  # does not raise
     assert "password reset request not processed" in caplog.text
+
+
+# Setting the new password -------------------------------------------------------------------------
+
+CONFIRM = "/api/v1/auth/password-reset/confirm"
+LOGIN = "/api/v1/auth/login"
+NEW_PASSWORD = "a brand new pass phrase 42"
+
+
+async def new_link(user: StaffUser) -> str:
+    await recovery.process_reset_request(user.email)
+    return token_from(reset_mails(user.email)[-1])
+
+
+def confirm_body(user: StaffUser, token: str, code: str | None = None) -> dict[str, str]:
+    body = {"email": user.email, "token": token, "password": NEW_PASSWORD}
+    if code is not None:
+        body["code"] = code
+    return body
+
+
+async def confirm(client: AsyncClient, body: dict[str, str]) -> tuple[int, str | None]:
+    resp = await client.post(CONFIRM, json=body)
+    code = resp.json().get("code") if resp.status_code != 204 else None
+    return resp.status_code, code
+
+
+async def test_reset_without_an_authenticator_still_leads_to_setup(
+    client: AsyncClient, admin_engine: AsyncEngine, clinic: uuid.UUID
+) -> None:
+    user = await make_user(admin_engine, clinic, Role.RECEPTION, with_totp=False)
+    token = await new_link(user)
+    assert await confirm(client, confirm_body(user, token)) == (204, None)
+
+    old = await client.post(LOGIN, json={"email": user.email, "password": PASSWORD})
+    assert old.status_code == 401
+    new = await client.post(LOGIN, json={"email": user.email, "password": NEW_PASSWORD})
+    assert new.status_code == 200
+    # A password alone never gives a session: the authenticator is set up first.
+    assert new.json()["status"] == "mfa_enrollment_required"
+    assert "access_token" not in new.json()
+
+    changed = outbox.last_to(user.email)
+    assert changed is not None and changed.subject == "Your HealthSaathi password was changed"
+    assert "contact your clinic admin" in changed.text
+    assert token not in changed.text
+
+
+async def test_reset_with_an_authenticator_needs_a_current_code(
+    client: AsyncClient, staff: StaffUser, admin_engine: AsyncEngine
+) -> None:
+    token = await new_link(staff)
+    missing = await confirm(client, confirm_body(staff, token))
+    assert missing == (400, "authenticator-code-required")
+    assert await confirm(client, confirm_body(staff, token, "000000")) == (
+        400,
+        "invalid-reset-link",
+    )
+    # Both refusals left the link unused.
+    assert await reset_rows(admin_engine, staff.email, open_only=True) == 1
+
+    code = staff.code()
+    assert await confirm(client, confirm_body(staff, token, code)) == (204, None)
+
+    login = await client.post(LOGIN, json={"email": staff.email, "password": NEW_PASSWORD})
+    assert login.status_code == 200
+    assert login.json()["status"] == "mfa_required"
+    challenge = login.json()["challenge_token"]
+    # The code used for the reset cannot be used again to sign in.
+    reused = await client.post(
+        "/api/v1/auth/totp/verify", json={"challenge_token": challenge, "code": code}
+    )
+    assert reused.status_code == 401
+    fresh = await client.post(
+        "/api/v1/auth/totp/verify", json={"challenge_token": challenge, "code": staff.code(1)}
+    )
+    assert fresh.status_code == 200
+
+
+async def test_a_code_already_used_to_sign_in_is_refused_and_the_link_stays_unused(
+    client: AsyncClient, staff: StaffUser, admin_engine: AsyncEngine
+) -> None:
+    await sign_in(client, staff)  # takes the current step
+    token = await new_link(staff)
+    assert await confirm(client, confirm_body(staff, token, staff.code())) == (
+        400,
+        "invalid-reset-link",
+    )
+    assert await reset_rows(admin_engine, staff.email, open_only=True) == 1
+    assert await confirm(client, confirm_body(staff, token, staff.code(1))) == (204, None)
+
+
+async def test_wrong_used_expired_and_older_links_get_the_same_answer(
+    client: AsyncClient, staff: StaffUser, admin_engine: AsyncEngine
+) -> None:
+    older = await new_link(staff)
+    newest = await new_link(staff)
+    bad = (400, "invalid-reset-link")
+    assert await confirm(client, confirm_body(staff, "x" * 43, staff.code())) == bad
+    assert await confirm(client, confirm_body(staff, older, staff.code())) == bad
+
+    async with AsyncSession(admin_engine) as s, s.begin():
+        await s.execute(
+            update(m.EmailOtp)
+            .where(m.EmailOtp.email == staff.email, m.EmailOtp.used_at.is_(None))
+            .values(expires_at=datetime.now(UTC) - timedelta(seconds=1))
+        )
+    assert await confirm(client, confirm_body(staff, newest, staff.code())) == bad
+
+    fresh = await new_link(staff)
+    assert await confirm(client, confirm_body(staff, fresh, staff.code())) == (204, None)
+    assert await confirm(client, confirm_body(staff, fresh, staff.code(1))) == bad
+
+
+async def test_two_resets_with_one_link_at_once_succeed_once(
+    admin_engine: AsyncEngine, clinic: uuid.UUID
+) -> None:
+    user = await make_user(admin_engine, clinic, Role.NURSE, with_totp=False)
+    token = await new_link(user)
+
+    def attempt() -> Coroutine[Any, Any, None]:
+        return recovery.confirm_reset(user.email, token, NEW_PASSWORD, None)
+
+    results = await race(
+        admin_engine,
+        "SELECT 1 FROM email_otps WHERE email = :email AND purpose = 'password_reset' "
+        "AND used_at IS NULL FOR UPDATE",
+        attempt,
+        email=user.email,
+    )
+    ok, failed = split(results)
+    assert len(ok) == 1 and len(failed) == 1
+    assert getattr(failed[0], "code", None) == "invalid-reset-link"
+    assert [e["action"] for e in await reset_events(admin_engine, clinic)] == [
+        "requested",
+        "completed",
+    ]
+
+
+async def test_every_session_is_signed_out(
+    client: AsyncClient, staff: StaffUser, admin_engine: AsyncEngine
+) -> None:
+    device = service.DeviceInfo(fingerprint=None, user_agent=None)
+    sessions = [await service.create_session(staff.user_id, "mfa", device) for _ in range(2)]
+    for issued in sessions:
+        me = await client.get("/api/v1/auth/me", headers=bearer(issued.access_token))
+        assert me.status_code == 200
+
+    token = await new_link(staff)
+    assert await confirm(client, confirm_body(staff, token, staff.code())) == (204, None)
+
+    for issued in sessions:
+        me = await client.get("/api/v1/auth/me", headers=bearer(issued.access_token))
+        assert me.status_code == 401
+        assert issued.refresh_token is not None
+        assert (await refresh_with(client, issued.refresh_token)).status_code == 401
+    async with AsyncSession(admin_engine) as s:
+        still_open = await s.scalar(
+            select(func.count())
+            .select_from(m.UserSession)
+            .where(m.UserSession.user_id == staff.user_id, m.UserSession.revoked_at.is_(None))
+        )
+    assert still_open == 0
+
+
+async def test_a_reset_clears_the_password_lockout(client: AsyncClient, staff: StaffUser) -> None:
+    for _ in range(5):
+        await client.post(LOGIN, json={"email": staff.email, "password": "wrong-password-1"})
+    locked = await client.post(LOGIN, json={"email": staff.email, "password": "wrong-password-1"})
+    assert locked.status_code == 429
+
+    token = await new_link(staff)
+    assert await confirm(client, confirm_body(staff, token, staff.code())) == (204, None)
+    login = await client.post(LOGIN, json={"email": staff.email, "password": NEW_PASSWORD})
+    assert login.status_code == 200
+
+
+async def test_a_weak_or_same_password_is_refused_and_the_link_stays_unused(
+    client: AsyncClient, admin_engine: AsyncEngine, clinic: uuid.UUID
+) -> None:
+    user = await make_user(admin_engine, clinic, Role.DOCTOR, with_totp=False)
+    token = await new_link(user)
+    weak = await confirm(client, {**confirm_body(user, token), "password": "short"})
+    same = await confirm(client, {**confirm_body(user, token), "password": PASSWORD})
+    assert weak[0] == 422
+    assert same == (422, "same-password")
+    assert await reset_rows(admin_engine, user.email, open_only=True) == 1
+
+
+async def test_completed_reset_is_audited_without_secrets(
+    client: AsyncClient, staff: StaffUser, clinic: uuid.UUID, admin_engine: AsyncEngine
+) -> None:
+    token = await new_link(staff)
+    assert await confirm(client, confirm_body(staff, token, staff.code())) == (204, None)
+    events = await reset_events(admin_engine, clinic)
+    assert [e["action"] for e in events] == ["requested", "completed"]
+    text = str(events)
+    assert token not in text and NEW_PASSWORD not in text and staff.email not in text
+    async with AsyncSession(admin_engine) as s:
+        await load_tree(s, clinic)
+
+
+async def test_confirm_is_limited_per_ip(client: AsyncClient, staff: StaffUser) -> None:
+    statuses = [
+        (await confirm(client, confirm_body(staff, "y" * 43, "123456")))[0] for _ in range(6)
+    ]
+    assert statuses == [400] * 5 + [429]

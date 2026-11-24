@@ -219,6 +219,16 @@ async def password_reset_request(
     return {"status": "sent_if_registered"}
 
 
+@router.post(
+    "/password-reset/confirm",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[per_ip("password-reset-confirm")],
+)
+async def password_reset_confirm(body: schemas.PasswordResetConfirm) -> Response:
+    await recovery.confirm_reset(body.email, body.token, body.password, body.code)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.post("/invite/accept", status_code=status.HTTP_204_NO_CONTENT)
 async def accept_invite(body: schemas.AcceptInviteRequest) -> Response:
     await service.accept_invite(body.email, body.token, body.password)

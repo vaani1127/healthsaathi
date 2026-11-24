@@ -353,6 +353,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/password-reset/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Password Reset Confirm */
+        post: operations["password_reset_confirm_api_v1_auth_password_reset_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/password-reset/request": {
         parameters: {
             query?: never;
@@ -3065,6 +3082,17 @@ export interface components {
             /** Next Cursor */
             next_cursor?: string | null;
         };
+        /** PasswordResetConfirm */
+        PasswordResetConfirm: {
+            /** Code */
+            code?: string | null;
+            /** Email */
+            email: string;
+            /** Password */
+            password: string;
+            /** Token */
+            token: string;
+        };
         /** PasswordResetRequest */
         PasswordResetRequest: {
             /** Email */
@@ -4639,6 +4667,37 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ChangePasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    password_reset_confirm_api_v1_auth_password_reset_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetConfirm"];
             };
         };
         responses: {

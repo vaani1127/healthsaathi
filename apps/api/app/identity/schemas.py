@@ -114,6 +114,14 @@ class PasswordResetRequest(BaseModel):
     email: EmailStr
 
 
+class PasswordResetConfirm(BaseModel):
+    email: EmailStr
+    token: str = Field(min_length=10, max_length=128)
+    password: str = Field(min_length=1, max_length=256)
+    # Needed when the account has an authenticator; ignored otherwise.
+    code: str | None = Field(default=None, min_length=6, max_length=8)
+
+
 class AcceptInviteRequest(BaseModel):
     email: EmailStr
     token: str = Field(min_length=10, max_length=128)

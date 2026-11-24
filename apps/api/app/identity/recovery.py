@@ -8,6 +8,10 @@ stop working.
 
 The request answers 202 at once and does everything else in a background task, so the answer
 and its timing are the same for an unknown email, a patient and a real staff member.
+
+Setting the new password also needs a current authenticator code when the person has one, so a
+reset link alone (someone who can read the mailbox) is not enough. A reset never signs anyone
+in: it signs out every session, and the next sign-in asks for the authenticator as always.
 """
 
 import logging
@@ -23,9 +27,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import keys
 from app.core.config import get_settings
 from app.core.db import ANONYMOUS, TenantContext, set_scope, tenant_session
-from app.core.ratelimit import allow
+from app.core.errors import ProblemError
+from app.core.ratelimit import allow, hit
 from app.db.enums import STAFF_ROLES
-from app.db.models import EmailOtp, Membership, User
+from app.db.models import EmailOtp, Membership, MfaSecret, User, UserSession
+from app.identity import lockout, password_policy, passwords, totp
+from app.identity.service import TOTP_ATTEMPTS, _claim_step
 from app.ledger.writer import append_audit_event
 from app.notify.email import Email, send_email
 
@@ -160,3 +167,99 @@ async def _process_reset_request(email: str) -> None:
             ),
         )
     )
+
+
+def _bad_link() -> ProblemError:
+    """One answer for a link that is wrong, used, expired or cancelled, and for a wrong or reused
+    authenticator code, so the answer does not say which part failed."""
+    return ProblemError(
+        400, "invalid-reset-link", "This reset link or code is not valid. Ask for a new link."
+    )
+
+
+async def confirm_reset(email: str, token: str, password: str, code: str | None) -> None:
+    """Set a new password with a reset link (and the authenticator code, if the person has one).
+
+    Everything runs in one transaction with the link row locked, so two requests with the same
+    link run one after the other and only the first can use it. When anything is refused the
+    transaction rolls back: the link stays unused and the authenticator step stays unclaimed.
+    """
+    email = normalise_email(email)
+    password_policy.check_password(password, email)
+    async with tenant_session(ANONYMOUS) as db:
+        link = await db.scalar(
+            select(EmailOtp)
+            .where(
+                EmailOtp.email == email,
+                EmailOtp.purpose == PURPOSE,
+                EmailOtp.used_at.is_(None),
+                EmailOtp.code_hash == reset_hash(email, token),
+            )
+            .with_for_update()
+        )
+        if link is None or link.expires_at <= _now():
+            raise _bad_link()
+        user = await db.scalar(
+            select(User).where(func.lower(User.email) == email).with_for_update()
+        )
+        if user is None or not user.is_active or not user.password_hash:
+            raise _bad_link()
+        await set_scope(db, clinic_id=None, user_id=user.id)
+        clinics = await staff_clinics(db, user.id)
+        if not clinics:
+            raise _bad_link()
+
+        mfa = await db.get(MfaSecret, user.id)
+        if mfa is not None and mfa.enabled_at is not None:
+            if not code:
+                raise ProblemError(
+                    400,
+                    "authenticator-code-required",
+                    "Type the current code from your authenticator app.",
+                )
+            # The same attempt limit and single-use step as signing in.
+            await hit(TOTP_ATTEMPTS, "totp", str(user.id))
+            secret = totp.decrypt_secret(mfa.totp_secret_enc, str(user.id))
+            if not await _claim_step(db, user.id, totp.matching_step(secret, code)):
+                raise _bad_link()
+
+        if passwords.verify_password(user.password_hash, password):
+            raise ProblemError(422, "same-password", "Choose a password you have not used here.")
+        user.password_hash = passwords.hash_password(password)
+        now = _now()
+        # This link and any other open one for the email.
+        await db.execute(
+            update(EmailOtp)
+            .where(
+                EmailOtp.email == email,
+                EmailOtp.purpose == PURPOSE,
+                EmailOtp.used_at.is_(None),
+            )
+            .values(used_at=now)
+            .execution_options(synchronize_session=False)
+        )
+        # Every session, this device's too: the person signs in again with the new password.
+        await db.execute(
+            update(UserSession)
+            .where(UserSession.user_id == user.id, UserSession.revoked_at.is_(None))
+            .values(revoked_at=now)
+        )
+        await audit(db, user.id, clinics, "completed")
+        to = user.email
+
+    # The person proved they own the account: forget earlier wrong passwords.
+    await lockout.clear(email)
+    try:
+        await send_email(
+            Email(
+                to=to,
+                subject="Your HealthSaathi password was changed",
+                text=(
+                    f"The password of your HealthSaathi staff account was changed with a reset "
+                    f"link at {now:%d %b %Y %H:%M} UTC, and every device was signed out. If this "
+                    "was not you, contact your clinic admin straight away."
+                ),
+            )
+        )
+    except Exception:
+        logger.exception("password changed email not sent")
