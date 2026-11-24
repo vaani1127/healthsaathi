@@ -2,6 +2,7 @@ import json
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 from app.chart.schemas import LabOrderOut, LabResultOut, PrescriptionOut, VitalOut
@@ -16,7 +17,15 @@ DOCTOR = uuid.uuid4()
 PATIENT = uuid.uuid4()
 
 
-def bundle() -> dict[str, Any]:
+VITAL = uuid.uuid4()
+RESULT = uuid.uuid4()
+NURSE = uuid.uuid4()
+LAB_TECH = uuid.uuid4()
+
+
+def bundle(
+    access_log: list[AccessLogEntry] | None = None, *, performers: bool = False
+) -> dict[str, Any]:
     rx = uuid.uuid4()
     return build_bundle(
         patient=PatientOut(
@@ -34,7 +43,11 @@ def bundle() -> dict[str, Any]:
         clinic=ClinicOut(
             id=CLINIC, name="Demo Clinic", city="Jaipur", state="Rajasthan", timezone="Asia/Kolkata"
         ),
-        staff={DOCTOR: StaffRef(DOCTOR, "Dr Demo", "RJ-1234")},
+        staff={
+            DOCTOR: StaffRef(DOCTOR, "Dr Demo", "RJ-1234"),
+            NURSE: StaffRef(NURSE, "Nurse Demo"),
+            LAB_TECH: StaffRef(LAB_TECH, "Lab Demo"),
+        },
         appointments=[
             AppointmentOut(
                 id=uuid.uuid4(),
@@ -50,7 +63,7 @@ def bundle() -> dict[str, Any]:
         ],
         vitals=[
             VitalOut(
-                id=uuid.uuid4(),
+                id=VITAL,
                 recorded_at=NOW,
                 bp_sys=130,
                 bp_dia=84,
@@ -96,7 +109,7 @@ def bundle() -> dict[str, Any]:
                 ordered_by=DOCTOR,
                 created_at=NOW,
                 result=LabResultOut(
-                    id=uuid.uuid4(),
+                    id=RESULT,
                     document_id=None,
                     resulted_at=NOW,
                     released_at=NOW,
@@ -133,7 +146,8 @@ def bundle() -> dict[str, Any]:
                 events=[],
             )
         ],
-        access_log=[
+        access_log=access_log
+        or [
             AccessLogEntry(
                 id=uuid.uuid4(),
                 at=NOW,
@@ -148,6 +162,8 @@ def bundle() -> dict[str, Any]:
             )
         ],
         exported_at=NOW,
+        vital_performers={VITAL: NURSE} if performers else None,
+        lab_performers={RESULT: LAB_TECH} if performers else None,
     )
 
 
@@ -223,3 +239,83 @@ def test_clinical_content() -> None:
 def test_no_em_dash_and_json_serialisable() -> None:
     text = json.dumps(bundle(), ensure_ascii=False)
     assert "—" not in text
+
+
+ROOT = Path(__file__).resolve().parents[4]
+
+
+def entry(template: str | None, *, break_glass: bool = False) -> AccessLogEntry:
+    return AccessLogEntry(
+        id=uuid.uuid4(),
+        at=NOW,
+        user_name="Dr Demo",
+        role="doctor",
+        resource="notes",
+        action="view",
+        decision="allow",
+        break_glass=break_glass,
+        because=Because(template=template),
+        query_status=None,
+    )
+
+
+def test_every_template_has_a_purpose_entry() -> None:
+    """A template with no clear purpose is listed as None on purpose, never forgotten."""
+    import yaml
+
+    from app.fhir.bundle import PURPOSE_OF_EVENT
+
+    templates = yaml.safe_load(
+        (ROOT / "packages/e2d-core/src/e2d_core/explain/templates.yaml").read_text(encoding="utf-8")
+    )["templates"]
+    assert set(templates) == set(PURPOSE_OF_EVENT)
+
+
+def test_purpose_of_event_codes() -> None:
+    log = [
+        entry("T_APPT"),
+        # Break-glass wins over any template.
+        entry("T_REASON", break_glass=True),
+        entry("T_BILLING"),
+        entry("T_REASON"),
+    ]
+    events = {e["id"]: e for e in resources(bundle(log), "AuditEvent")}
+    purposes = [events[str(e.id)]["purposeOfEvent"][0] for e in log]
+    system = "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+    assert [p.get("coding", [{}])[0].get("code") for p in purposes] == [
+        "TREAT",
+        "ETREAT",
+        "HPAYMT",
+        None,
+    ]
+    for purpose in purposes[:3]:
+        assert purpose["coding"][0]["system"] == system
+    # The text is kept exactly as before.
+    assert [p["text"] for p in purposes] == ["T_APPT", "T_REASON", "T_BILLING", "T_REASON"]
+    assert "coding" not in purposes[3]
+
+
+def test_every_observation_has_a_performer_in_the_bundle() -> None:
+    b = bundle(performers=True)
+    practitioners = {f"urn:uuid:{p['id']}" for p in resources(b, "Practitioner")}
+    observations = resources(b, "Observation")
+    assert observations
+    for obs in observations:
+        performers = obs.get("performer")
+        assert performers, obs["id"]
+        assert all(ref["reference"] in practitioners for ref in performers)
+    vital_refs = {
+        o["performer"][0]["reference"]
+        for o in observations
+        if o["category"][0]["coding"][0]["code"] == "vital-signs"
+    }
+    lab_refs = {
+        o["performer"][0]["reference"]
+        for o in observations
+        if o["category"][0]["coding"][0]["code"] == "laboratory"
+    }
+    assert vital_refs == {f"urn:uuid:{NURSE}"}
+    assert lab_refs == {f"urn:uuid:{LAB_TECH}"}
+    # Each Practitioner is in the bundle once.
+    ids = [p["id"] for p in resources(b, "Practitioner")]
+    assert len(ids) == len(set(ids))

@@ -23,6 +23,25 @@ from app.portal.schemas import AccessLogEntry
 NRCES = "https://nrces.in/ndhm/fhir/r4/StructureDefinition/"
 LOINC = "http://loinc.org"
 UCUM = "http://unitsofmeasure.org"
+ACT_REASON = "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+
+# AuditEvent.purposeOfEvent per explanation template (docs/FHIR_EXPORT.md). Every template of
+# packages/e2d-core/src/e2d_core/explain/templates.yaml is listed; None means no clear match, so
+# the event keeps only its text. A break-glass access is always ETREAT, whatever its template.
+PURPOSE_OF_EVENT: dict[str, tuple[str, str] | None] = {
+    "T_APPT": ("TREAT", "treatment"),
+    "T_QUEUE": ("TREAT", "treatment"),
+    "T_LAB": ("TREAT", "treatment"),
+    "T_REFERRAL": ("TREAT", "treatment"),
+    "T_CARETEAM": ("TREAT", "treatment"),
+    "T_FOLLOWUP": ("TREAT", "treatment"),
+    "T_FRONTDESK": ("HOPERAT", "healthcare operations"),
+    "T_BILLING": ("HPAYMT", "healthcare payment"),
+    "T_BREAKGLASS": ("ETREAT", "Emergency Treatment"),
+    "T_SELF": ("PATRQT", "patient requested"),
+    "T_REASON": None,
+}
+BREAK_GLASS_PURPOSE = ("ETREAT", "Emergency Treatment")
 SNOMED = "http://snomed.info/sct"
 V2_0203 = "http://terminology.hl7.org/CodeSystem/v2-0203"
 OBS_CATEGORY = "http://terminology.hl7.org/CodeSystem/observation-category"
@@ -87,11 +106,18 @@ def _number(value: Any) -> float | int:
 
 class BundleBuilder:
     def __init__(
-        self, patient: PatientOut, clinic: ClinicOut, staff: dict[uuid.UUID, StaffRef]
+        self,
+        patient: PatientOut,
+        clinic: ClinicOut,
+        staff: dict[uuid.UUID, StaffRef],
+        performers: dict[uuid.UUID, uuid.UUID] | None = None,
     ) -> None:
         self.patient = patient
         self.clinic = clinic
         self.staff = staff
+        # Who recorded each vital or released each lab result: vital id or lab result id to the
+        # staff member's user id. Their Observations get that Practitioner as performer.
+        self.performers = performers or {}
         self.entries: list[dict[str, Any]] = []
         self.practitioners: set[uuid.UUID] = set()
         self.patient_ref = {"reference": _urn(patient.id), "display": patient.name}
@@ -220,9 +246,14 @@ class BundleBuilder:
                 "code": {"coding": [_coding(LOINC, *code)], "text": code[1]},
                 "subject": self.patient_ref,
                 "effectiveDateTime": _instant(vital.recorded_at),
+                **self._performer(vital.id),
                 **extra,
             }
         )
+
+    def _performer(self, record_id: uuid.UUID) -> dict[str, Any]:
+        user_id = self.performers.get(record_id)
+        return {"performer": [self.practitioner(user_id)]} if user_id else {}
 
     def vitals(self, vitals: list[VitalOut]) -> None:
         for v in vitals:
@@ -322,6 +353,7 @@ class BundleBuilder:
                     "code": {"text": label},
                     "subject": self.patient_ref,
                     "effectiveDateTime": _instant(result.resulted_at),
+                    **self._performer(result.id),
                 }
                 number = value.get("value")
                 unit = str(value.get("unit") or "")
@@ -392,6 +424,14 @@ class BundleBuilder:
         for e in log:
             action, resource, role = str(e.action), str(e.resource), str(e.role)
             why = e.because.template or ("break_glass" if e.break_glass else "unexplained")
+            purpose: dict[str, Any] = {"text": why}
+            code = (
+                BREAK_GLASS_PURPOSE
+                if e.break_glass
+                else PURPOSE_OF_EVENT.get(e.because.template or "")
+            )
+            if code is not None:
+                purpose["coding"] = [_coding(ACT_REASON, *code)]
             self.add(
                 {
                     "resourceType": "AuditEvent",
@@ -404,7 +444,7 @@ class BundleBuilder:
                     "action": AUDIT_ACTION.get(action, "R"),
                     "recorded": _instant(e.at),
                     "outcome": "0" if str(e.decision) == "allow" else "4",
-                    "purposeOfEvent": [{"text": f"{why}"}],
+                    "purposeOfEvent": [purpose],
                     "agent": [
                         {
                             "who": {"display": e.user_name},
@@ -446,8 +486,12 @@ def build_bundle(
     consents: list[ConsentOut],
     access_log: list[AccessLogEntry],
     exported_at: datetime,
+    vital_performers: dict[uuid.UUID, uuid.UUID] | None = None,
+    lab_performers: dict[uuid.UUID, uuid.UUID] | None = None,
 ) -> dict[str, Any]:
-    builder = BundleBuilder(patient, clinic, staff)
+    builder = BundleBuilder(
+        patient, clinic, staff, {**(vital_performers or {}), **(lab_performers or {})}
+    )
     builder.organization()
     builder.patient_resource()
     builder.encounters(appointments)

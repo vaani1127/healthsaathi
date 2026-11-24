@@ -20,9 +20,33 @@ Defined before the walkthrough:
 | Severity | Count |
 |---|---|
 | Blocker | 0 |
-| Major | 1 |
-| Minor | 5 |
+| Major | 4 |
+| Minor | 8 |
 | Cosmetic | 1 |
+
+After review (21 November 2026): the irreversible reviews were split out of m4 as M2; M3 and M4
+were added from the review of the fixes; m6 was found while adding browser coverage (item 7);
+m7 and m8 come from the FHIR validation result.
+
+## Status of findings
+
+Fixes are on branch `fix/audit-findings`, one finding per commit, each with a test.
+
+| Finding | Severity | Status |
+|---|---|---|
+| M1 README development setup does not start the API | Major | Fixed in `6395078` (`apps/api/tests/test_gen_env.py`; checked in a fresh clone) |
+| M2 Irreversible reviews take effect on one click | Major | Fixed in `8380af2`, report dialog text corrected in `367e686` (`apps/web/test/confirmDialog.test.tsx`, flows 6, 7 and 8) |
+| M3 Alert reviews can be overwritten through the API | Major | Fixed in `4012358` (`tests/detect/test_detect.py`: second review 409, two at once leave one) |
+| M4 Closing or reopening a patient report leaves no audit record | Major | Fixed in `a7bb8a2`: one `access_query` audit event per change, a status set to itself is a no-op, closed to open is refused (409; SPEC 3.1 lists the `status` column only and gives no way back). `tests/portal/test_portal_api.py`: event in the chain, chain, audit page and receipt verify after a checkpoint, reopen refused, closing twice records one change, another clinic's admin gets 404 |
+| m1 Unknown address shows a bare English "Not Found" | Minor | Fixed in `91adb1b` (demo crawler checks an unknown address) |
+| m2 Empty vitals form gives a generic message | Minor | Fixed in `e0a23d1` (`apps/web/test/vitalsForm.test.tsx`, `apps/web/test/client.test.ts`) |
+| m3 Workbox keeps the cached queue address after sign-out | Minor | Fixed in `2957ee5`, follow-up `5952530` so the module still imports where IndexedDB does not exist (`apps/web/test/offline.test.ts`, `apps/web/test/offlineNoIndexedDb.test.ts`; the PWA audit check now fails on a leftover row) |
+| m4 Deactivate and Pause take effect on one click | Minor | Fixed in `09254a4` (`apps/web/e2e/staff-invite.spec.ts`) |
+| m5 User guide misses sending an invite again | Minor | Fixed in `c60404a` |
+| m6 Voiding a draft invoice takes effect on one click | Minor | Fixed in `9f6d0eb` (`apps/web/e2e/secondary-flows.spec.ts` cancels once, then confirms) |
+| m7 FHIR AuditEvents have no purposeOfEvent code | Minor | Fixed in `5b175f4`: v3-ActReason code per template, break-glass always ETREAT, table in `docs/FHIR_EXPORT.md` (`tests/fhir/test_bundle.py`) |
+| m8 FHIR Observations have no performer | Minor | Fixed in `2175881`: the recording or releasing staff member as a Practitioner in the bundle; the rest of the download unchanged (`tests/fhir/test_bundle.py`, `tests/portal/test_portal_api.py`) |
+| c1 "Reason needed" page logs a console error | Cosmetic | Won't fix: the browser logs every 4xx answer itself, and the app cannot hide it; the 428 is the designed "reason required" answer |
 
 Every main flow (1 to 9) finishes: `make e2e` 12 passed and `make demo-e2e` 56 passed, both on the
 final gate below. The walkthrough found no console error, failed request, untranslated text, raw
@@ -68,6 +92,37 @@ connections are not in that log, so `/api/v1/ws` shows as called by the API test
   `make env` without the `cp` step writes fresh secrets and is what works.
 - Screenshot: none (command output above).
 
+**M2. Reviews that cannot be changed take effect on one click.** (Split from m4 on review.)
+
+- Screen: clinic admin, tabs Alerts, Emergency access and Patient reports.
+- Steps: press "Misuse", "Justified" or "Not sure" on an alert or a break-glass item, or "Close"
+  on a patient report.
+- Expected: a confirmation that shows what will be recorded and says it cannot be changed.
+- Actual: each acts at once. Break-glass and alert reviews are written to the audit log and
+  cannot be changed, so a misclick records a wrong review permanently. In the audit one pass over
+  the clinic B admin screen reviewed 4 break-glass items as "Justified".
+
+**M3. Alert reviews can be overwritten through the API.** (Found in the review of the fixes.)
+
+- Screen: none (API, `POST /api/v1/alerts/{alert_id}/review`).
+- Steps: review an alert, then send a second review for the same alert.
+- Expected: 409 "already-reviewed", as for a break-glass review.
+- Actual: `review_alert` (`apps/api/app/detect/service.py`) had no already-reviewed check, so a
+  second review added another `AlertReview` row and changed the alert's status, and two reviews
+  sent at once could both get in. The screen offers no second review, so only a direct API call
+  could do it. The daily final list treats any reviewed alert as fixed, and SPEC only says the
+  admin "marks outcome", so refusing a second review changes nothing SPEC or the pre-registration
+  describes (no Deviations entry).
+
+**M4. Closing or reopening a patient access report leaves no audit record.** (Found in the review
+of the fixes.)
+
+- Screen: clinic admin, "Patient reports", "Close" (API `PATCH /api/v1/access-queries/{id}`).
+- Steps: close a patient's report.
+- Expected: an audit event with the report, the old and new status, the admin and the time.
+- Actual: `update_query` (`apps/api/app/portal/service.py`) only changed the status; nothing was
+  written to the audit log, and the API also allowed setting a closed report back to open.
+
 ### Minor
 
 **m1. An unknown address shows a bare "Not Found", in English only, with no way back.**
@@ -99,18 +154,37 @@ connections are not in that log, so `/api/v1/ws` shows as called by the API test
   patient data, only the queue address with the doctor's own user id.
 - Evidence: `audit-artifacts/walkthrough/pwa-doctor.json` (`workboxMetadataAfterSignOut`).
 
-**m4. Admin actions that change staff, schedules and services take effect on one click.**
+**m4. Deactivate and Pause take effect on one click.**
 
-- Screen: clinic admin, tabs Staff, Schedules, Services and Emergency access.
-- Steps: press "Deactivate" on a staff member, "Pause" on a schedule or service, or a review
-  button on a break-glass item.
-- Expected: a confirmation, or an undo message, for changes that stop a person signing in or a
-  doctor taking bookings.
+- Screen: clinic admin, tabs Staff, Schedules and Services.
+- Steps: press "Deactivate" on a staff member, or "Pause" on a schedule or service.
+- Expected: a confirmation that says the change can be undone.
 - Actual: each acts at once. In the audit one pass over the clinic B admin screen deactivated 8
   staff members and paused 20 schedules and 5 services (see "Clinic B data changes"). Each can
-  be undone ("Activate", "Resume"); a break-glass review cannot be changed.
+  be undone with "Activate".
 - Screenshots: `audit-artifacts/b-clinic_admin/en-desktop/click-041-admin-Staff-Deactivate.png`
   and `audit-artifacts/b-clinic_admin/en-desktop/click-050-admin-Schedules-Pause.png` (one per click).
+
+**m6. Voiding a draft invoice takes effect on one click.** (Found while adding browser coverage.)
+
+- Screen: reception, invoice page of a draft invoice, "Void".
+- Steps: create an invoice, then press "Void".
+- Expected: a confirmation, since a void invoice cannot be restored.
+- Actual: the invoice is void at once. Only drafts show the button (an invoice with payments
+  cannot be voided), so the loss is a draft to create again.
+
+**m7. FHIR AuditEvents have no purposeOfEvent code.** (From the FHIR validation.)
+
+- Steps: `make fhir-validate` on the demo.
+- Expected: a purpose code where the access has a clear purpose.
+- Actual: 7,088 warnings "No code provided, and a code should be provided from the value set
+  'PurposeOfUse'": `purposeOfEvent` had text only.
+
+**m8. FHIR Observations have no performer.** (From the FHIR validation.)
+
+- Steps: `make fhir-validate` on the demo.
+- Expected: each vital and lab Observation names who recorded or released it.
+- Actual: 223 warnings "In general, all observations should have a performer".
 
 **m5. The user guide does not mention sending an invite again.**
 
@@ -121,7 +195,8 @@ connections are not in that log, so `/api/v1/ws` shows as called by the API test
 
 ### Cosmetic
 
-**c1. Opening a patient without a reason logs a console error.**
+**c1. Opening a patient without a reason logs a console error.** Won't fix: the browser logs every
+4xx answer itself, and the app cannot hide it.
 
 - Screen: doctor, a patient who is not in the doctor's queue.
 - Steps: open `/doctor/patients/<id>` for such a patient.
@@ -155,7 +230,8 @@ connections are not in that log, so `/api/v1/ws` shows as called by the API test
 | "I do not recognise this access" end to end | Pass (flow 6, patient report; the admin's "Patient reports" tab reached in the walkthrough) | final gate, walkthrough |
 | Receipt verification | Pass (demo flow 9 receipt check; `apps/web/test/verify.test.tsx` shows a tampered receipt as not verified) | final gate |
 | Audit page checks | Pass (flow 9 chain, consistency and witness; `e2e-demo/tamper.spec.ts` shows FAIL after a rewrite) | final gate |
-| FHIR export | Not run (`make fhir-validate` needs the HAPI validator image); see Not verified | |
+| FHIR export | Pass: `make fhir-validate` on the demo, 10 bundles, 0 errors, guide `ndhm.in#6.5.0` unchanged (HAPI validator 7.0.1, no terminology server). Before m7 and m8: 14,948 warnings, 844 notes. After: 9,124 warnings, 844 notes. Per group, before and after: no narrative (`dom-6`) 7,267 and 7,289 (the same 10 patients gained 22 accesses during the audit runs); no PurposeOfUse code 7,088 and 1,465 (the typed-reason and unexplained accesses, left without a code on purpose); observation without performer 223 and 0; unit codes not checked offline 370 and 370; notes unchanged in all 11 groups. No new kind of warning. Narrative is optional in FHIR and is left out on purpose (`docs/FHIR_EXPORT.md`) | `audit-artifacts/fhir-validation-before.txt`, `audit-artifacts/fhir-validation-after.txt` |
+| Edit after sign (SPEC 7 attack 9) | Pass: `PATCH /notes/{id}` and `PATCH /prescriptions/{id}` refuse a signed record with 409, and the migration 0002 trigger refuses it even for the database owner | `tests/clinical/test_clinical_api.py`: `test_note_draft_sign_and_version`, `test_signed_note_cannot_be_changed_even_in_the_database`, `test_prescription_versions_and_print`, and `test_signed_prescription_cannot_be_changed_even_in_the_database` (added in `85730b5`) |
 | Daily job | Pass in the API tests (`tests/detect/test_daily*.py`); the alert day view reached in flow 8 | final gate |
 | Invite and resend | Pass (`e2e/staff-invite.spec.ts` in both suites) | final gate |
 | Rate limit messages | Server side and the web 429 handling pass (`tests/test_default_limit.py`, `tests/identity/test_db_limits.py`, `apps/web/test/rateLimited.test.tsx`); not triggered in a browser in this audit | |
@@ -200,7 +276,26 @@ HTTP.
 `register_policy_version`, the anchor timer) is tested; the loops run in the demo, where
 detection and anchoring visibly work (flows 8 and 9), but no test checks the loops themselves.
 
-**API routes that no browser run called** (API tests only): 33.
+**Browser coverage added after the audit** (`apps/web/e2e/secondary-flows.spec.ts`, commit
+`0e9f50b`, in `make e2e` and the demo flows; each step names its routes in a comment): allergies,
+conditions, note edit, amend and history, prescription amend, care team add and end, referral,
+encounter close, the lab report file, the break-glass view after a reload, invoice void, consent
+withdraw, consent notice create and publish, schedule, service and shift create and shift cancel,
+signing out another session, authenticator activation and password change. Closing a patient
+report is covered by flow 6 (`apps/web/e2e/opd-flows.spec.ts`).
+
+Routes that stay without a browser test:
+
+| Route | Why |
+|---|---|
+| `GET /invoices` | No screen uses it; API only |
+| `PATCH /prescriptions/{rx_id}` | No screen uses it; amending uses `/versions` |
+| `PATCH /patients/{patient_id}` | No screen edits patient details, and SPEC does not ask for one |
+| `POST /push/subscriptions`, `POST /push/subscriptions/remove` | Needs the browser's push service and a notification prompt, which a headless test cannot rely on; covered by API tests |
+| `POST /internal/anchor/run` | Called by the GitHub Actions schedule with a token, not by a screen; covered by API tests and the worker fallback |
+| `WS /ws` | Used in the browser; it only looked untested because the request log does not record WebSocket connections |
+
+**API routes that no browser run called at the time of the audit** (API tests only): 33.
 
 `PATCH /access-queries/{query_id}`, `PATCH /allergies/{allergy_id}`, `POST /auth/password`,
 `DELETE /auth/sessions/{session_id}`, `POST /auth/totp/activate`, `POST /care-team`,
@@ -272,6 +367,34 @@ path.
 
 ## Final gate
 
+### After the fixes (21 November 2026, commit `6a0db7b`)
+
+Run on branch `fix/audit-findings` after `make demo-reset`, with no demo container running for
+`make lint` and `make test` (checked with `docker ps` first). Logs: `audit-artifacts/final-gate.log`,
+`final-e2e.log`, `final-demo.log`, `final-crawl.log`.
+
+| Step | Result |
+|---|---|
+| `make lint` | exit 0: ruff all checks passed, 314 files formatted; mypy no issues in 281 files; contracts 3 kept, 0 broken; eslint, tsc, forge fmt clean |
+| `make test` (one run, 480 s) | exit 0: pytest 1019 passed, 0 failed, coverage 99.71% (436.7 s); receipt-verify 63 passed; web 37 passed (13 files); `forge test` 30 passed; `forge snapshot --check` 21 passed |
+| `make e2e` | exit 0: 24 passed, 2 passed |
+| `make demo` | exit 0, fresh seed |
+| Crawl, public pages only (`--project=crawl-desktop -g "public pages"`) | 1 passed. Row counts of all 66 tables, taken with read-only SELECTs before and after: 16,757 both times, no table changed (counts also stayed the same over 75 s with nothing running) |
+| Demo ready to present (read-only SQL) | each clinic has one consent notice, version 1, without the test text; all staff of both clinics active; break-glass items only from the seed (2 in clinic A, 4 in clinic B, none from today, none reviewed); `chain_ok`, consistency and witness true for both clinics (1,313 and 1,230 events), from the function behind `/api/v1/audit/status` run in a read-only transaction |
+
+The signed-in crawl was not run on the presented demo: signing in and opening records writes
+sessions and access and audit events by design, which would show on the demo patients' receipts.
+
+Before this run the gate was split. The first `make test` exited 2 on a web unit test file
+(`IDBKeyRange is not defined`, fixed in `5952530`). The second ran with the demo up and stalled:
+one test request took 36 minutes (2,176,773.65 ms in the API request log), its sign-in token expired and the test got a 401;
+everything else passed (1018 pytest, then JS and Solidity run separately). `make demo-audit` (37
+passed) and `make demo-e2e` ran in that session; the first `make demo-e2e` failed one test that
+expected consent notice v1 after an earlier run had published v2 (fixed in `6a0db7b`), and the
+rerun passed 68. Those split runs are not counted as the gate; the table above is.
+
+### At the time of the audit
+
 Run after the walkthrough, with the demo stopped for `make test`:
 
 | Step | Result |
@@ -289,7 +412,6 @@ broke no demo test.
 
 - `make dev` was not run (Docker excluded from the fresh clone check); M1 was reproduced by
   building the API settings with the empty secrets.
-- `make fhir-validate` (FHIR export against the HAPI validator) was not run.
 - The rate limit messages were not triggered in a browser; the server tests and the web unit test
   cover them.
 - The 33 routes listed under "Untested" were not exercised in a browser, so their screens' error

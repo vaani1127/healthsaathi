@@ -175,7 +175,8 @@
     "rate-limit-unavailable": "Sign-in is not available right now. Try again in a minute.",
     "membership-inactive": "This membership is not active. Make it active first.",
     "already-has-password": "This person has already set a password, so no new invite is needed.",
-    "invite-email-failed": "The invite email could not be sent. Try again."
+    "invite-email-failed": "The invite email could not be sent. Try again.",
+    "query-closed": "This report is closed and cannot be reopened."
   },
   "sex": {
     "female": "Female",
@@ -267,7 +268,9 @@
     "saved": "Vitals saved.",
     "savedOffline": "No connection. Saved on this device and will be sent when you tap send.",
     "drafts": "{{count}} unsent vitals on this device.",
-    "sendDrafts": "Send now"
+    "sendDrafts": "Send now",
+    "fillOne": "Fill in at least one value to save.",
+    "badValue": "Check this value: it is outside the range the clinic accepts."
   },
   "severity": {
     "mild": "Mild",
@@ -883,5 +886,38 @@
     "chainReads": "Chain reads",
     "notVerified": "A sample receipt did not verify. These timings are not valid.",
     "download": "Download timings"
+  },
+  "confirm": {
+    "cancel": "Cancel",
+    "permanent": "This is written to the audit log and cannot be changed later.",
+    "undoable": "You can undo this later with \"{{undo}}\".",
+    "reviewTitle": "Record this review?",
+    "recordReview": "Record review",
+    "outcome": "Outcome: {{outcome}}",
+    "patient": "Patient: {{name}}",
+    "accessBy": "Access by: {{name}}",
+    "reason": "Reason given: {{reason}}",
+    "note": "Note: {{note}}",
+    "noNote": "No note",
+    "closeReportTitle": "Close this patient report?",
+    "closeReport": "Close report",
+    "report": "Report: {{message}}",
+    "deactivateTitle": "Deactivate {{name}}?",
+    "deactivateBody": "{{name}} will not be able to sign in to this clinic while the membership is inactive.",
+    "deactivate": "Deactivate",
+    "pauseScheduleTitle": "Pause this schedule?",
+    "pauseScheduleBody": "{{slot}}: no new appointments can be booked in this slot while it is paused.",
+    "pauseServiceTitle": "Pause this service?",
+    "pauseServiceBody": "{{name}} will not be offered on new invoices while it is paused.",
+    "pause": "Pause",
+    "closeReportBody": "The report leaves this list. It cannot be reopened from this screen.",
+    "voidTitle": "Void this invoice?",
+    "voidBody": "A void invoice cannot be restored. Create a new invoice if one is needed.",
+    "void": "Void invoice"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "text": "There is no page at this address. It may have moved, or the link may be wrong.",
+    "home": "Go to the home page"
   }
 }

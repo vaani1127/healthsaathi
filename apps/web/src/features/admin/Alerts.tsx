@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Confirmation } from "@/components/ui/confirmation";
 import { Alert as Notice, Badge, Field, Input, Textarea } from "@/components/ui/form";
 import { Empty, Loading, LoadError, QueryStatus } from "@/components/ui/state";
@@ -239,6 +240,8 @@ function AlertDetail({ id, onReviewed }: { id: string; onReviewed: (outcome: Out
   const client = useQueryClient();
   const label = useFeatureLabel();
   const [note, setNote] = useState("");
+  // A review is written to the audit log and cannot be changed, so it is confirmed first.
+  const [ask, setAsk] = useState<Outcome | null>(null);
   const detail = useQuery({
     queryKey: ["alert", id],
     queryFn: () => call(() => api.GET("/api/v1/alerts/{alert_id}", { params: { path: { alert_id: id } } })),
@@ -268,6 +271,28 @@ function AlertDetail({ id, onReviewed }: { id: string; onReviewed: (outcome: Out
   const last = d.reviews.at(-1);
   return (
     <div className="mt-2 flex flex-col gap-3 rounded-md bg-muted p-3" data-testid="alert-detail">
+      <ConfirmDialog
+        open={ask !== null}
+        title={t("confirm.reviewTitle")}
+        confirmLabel={t("confirm.recordReview")}
+        destructive={ask === "misuse"}
+        onCancel={() => setAsk(null)}
+        onConfirm={() => {
+          if (ask) {
+            review.mutate(ask);
+          }
+          setAsk(null);
+        }}
+      >
+        {ask && (
+          <>
+            <p className="font-semibold">{t("confirm.outcome", { outcome: t(`outcome.${ask}`) })}</p>
+            <p>{t("confirm.patient", { name: `${d.patient_name} (${d.patient_mrn})` })}</p>
+            <p>{note.trim() ? t("confirm.note", { note: note.trim() }) : t("confirm.noNote")}</p>
+            <p className="text-destructive">{t("confirm.permanent")}</p>
+          </>
+        )}
+      </ConfirmDialog>
       <p>
         <span className="font-semibold">{t("admin.alerts.patient")}:</span> {d.patient_name} ({d.patient_mrn})
       </p>
@@ -315,7 +340,7 @@ function AlertDetail({ id, onReviewed }: { id: string; onReviewed: (outcome: Out
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm">{t("admin.alerts.markAs")}</span>
             {OUTCOMES.map((o) => (
-              <Button key={o} size="sm" variant={o === "misuse" ? "destructive" : "outline"} disabled={review.isPending} onClick={() => review.mutate(o)}>
+              <Button key={o} size="sm" variant={o === "misuse" ? "destructive" : "outline"} disabled={review.isPending} onClick={() => setAsk(o)}>
                 {t(`outcome.${o}`)}
               </Button>
             ))}

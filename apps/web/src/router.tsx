@@ -14,6 +14,7 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { PatientLoginPage } from "@/features/auth/PatientLoginPage";
 import { SelectClinicPage } from "@/features/auth/SelectClinicPage";
 import { TotpPage } from "@/features/auth/TotpPage";
+import { NotFoundPage } from "@/features/common/NotFoundPage";
 import { HomePage } from "@/features/home/HomePage";
 import { NurseQueue } from "@/features/nurse/NurseQueue";
 import { ReceptionHome } from "@/features/reception/ReceptionHome";
@@ -22,6 +23,7 @@ import type { Role } from "@/lib/api/client";
 import { homeFor, useAuth } from "@/stores/auth";
 
 const rootRoute = createRootRoute({
+  notFoundComponent: NotFoundPage,
   component: () => (
     <>
       <GlobalBusy />

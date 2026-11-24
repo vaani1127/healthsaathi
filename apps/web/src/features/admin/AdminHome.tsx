@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Confirmation } from "@/components/ui/confirmation";
 import { Alert, Badge, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Empty, QueryStatus } from "@/components/ui/state";
@@ -85,6 +86,8 @@ function Staff() {
       await client.invalidateQueries({ queryKey: ["members"] });
     },
   });
+  // Deactivating stops a person signing in, so it is confirmed first; activating is not.
+  const [askStaff, setAskStaff] = useState<Schemas["StaffMemberOut"] | null>(null);
   const [form, setForm] = useState({ email: "", name: "", role: "reception" as Role });
   const invite = useMutation({
     mutationFn: () => call(() => api.POST("/api/v1/staff/invites", { body: form })),
@@ -124,7 +127,7 @@ function Staff() {
                       {t("admin.inviteAgain")}
                     </Button>
                   )}
-                  <Button size="sm" variant="outline" onClick={() => toggle.mutate(m)}>
+                  <Button size="sm" variant="outline" onClick={() => (m.is_active ? setAskStaff(m) : toggle.mutate(m))}>
                     {m.is_active ? t("admin.deactivate") : t("admin.activate")}
                   </Button>
                 </div>
@@ -132,6 +135,22 @@ function Staff() {
             ))}
           </ul>
           {toggle.isError && <Alert tone="error">{errorMessage(toggle.error)}</Alert>}
+          <ConfirmDialog
+            open={askStaff !== null}
+            title={t("confirm.deactivateTitle", { name: askStaff?.name ?? "" })}
+            confirmLabel={t("confirm.deactivate")}
+            destructive
+            onCancel={() => setAskStaff(null)}
+            onConfirm={() => {
+              if (askStaff) {
+                toggle.mutate(askStaff);
+              }
+              setAskStaff(null);
+            }}
+          >
+            <p>{t("confirm.deactivateBody", { name: askStaff?.name ?? "" })}</p>
+            <p>{t("confirm.undoable", { undo: t("admin.activate") })}</p>
+          </ConfirmDialog>
           {inviteAgain.isError && <Alert tone="error">{errorMessage(inviteAgain.error)}</Alert>}
         </CardContent>
       </Card>
@@ -176,6 +195,9 @@ function Schedules() {
   const doctors = staff.data?.filter((s) => s.role === "doctor") ?? [];
   const names = new Map(staff.data?.map((s) => [s.user_id, s.name]));
   const [form, setForm] = useState({ doctor_user_id: "", weekday: 0, start_time: "09:00", end_time: "13:00", slot_minutes: 15 });
+  // Pausing stops bookings in the slot, so it is confirmed first; turning it back on is not.
+  const [askSchedule, setAskSchedule] = useState<Schemas["ScheduleOut"] | null>(null);
+  const slot = (s: Schemas["ScheduleOut"]) => `${t(`weekdays.${s.weekday}`)} ${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)} · ${names.get(s.doctor_user_id) ?? ""}`;
   const add = useMutation({
     mutationFn: () => call(() => api.POST("/api/v1/schedules", { body: form })),
     onSuccess: () => client.invalidateQueries({ queryKey: ["schedules"] }),
@@ -201,6 +223,21 @@ function Schedules() {
           <CardTitle>{t("admin.schedules")}</CardTitle>
         </CardHeader>
         <CardContent>
+          <ConfirmDialog
+            open={askSchedule !== null}
+            title={t("confirm.pauseScheduleTitle")}
+            confirmLabel={t("confirm.pause")}
+            onCancel={() => setAskSchedule(null)}
+            onConfirm={() => {
+              if (askSchedule) {
+                toggle.mutate(askSchedule);
+              }
+              setAskSchedule(null);
+            }}
+          >
+            {askSchedule && <p>{t("confirm.pauseScheduleBody", { slot: slot(askSchedule) })}</p>}
+            <p>{t("confirm.undoable", { undo: t("admin.activate") })}</p>
+          </ConfirmDialog>
           <QueryStatus query={schedules} />
           {schedules.data?.length === 0 && <Empty>{t("admin.noSchedules")}</Empty>}
           <ul className="divide-y text-sm">
@@ -209,7 +246,7 @@ function Schedules() {
                 <span className={cn(s.status !== "active" && "text-muted-foreground line-through")}>
                   {t(`weekdays.${s.weekday}`)} {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)} · {names.get(s.doctor_user_id)}
                 </span>
-                <Button size="sm" variant="ghost" onClick={() => toggle.mutate(s)}>
+                <Button size="sm" variant="ghost" onClick={() => (s.status === "active" ? setAskSchedule(s) : toggle.mutate(s))}>
                   {s.status === "active" ? t("admin.pause") : t("admin.activate")}
                 </Button>
               </li>
@@ -271,6 +308,8 @@ function Services() {
   });
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  // Pausing takes the service off new invoices, so it is confirmed first; turning it back on is not.
+  const [askService, setAskService] = useState<Schemas["ServiceOut"] | null>(null);
   const add = useMutation({
     mutationFn: () =>
       call(() => api.POST("/api/v1/services", { body: { name, price_paise: Math.round(Number(price) * 100) } })),
@@ -300,6 +339,21 @@ function Services() {
         <CardTitle>{t("admin.services")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        <ConfirmDialog
+          open={askService !== null}
+          title={t("confirm.pauseServiceTitle")}
+          confirmLabel={t("confirm.pause")}
+          onCancel={() => setAskService(null)}
+          onConfirm={() => {
+            if (askService) {
+              toggle.mutate(askService);
+            }
+            setAskService(null);
+          }}
+        >
+          <p>{t("confirm.pauseServiceBody", { name: askService?.name ?? "" })}</p>
+          <p>{t("confirm.undoable", { undo: t("admin.activate") })}</p>
+        </ConfirmDialog>
         <QueryStatus query={services} />
         {services.data?.length === 0 && <Empty>{t("admin.noServices")}</Empty>}
         <ul className="divide-y text-sm">
@@ -308,7 +362,7 @@ function Services() {
               <span className={cn(!s.is_active && "text-muted-foreground line-through")}>
                 {s.name} · {formatMoney(s.price_paise)}
               </span>
-              <Button size="sm" variant="ghost" onClick={() => toggle.mutate(s)}>
+              <Button size="sm" variant="ghost" onClick={() => (s.is_active ? setAskService(s) : toggle.mutate(s))}>
                 {s.is_active ? t("admin.pause") : t("admin.activate")}
               </Button>
             </li>
@@ -430,8 +484,33 @@ function BreakGlassQueue() {
       ),
     onSuccess: () => client.invalidateQueries({ queryKey: ["break-glass"] }),
   });
+  // A review is written to the audit log and cannot be changed, so it is confirmed first.
+  const [ask, setAsk] = useState<{ item: Schemas["BreakGlassItem"]; outcome: Schemas["ReviewOutcome"] } | null>(null);
   return (
     <Card>
+      <ConfirmDialog
+        open={ask !== null}
+        title={t("confirm.reviewTitle")}
+        confirmLabel={t("confirm.recordReview")}
+        destructive={ask?.outcome === "misuse"}
+        onCancel={() => setAsk(null)}
+        onConfirm={() => {
+          if (ask) {
+            review.mutate({ id: ask.item.id, outcome: ask.outcome });
+          }
+          setAsk(null);
+        }}
+      >
+        {ask && (
+          <>
+            <p className="font-semibold">{t("confirm.outcome", { outcome: t(`outcome.${ask.outcome}`) })}</p>
+            <p>{t("confirm.accessBy", { name: ask.item.user_name })}</p>
+            <p>{t("confirm.patient", { name: ask.item.patient.name })}</p>
+            <p>{t("confirm.reason", { reason: ask.item.reason_text })}</p>
+            <p className="text-destructive">{t("confirm.permanent")}</p>
+          </>
+        )}
+      </ConfirmDialog>
       <CardHeader>
         <CardTitle>{t("admin.breakGlassQueue")}</CardTitle>
       </CardHeader>
@@ -452,7 +531,7 @@ function BreakGlassQueue() {
             ) : (
               <div className="mt-2 flex gap-2">
                 {(["benign", "misuse", "unsure"] as const).map((o) => (
-                  <Button key={o} size="sm" variant={o === "misuse" ? "destructive" : "outline"} onClick={() => review.mutate({ id: b.id, outcome: o })}>
+                  <Button key={o} size="sm" variant={o === "misuse" ? "destructive" : "outline"} onClick={() => setAsk({ item: b, outcome: o })}>
                     {t(`outcome.${o}`)}
                   </Button>
                 ))}
@@ -482,8 +561,29 @@ function AccessReports() {
       await client.invalidateQueries({ queryKey: ["access-queries"] });
     },
   });
+  // Closing a report cannot be undone on this screen, so it is confirmed first.
+  const [ask, setAsk] = useState<Schemas["QueryOut"] | null>(null);
   return (
     <Card>
+      <ConfirmDialog
+        open={ask !== null}
+        title={t("confirm.closeReportTitle")}
+        confirmLabel={t("confirm.closeReport")}
+        onCancel={() => setAsk(null)}
+        onConfirm={() => {
+          if (ask) {
+            close.mutate(ask.id);
+          }
+          setAsk(null);
+        }}
+      >
+        {ask && (
+          <>
+            <p>{t("confirm.report", { message: ask.message })}</p>
+            <p className="text-destructive">{t("confirm.closeReportBody")}</p>
+          </>
+        )}
+      </ConfirmDialog>
       <CardHeader>
         <CardTitle>{t("admin.reports")}</CardTitle>
       </CardHeader>
@@ -497,7 +597,7 @@ function AccessReports() {
               <p>{q.message}</p>
               <p className="text-xs text-muted-foreground">{formatDateTime(q.created_at)}</p>
             </div>
-            <Button size="sm" variant="outline" onClick={() => close.mutate(q.id)}>
+            <Button size="sm" variant="outline" onClick={() => setAsk(q)}>
               {t("admin.close")}
             </Button>
           </article>
