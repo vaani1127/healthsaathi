@@ -2,14 +2,16 @@
 \begin{table}[t]
 \centering
 \small
-\caption{Gas per anchor transaction. The mainnet columns are estimates: median gas times a stated gas price, not measured.}
+\caption{Gas per anchor transaction by study period (time the anchor was sent), and the Besu bench. The mainnet columns are estimates: median gas times a stated gas price, not measured.}
 \label{tab:anchor-gas}
-\begin{tabular}{lrrrrrr}
+\begin{tabular}{lrrrrrrr}
 \toprule
-Chain & Anchors & Gas (median) & Gas (range) & Fee paid (median, native token) & Mainnet ETH at 1 gwei (estimate) & Mainnet ETH at 10 gwei (estimate) \\
+Period & Chain & Anchors & Gas (median) & Gas (range) & Fee paid (median, native token) & Mainnet ETH at 1 gwei (estimate) & Mainnet ETH at 10 gwei (estimate) \\
 \midrule
-Polygon Amoy & 857 & 50,143 & 50,107--85,639 & 0.001504 & 0.000050 & 0.000501 \\
-Besu QBFT (4 nodes) & 200 & 41,635 & 41,587--75,439 & 0.000000 & 0.000042 & 0.000416 \\
+Timer working & Polygon Amoy & 157 & 50,143 & 50,119--50,143 & 0.001504 & 0.000050 & 0.000501 \\
+Timer stalled & Polygon Amoy & 22 & 50,143 & 50,107--50,143 & 0.001504 & 0.000050 & 0.000501 \\
+After the fix (v0.1.5) & Polygon Amoy & 676 & 50,143 & 50,107--50,155 & 0.001504 & 0.000050 & 0.000501 \\
+Bench run & Besu QBFT (4 nodes) & 200 & 41,635 & 41,587--75,439 & 0.000000 & 0.000042 & 0.000416 \\
 \bottomrule
 \end{tabular}
 \end{table}

@@ -148,9 +148,11 @@ def parts_summary(parts: pl.DataFrame) -> pl.DataFrame:
 
 def gas_summary(receipts: pl.DataFrame, mainnet_gwei: list[float]) -> pl.DataFrame:
     """Gas per anchor transaction on each EVM chain, the fee actually paid, and an ESTIMATE of the
-    fee on Ethereum mainnet at each stated gas price (not a measurement)."""
+    fee on Ethereum mainnet at each stated gas price (not a measurement). Grouped by study period
+    too when the frame has one (cadence.with_period)."""
     evm = receipts.filter(pl.col("gas_used").is_not_null())
-    base = evm.group_by("backend").agg(
+    keys = _keys(evm)
+    base = evm.group_by(keys).agg(
         pl.len().alias("anchors"),
         pl.col("gas_used").median().alias("gas_median"),
         pl.col("gas_used").min().alias("gas_min"),
@@ -161,7 +163,7 @@ def gas_summary(receipts: pl.DataFrame, mainnet_gwei: list[float]) -> pl.DataFra
         (pl.col("gas_median") * gwei / 1e9).alias(f"mainnet_eth_at_{gwei:g}_gwei")
         for gwei in mainnet_gwei
     ]
-    return base.with_columns(estimates).sort("backend")
+    return base.with_columns(estimates).sort(keys)
 
 
 def study_period(events: pl.DataFrame) -> tuple[datetime | None, datetime | None]:

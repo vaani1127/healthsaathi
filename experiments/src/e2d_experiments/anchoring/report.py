@@ -138,11 +138,14 @@ def cadence_table(daily: pl.DataFrame, gaps: pl.DataFrame, labels: dict[str, str
     return _tabular(header, rows, caption, "tab:anchor-cadence")
 
 
-def gas_table(summary: pl.DataFrame, mainnet_gwei: list[float]) -> str:
+def gas_table(summary: pl.DataFrame, mainnet_gwei: list[float], labels: dict[str, str]) -> str:
+    """One row per study period and chain, in the configured period order (like the windows
+    table); anchors sent outside every period are left out."""
     rows = []
-    for r in summary.to_dicts():
+    for r in _in_period_order(summary, labels):
         rows.append(
             [
+                labels[r["period"]],
                 _name(r["backend"]),
                 f"{r['anchors']:,}",
                 f"{r['gas_median']:,.0f}",
@@ -152,6 +155,7 @@ def gas_table(summary: pl.DataFrame, mainnet_gwei: list[float]) -> str:
             ]
         )
     header = [
+        "Period",
         "Chain",
         "Anchors",
         "Gas (median)",
@@ -160,8 +164,9 @@ def gas_table(summary: pl.DataFrame, mainnet_gwei: list[float]) -> str:
         *(f"Mainnet ETH at {g:g} gwei (estimate)" for g in mainnet_gwei),
     ]
     caption = (
-        "Gas per anchor transaction. The mainnet columns are estimates: median gas times a stated "
-        "gas price, not measured."
+        "Gas per anchor transaction by study period (time the anchor was sent), and the Besu "
+        "bench. The mainnet columns are estimates: median gas times a stated gas price, not "
+        "measured."
     )
     return _tabular(header, rows, caption, "tab:anchor-gas")
 
@@ -309,9 +314,17 @@ def write(
     windows = cadence.with_period(
         analysis.event_windows(events, checkpoints, receipts), "at", periods
     )
+    # Live anchors by the period they were sent in (older snapshots without the send time use
+    # the block time); Besu bench anchors get their own row.
+    sent = "submitted_at" if "submitted_at" in receipts.columns else "final_at"
+    gas_receipts = cadence.with_period(receipts, sent, periods)
     # The Besu bench has no live events, so it adds to finality and gas only.
     besu = snapshot.parent / "besu"
     if (besu / "enriched.parquet").exists():
+        bench_gas = pl.read_parquet(besu / "enriched.parquet").with_columns(
+            pl.lit(BENCH_PERIOD).alias("period")
+        )
+        gas_receipts = pl.concat([gas_receipts, bench_gas], how="diagonal_relaxed")
         checkpoints = pl.concat(
             [checkpoints, pl.read_parquet(besu / "checkpoints.parquet")], how="vertical_relaxed"
         )
@@ -338,7 +351,7 @@ def write(
             analysis.parts_summary(parts), part_labels, span
         ),
         tables / "anchoring_gas.tex": gas_table(
-            analysis.gas_summary(receipts, mainnet_gwei), mainnet_gwei
+            analysis.gas_summary(gas_receipts, mainnet_gwei), mainnet_gwei, part_labels
         ),
     }
     if "submitted_at" in live_receipts.columns and "clinic_id" in live_receipts.columns:
