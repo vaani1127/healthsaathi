@@ -13,8 +13,6 @@ catches it after the caller's transaction has rolled back and writes the denial 
 transaction, so the refusal is always logged and never waits on locks held by the failed one.
 """
 
-import hashlib
-import hmac
 import uuid
 from collections.abc import AsyncIterator, Iterable, Sequence
 from contextlib import asynccontextmanager
@@ -27,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.access.evidence import load_evidence
 from app.access.policy import Policy, Requirement, get_policy
+from app.core import keys
 from app.core.config import get_settings
 from app.core.db import tenant_session
 from app.core.errors import ProblemError
@@ -83,10 +82,11 @@ class AccessRecord:
 
 
 def _ip_hash(ip: str | None) -> str | None:
+    """The client IP under its own derived key (ADR 0009). Rows written before the derived keys
+    used the raw OTP_HMAC_KEY; they are never rewritten. Nothing compares ip_hash across rows."""
     if not ip:
         return None
-    key = get_settings().otp_hmac_key.get_secret_value().encode()
-    return hmac.new(key, b"ip:" + ip.encode(), hashlib.sha256).hexdigest()
+    return keys.hmac_hex(keys.IP_HASH, b"ip:" + ip.encode())
 
 
 async def db_now(db: AsyncSession) -> datetime:

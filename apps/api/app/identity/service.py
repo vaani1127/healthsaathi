@@ -21,6 +21,7 @@ from typing import Literal
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import keys
 from app.core.config import get_settings
 from app.core.db import ANONYMOUS, TenantContext, tenant_session
 from app.core.errors import ProblemError
@@ -83,10 +84,22 @@ def _normalise_email(email: str) -> str:
     return email.strip().lower()
 
 
-def _otp_hash(email: str, purpose: str, code: str) -> str:
-    key = get_settings().otp_hmac_key.get_secret_value().encode()
-    message = f"{_normalise_email(email)}|{purpose}|{code}".encode()
-    return hmac.new(key, message, hashlib.sha256).hexdigest()
+def _otp_message(email: str, purpose: str, code: str) -> bytes:
+    return f"{_normalise_email(email)}|{purpose}|{code}".encode()
+
+
+def _otp_hash(email: str, purpose: Literal["login", "invite"], code: str) -> str:
+    """Email sign-in codes and invite tokens, each under its own derived key (ADR 0009)."""
+    label = keys.EMAIL_CODE if purpose == "login" else keys.INVITE
+    return keys.hmac_hex(label, _otp_message(email, purpose, code))
+
+
+def _legacy_invite_hash(email: str, token: str) -> str:
+    """LEGACY, remove after the cutover (docs/RUNBOOK.md, "Derived keys: remove the legacy invite
+    check"): invites created before the derived keys were hashed under the raw OTP_HMAC_KEY.
+    Email codes have no such fallback: they last 10 minutes, and one sent before the deploy
+    simply fails."""
+    return keys.legacy_hmac_hex(_otp_message(email, "invite", token))
 
 
 async def _user_by_email(db: AsyncSession, email: str) -> User | None:
@@ -638,7 +651,9 @@ async def accept_invite(email: str, token: str, password: str) -> None:
                 EmailOtp.email == email,
                 EmailOtp.purpose == "invite",
                 EmailOtp.used_at.is_(None),
-                EmailOtp.code_hash == _otp_hash(email, "invite", token),
+                EmailOtp.code_hash.in_(
+                    (_otp_hash(email, "invite", token), _legacy_invite_hash(email, token))
+                ),
             )
             .with_for_update()
         )

@@ -81,6 +81,7 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 |---|---|---|
 | A user of clinic A reads clinic B | Row level security on every clinic table, set per transaction; a test per table | migration `0001`, `tests/db/test_rls.py` |
 | A role reads more than its task needs | Policy module (role x resource x action) and task-view response schemas per role | `access/policy.yaml`, `chart/schemas.py` |
+| One keyed hash reused or checked in another context (an email code hash as an invite, an IP hash as a consent commitment) | Each use of `OTP_HMAC_KEY` has its own HKDF-derived key with a versioned label (ADR 0009). Residual: rows written before the change keep raw-key hashes and are checked with the raw key as a fallback; pending invites are accepted under either key until the legacy check is removed | `core/keys.py` |
 | Notes and TOTP secrets leaked from a database copy | AES-256-GCM with a key id prefix, key from the environment | `core/crypto.py` |
 | Patient data on a witness | Only signed tree heads, roots and sizes are published; push messages carry no patient data | `anchor/`, `notify/push.py` |
 | Data cached on a shared device | Only the app shell and today's queue are cached; vitals drafts are encrypted with an in-memory key; caches are cleared on sign-out | `vite.config.ts`, `lib/drafts.ts`, `stores/auth.ts` |

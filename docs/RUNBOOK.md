@@ -187,12 +187,50 @@ takes up to a minute.
 |---|---|---|
 | `JWT_SECRET` | Replace in `.env`, restart `api` and `worker` | Access tokens in use stop working; the web app refreshes them silently |
 | `DATA_KEYS` | Add the new key FIRST in the list and keep the old ones, restart | New data uses the new key; old data still decrypts. Never remove a key that encrypted stored data |
-| `OTP_HMAC_KEY` | Replace, restart | Email codes sent before the change stop working |
+| `OTP_HMAC_KEY` | See "Rotating OTP_HMAC_KEY" below | Every key derived from it changes (ADR 0009): email codes and invites in flight stop working, rate counts start again, and new `ip_hash` and consent commitments no longer match older ones |
 | `ANCHOR_TRIGGER_TOKEN` | Replace in the VM `.env` and the GitHub secret together | Scheduled runs fail until both match; the worker fallback keeps anchoring |
 | `ANCHOR_POSTER_PRIVATE_KEY` | New wallet, fund it, then two registry admins re-register the poster | Anchoring stops until the new poster is registered |
 | `LEDGER_SIGNING_SEED` | Do not change | Checkpoints are refused if the derived key does not match the key stored for the clinic. Rotating it needs `ClinicRegistry.rotateKey` and app support that is not built yet |
 | Database passwords | `ALTER ROLE ... PASSWORD`, update `.env`, restart | Short reconnect |
 | `VM_SSH_KEY` | New key pair, add the public key on the VM, update the secret, remove the old key | None |
+
+### Rotating OTP_HMAC_KEY
+
+All five derived keys (email codes, invites, IP hash, consent commitments, rate counters) come
+from this one secret, so rotating it changes all of them at once.
+
+1. Pick a quiet time and count the open invites:
+   `SELECT count(*) FROM email_otps WHERE purpose = 'invite' AND used_at IS NULL AND expires_at > now();`
+   The app cannot resend an invite yet (`docs/APP_GAPS.md` 35), and a rotation makes every open
+   invite stop working. Rotate only when this prints 0, unless the key may be leaked: then rotate
+   at once and ask those people to be invited again after APP_GAPS 35 is fixed.
+2. Generate a new value: `make env` on a laptop prints a full set; copy only the `OTP_HMAC_KEY` line.
+3. Keep a sealed offline copy of the old value. Without it, consent commitments and `ip_hash`
+   values made before the rotation cannot be checked again.
+4. Put the new value in `/opt/healthsaathi/.env`, then
+   `docker compose -f /opt/healthsaathi/docker-compose.prod.yml up -d api worker`.
+5. Email codes in flight fail; patients ask for a new one. Rate counts start again.
+6. Write the rotation date in the operations log, so a person comparing `ip_hash` values by hand
+   knows where they stop matching.
+
+### Derived keys: remove the legacy invite check
+
+The first prod deploy that contains fix/key-separation (on or after 25 November 2026) keeps
+accepting invites hashed with the raw `OTP_HMAC_KEY`, so invites sent before it still work.
+Remove that fallback in a later release, **7 days after that deploy** (invites last 72 hours):
+
+1. Note the date of that deploy (`cat /opt/healthsaathi/current_tag` and the deploy workflow run).
+2. On or after deploy date + 7 days, confirm that no unused, unexpired invite is still hashed
+   the old way. With the old hashes unknown to SQL, check that every open invite was created
+   after the deploy:
+   `SELECT count(*) FROM email_otps WHERE purpose = 'invite' AND used_at IS NULL AND expires_at > now() AND created_at < '<deploy time, UTC>';`
+   It must print 0. (Any invite created before the deploy has expired by then, since invites
+   last 72 hours.)
+3. In `apps/api/app/identity/service.py` delete `_legacy_invite_hash` and the second value in the
+   `code_hash.in_(...)` of `accept_invite`; delete the old-key invite tests in
+   `apps/api/tests/test_key_separation.py`. Keep `keys.legacy_hmac_hex`: `verify_commitment`
+   still needs it for consents made before the change.
+4. Note the removal in `docs/CHANGELOG.md` and ADR 0009.
 
 ## Anchoring
 

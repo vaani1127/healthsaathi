@@ -19,6 +19,7 @@ from app.core.db import get_engine
 from app.core.errors import ProblemError
 from app.db import models as m
 from tests.identity.test_single_use import row_locked, wait_for_lock_waiters
+from tests.test_keys import rfc5869_sha256
 
 
 def scope() -> str:
@@ -122,8 +123,12 @@ async def test_key_uses_a_derived_secret_and_stores_no_identifier(
     await counters.increment("5/minute", name, email)
     otp_key = get_settings().otp_hmac_key.get_secret_value().encode()
     message = f"{name}\x1f{email}".encode()
-    derived = hmac.new(otp_key, b"rate-counters-v1", hashlib.sha256).digest()
+    # The derived key "healthsaathi/rate-counters/v2" (ADR 0009), computed independently.
+    derived = rfc5869_sha256(otp_key, b"healthsaathi/keys", b"healthsaathi/rate-counters/v2", 32)
     expected = hmac.new(derived, message, hashlib.sha256).hexdigest()
+    # Not the v1 key either.
+    v1 = hmac.new(otp_key, b"rate-counters-v1", hashlib.sha256).digest()
+    assert expected != hmac.new(v1, message, hashlib.sha256).hexdigest()
     assert counters.counter_key(name, email) == expected
     # Not the OTP key itself.
     assert expected != hmac.new(otp_key, message, hashlib.sha256).hexdigest()
