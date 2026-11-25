@@ -1,7 +1,7 @@
 """The daily final ranking (app.detect.daily, ADR 0008)."""
 
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -14,9 +14,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app import worker
+from app.core.config import get_settings
 from app.core.db import TenantContext, tenant_session
 from app.db import models as m
-from app.db.enums import Role
+from app.db.enums import AccessAction, AccessDecision, ResourceType, Role
 from app.detect import daily, service, starter_rules
 from app.detect.days import CATCH_UP_DAYS, DAILY_KIND, due_window, ready_after
 from e2d_core.detect import gate
@@ -651,3 +652,115 @@ async def test_a_capped_run_finalises_one_clinic_day_with_accesses(
     second = await daily.run_due(now=due(day), clinics=clinics, store=store, max_days=1)
     assert second is not None and second[str(clinic)] == []
     assert day.isoformat() in await finalised_days(admin_engine, other)
+
+
+# Days before the clinic's first staff access -----------------------------------------------------
+
+
+async def test_a_wide_catch_up_starts_at_the_first_staff_access_day(
+    client: AsyncClient,
+    admin_engine: AsyncEngine,
+    clinic: uuid.UUID,
+    staff: dict[Role, Actor],
+    store: service.ModelStore,
+) -> None:
+    day = await provisional_day(client, admin_engine, clinic, staff, store, patients=1)
+    now = due(day + timedelta(days=3))
+    runs = await daily.run_due(now=now, store=store, catch_up=400)
+    assert runs is not None
+    results = runs[str(clinic)]
+    assert [r.day for r in results] == [day + timedelta(days=k) for k in range(4)]
+    assert all(r.outcome == "finalised" for r in results)
+    assert results[0].payload["staff_accesses"] > 0
+    written = [p["day"] for p in await daily_entries(admin_engine, clinic)]
+    assert min(written) == day.isoformat() and len(written) == 4
+
+
+async def test_the_worker_tick_starts_at_the_first_staff_access_day(
+    client: AsyncClient,
+    admin_engine: AsyncEngine,
+    clinic: uuid.UUID,
+    staff: dict[Role, Actor],
+    store: service.ModelStore,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The worker's own call, with its caps and DETECT_CATCH_UP_DAYS=400, as on 25 Nov 2026."""
+    day = await provisional_day(client, admin_engine, clinic, staff, store, patients=1)
+    now = due(day + timedelta(days=3))
+    monkeypatch.setattr(get_settings(), "detect_catch_up_days", 400)
+    for _ in range(40):
+        runs = await daily.run_due(
+            now=now,
+            store=store,
+            max_days=worker.DAILY_DAYS_PER_TICK,
+            max_cache_days=worker.DAILY_CACHE_DAYS_PER_TICK,
+        )
+        assert runs is not None
+        assert all(r.day >= day for r in runs[str(clinic)])
+        if len(await daily_entries(admin_engine, clinic)) >= 4:
+            break
+    entries = await daily_entries(admin_engine, clinic)
+    assert [p["day"] for p in entries] == [(day + timedelta(days=k)).isoformat() for k in range(4)]
+    assert all(p["outcome"] == "finalised" for p in entries)
+    assert await daily.run_due(now=now, store=store) == {str(clinic): []}
+
+
+async def test_nothing_is_due_for_a_clinic_with_no_staff_access(
+    client: AsyncClient,
+    admin_engine: AsyncEngine,
+    clinic: uuid.UUID,
+    staff: dict[Role, Actor],
+    store: service.ModelStore,
+) -> None:
+    """Another clinic's accesses and the clinic's own patient accesses do not count."""
+    other = await make_clinic(admin_engine)
+    other_staff = {
+        role: await make_actor(admin_engine, other, role) for role in (Role.RECEPTION, Role.DOCTOR)
+    }
+    day = await provisional_day(client, admin_engine, other, other_staff, store, patients=1)
+    patient = await make_patient(admin_engine, clinic, staff[Role.RECEPTION].user_id)
+    async with AsyncSession(admin_engine) as s, s.begin():
+        s.add(
+            m.AccessEvent(
+                clinic_id=clinic,
+                user_id=staff[Role.DOCTOR].user_id,
+                role=Role.PATIENT,
+                patient_id=patient,
+                resource_type=ResourceType.DEMOGRAPHICS,
+                action=AccessAction.VIEW,
+                policy_version="test",
+                decision=AccessDecision.ALLOW,
+            )
+        )
+    for catch_up in (None, 400):
+        runs = await daily.run_due(now=due(day), store=store, catch_up=catch_up)
+        assert runs == {str(clinic): []}
+    assert await daily_entries(admin_engine, clinic) == []
+
+
+async def test_the_first_access_day_is_the_clinics_local_day(
+    admin_engine: AsyncEngine, clinic: uuid.UUID, staff: dict[Role, Actor]
+) -> None:
+    """01:30 in India is 20:00 UTC the day before: the local day counts, not the UTC day."""
+    local = datetime.now(IST).date()
+    if local.day == 1:  # 01:30 on the 1st is last month in UTC, which may have no partition
+        local += timedelta(days=1)
+    at = datetime.combine(local, time(1, 30), tzinfo=IST)
+    assert at.astimezone(UTC).date() == local - timedelta(days=1)
+    patient = await make_patient(admin_engine, clinic, staff[Role.RECEPTION].user_id)
+    async with AsyncSession(admin_engine) as s, s.begin():
+        s.add(
+            m.AccessEvent(
+                at=at,
+                clinic_id=clinic,
+                user_id=staff[Role.DOCTOR].user_id,
+                role=Role.DOCTOR,
+                patient_id=patient,
+                resource_type=ResourceType.DEMOGRAPHICS,
+                action=AccessAction.VIEW,
+                policy_version="test",
+                decision=AccessDecision.ALLOW,
+            )
+        )
+    async with tenant_session(TenantContext(clinic_id=clinic, role="system")) as db:
+        assert await daily.first_staff_day(db, clinic, "Asia/Kolkata") == local
