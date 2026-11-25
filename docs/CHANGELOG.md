@@ -112,6 +112,14 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
   - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
     `experiments/results/v1` and the pre-registration are not touched.
 
+### Docs: v0.1.7 deploy
+
+- `docs/RUNBOOK.md`: v0.1.7 was deployed on 25 November 2026 at 10:48:59 UTC (16:18:59 IST);
+  remove the legacy invite check on or after 2 December 2026. "Fixed network" now records that
+  Docker Compose v5.6.1 tried to remove the old `default` network and failed while containers
+  were attached, that re-running the failed job alone then worked with no outage, and that a
+  manual rollback to v0.1.6 needs the compose file now on the VM, not the old one.
+
 ### Anchoring snapshot B
 
 - Snapshot B of the live demo, taken 24 November 2026 at 19:03:34 UTC (25 November, 00:33 IST)
