@@ -1,0 +1,3119 @@
+{
+ "period": "clean",
+ "start": "2026-11-10T18:47:10+00:00",
+ "end": "2026-11-24T19:03:34.651933+00:00",
+ "end_is_snapshot_time": true,
+ "first_event": "2026-11-11T04:00:18.402162+00:00",
+ "last_event": "2026-11-24T14:29:52.768177+00:00",
+ "events": 83692,
+ "events_per_clinic": {
+  "018b7266-7840-7319-9498-c18c799e670c": 43550,
+  "018b7266-7840-76c6-b6ad-fa7be7efed79": 40142
+ },
+ "events_after_14_days": 0,
+ "14_day_mark": "2026-11-24T18:47:10+00:00",
+ "anchors": [
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchors": 342,
+   "confirmed": 342,
+   "first": "2026-11-11T04:05:23.154600+00:00",
+   "last": "2026-11-24T14:23:16.303628+00:00"
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchors": 342,
+   "confirmed": 342,
+   "first": "2026-11-11T04:05:26.080724+00:00",
+   "last": "2026-11-24T14:23:18.986224+00:00"
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchors": 116,
+   "confirmed": 116,
+   "first": "2026-11-11T04:05:31.181196+00:00",
+   "last": "2026-11-24T14:54:23.664094+00:00"
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchors": 334,
+   "confirmed": 334,
+   "first": "2026-11-11T04:05:36.117400+00:00",
+   "last": "2026-11-24T14:38:58.997739+00:00"
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchors": 334,
+   "confirmed": 334,
+   "first": "2026-11-11T04:05:38.593121+00:00",
+   "last": "2026-11-24T14:39:01.894362+00:00"
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchors": 116,
+   "confirmed": 116,
+   "first": "2026-11-11T04:05:41.279930+00:00",
+   "last": "2026-11-24T14:54:31.664390+00:00"
+  }
+ ],
+ "anchor_status": [
+  {
+   "backend": "amoy",
+   "status": "confirmed",
+   "n": 676
+  },
+  {
+   "backend": "github",
+   "status": "confirmed",
+   "n": 676
+  },
+  {
+   "backend": "ots",
+   "status": "confirmed",
+   "n": 232
+  }
+ ],
+ "rewrite_window_min": [
+  {
+   "backend": "amoy",
+   "events": 83692,
+   "censored": 0,
+   "median_min": 7.41,
+   "p90_min": 14.2,
+   "p95_min": 14.99,
+   "max_min": 16.34
+  },
+  {
+   "backend": "github",
+   "events": 83692,
+   "censored": 0,
+   "median_min": 7.44,
+   "p90_min": 14.24,
+   "p95_min": 15.01,
+   "max_min": 16.36
+  },
+  {
+   "backend": "ots",
+   "events": 83692,
+   "censored": 0,
+   "median_min": 60.14,
+   "p90_min": 115.41,
+   "p95_min": 154.86,
+   "max_min": 265.49
+  }
+ ],
+ "gas": [
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "transactions": 342,
+   "gas_total": 17147826,
+   "gas_median": 50143.0,
+   "gas_min": 50107,
+   "gas_max": 50155,
+   "fee_total": 0.6305024705143873
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "transactions": 334,
+   "gas_total": 16746562,
+   "gas_median": 50143.0,
+   "gas_min": 50107,
+   "gas_max": 50155,
+   "fee_total": 0.6253561425718588
+  }
+ ],
+ "gas_note": "fee_total is in the chain's native coin (test POL on Amoy)",
+ "gaps_over_30_min": [
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-11T04:05:23.154600+00:00",
+   "gap_min": 715.47,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-11T11:31:43.235230+00:00",
+   "gap_min": 214.73,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-12T04:00:42.315631+00:00",
+   "gap_min": 802.77,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-12T11:44:18.167641+00:00",
+   "gap_min": 215.45,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-13T04:07:22.422155+00:00",
+   "gap_min": 817.76,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-13T11:42:56.997860+00:00",
+   "gap_min": 228.86,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-13T12:29:45.362758+00:00",
+   "gap_min": 31.2,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-13T13:00:49.588067+00:00",
+   "gap_min": 31.07,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-13T13:31:44.645396+00:00",
+   "gap_min": 30.92,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-14T04:12:23.564129+00:00",
+   "gap_min": 818.3,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-14T11:38:54.185420+00:00",
+   "gap_min": 212.96,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-15T04:09:31.394580+00:00",
+   "gap_min": 819.46,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-15T05:27:07.876339+00:00",
+   "gap_min": 31.0,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-16T04:13:48.831571+00:00",
+   "gap_min": 1288.79,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-16T11:40:47.887279+00:00",
+   "gap_min": 213.71,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-17T04:13:09.182935+00:00",
+   "gap_min": 819.56,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-17T06:02:01.968075+00:00",
+   "gap_min": 30.91,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-17T07:19:37.455458+00:00",
+   "gap_min": 30.77,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-17T11:40:45.192860+00:00",
+   "gap_min": 214.02,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-18T04:05:35.220316+00:00",
+   "gap_min": 803.65,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-18T11:34:30.293613+00:00",
+   "gap_min": 214.11,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-19T04:08:05.557970+00:00",
+   "gap_min": 820.77,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-19T05:10:31.893639+00:00",
+   "gap_min": 31.22,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-19T05:41:45.891768+00:00",
+   "gap_min": 31.23,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-19T11:37:26.699265+00:00",
+   "gap_min": 214.28,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-19T13:26:53.762032+00:00",
+   "gap_min": 31.01,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-20T04:11:01.671444+00:00",
+   "gap_min": 821.28,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-20T11:40:59.397541+00:00",
+   "gap_min": 229.45,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-20T14:34:22.126597+00:00",
+   "gap_min": 31.36,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-21T04:01:22.262846+00:00",
+   "gap_min": 807.0,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-21T05:19:35.350425+00:00",
+   "gap_min": 31.09,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-21T11:31:58.386814+00:00",
+   "gap_min": 199.52,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-21T13:21:45.575447+00:00",
+   "gap_min": 31.25,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-22T04:06:54.853018+00:00",
+   "gap_min": 806.49,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-23T04:07:20.533266+00:00",
+   "gap_min": 1278.25,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-23T05:25:58.279850+00:00",
+   "gap_min": 31.38,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-23T11:38:11.633389+00:00",
+   "gap_min": 214.75,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-23T13:13:11.400600+00:00",
+   "gap_min": 31.57,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-24T04:14:03.164067+00:00",
+   "gap_min": 822.05,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-24T05:48:11.886367+00:00",
+   "gap_min": 46.96,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-24T07:22:14.353482+00:00",
+   "gap_min": 31.2,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-24T11:45:27.629783+00:00",
+   "gap_min": 215.38,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "amoy",
+   "anchor_at": "2026-11-24T12:16:53.994650+00:00",
+   "gap_min": 31.44,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-11T04:05:26.080724+00:00",
+   "gap_min": 715.47,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-11T11:31:45.645024+00:00",
+   "gap_min": 214.73,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-12T04:00:45.896756+00:00",
+   "gap_min": 802.78,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-12T11:44:20.731503+00:00",
+   "gap_min": 215.45,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-13T04:07:26.265117+00:00",
+   "gap_min": 817.76,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-13T11:42:58.961392+00:00",
+   "gap_min": 228.85,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-13T12:29:49.315847+00:00",
+   "gap_min": 31.16,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-13T13:00:52.745698+00:00",
+   "gap_min": 31.06,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-13T13:31:49.551634+00:00",
+   "gap_min": 30.95,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-14T04:12:25.904779+00:00",
+   "gap_min": 818.26,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-14T11:38:57.176309+00:00",
+   "gap_min": 212.95,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-15T04:09:34.868442+00:00",
+   "gap_min": 819.47,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-15T05:27:13.897657+00:00",
+   "gap_min": 31.03,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-16T04:13:51.867228+00:00",
+   "gap_min": 1288.79,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-16T11:40:50.822433+00:00",
+   "gap_min": 213.69,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-17T04:13:11.859175+00:00",
+   "gap_min": 819.5,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-17T06:02:04.741771+00:00",
+   "gap_min": 30.91,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-17T07:19:39.941464+00:00",
+   "gap_min": 30.77,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-17T11:40:47.640818+00:00",
+   "gap_min": 214.01,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-18T04:05:38.156976+00:00",
+   "gap_min": 803.67,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-18T11:34:33.126470+00:00",
+   "gap_min": 214.12,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-19T04:08:07.883771+00:00",
+   "gap_min": 820.76,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-19T05:10:33.846862+00:00",
+   "gap_min": 31.22,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-19T05:41:47.700621+00:00",
+   "gap_min": 31.23,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-19T11:37:28.826353+00:00",
+   "gap_min": 214.28,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-19T13:26:56.143637+00:00",
+   "gap_min": 31.0,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-20T04:11:03.653605+00:00",
+   "gap_min": 821.28,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-20T11:41:02.050541+00:00",
+   "gap_min": 229.45,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-20T14:34:26.713505+00:00",
+   "gap_min": 31.39,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-21T04:01:25.101042+00:00",
+   "gap_min": 806.97,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-21T05:19:38.041633+00:00",
+   "gap_min": 31.09,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-21T11:32:00.804933+00:00",
+   "gap_min": 199.52,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-21T13:21:47.814700+00:00",
+   "gap_min": 31.25,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-22T04:06:56.711602+00:00",
+   "gap_min": 806.45,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-23T04:07:22.668528+00:00",
+   "gap_min": 1278.25,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-23T05:26:00.900818+00:00",
+   "gap_min": 31.38,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-23T11:38:14.020484+00:00",
+   "gap_min": 214.74,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-23T13:13:13.780970+00:00",
+   "gap_min": 31.56,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-24T04:14:05.898048+00:00",
+   "gap_min": 822.02,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-24T05:48:14.264914+00:00",
+   "gap_min": 46.95,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-24T07:22:17.279046+00:00",
+   "gap_min": 31.18,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-24T11:45:30.143816+00:00",
+   "gap_min": 215.37,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "github",
+   "anchor_at": "2026-11-24T12:16:57.138817+00:00",
+   "gap_min": 31.45,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T04:05:31.181196+00:00",
+   "gap_min": 715.48,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T05:06:54.522181+00:00",
+   "gap_min": 61.39,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T06:08:44.126270+00:00",
+   "gap_min": 61.83,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T07:10:39.648430+00:00",
+   "gap_min": 61.93,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T08:12:21.105770+00:00",
+   "gap_min": 61.69,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T11:31:50.182392+00:00",
+   "gap_min": 199.48,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T12:33:33.394916+00:00",
+   "gap_min": 61.72,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T13:35:54.698539+00:00",
+   "gap_min": 62.36,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T14:38:03.563989+00:00",
+   "gap_min": 62.15,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T04:00:50.167304+00:00",
+   "gap_min": 802.78,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T05:02:43.911009+00:00",
+   "gap_min": 61.9,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T06:04:37.432796+00:00",
+   "gap_min": 61.89,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T07:06:42.565507+00:00",
+   "gap_min": 62.09,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T08:08:58.805171+00:00",
+   "gap_min": 62.27,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T11:44:25.298634+00:00",
+   "gap_min": 215.44,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T12:56:25.587557+00:00",
+   "gap_min": 72.0,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T13:58:17.745779+00:00",
+   "gap_min": 61.87,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T15:00:23.324927+00:00",
+   "gap_min": 62.09,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T04:07:30.269413+00:00",
+   "gap_min": 787.12,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T05:09:12.171848+00:00",
+   "gap_min": 61.7,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T06:11:23.337353+00:00",
+   "gap_min": 62.19,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T07:13:46.993234+00:00",
+   "gap_min": 62.39,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T08:25:12.849032+00:00",
+   "gap_min": 71.43,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T11:43:03.318860+00:00",
+   "gap_min": 197.84,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T12:45:17.104165+00:00",
+   "gap_min": 62.23,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T13:47:24.118336+00:00",
+   "gap_min": 62.12,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T14:49:36.310240+00:00",
+   "gap_min": 62.2,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T04:12:29.215973+00:00",
+   "gap_min": 802.88,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T05:14:34.751195+00:00",
+   "gap_min": 62.09,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T06:17:03.734329+00:00",
+   "gap_min": 62.48,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T07:19:21.312734+00:00",
+   "gap_min": 62.29,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T08:21:20.995090+00:00",
+   "gap_min": 61.99,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T11:39:03.933379+00:00",
+   "gap_min": 197.72,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T12:41:04.155905+00:00",
+   "gap_min": 62.0,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T13:43:36.423094+00:00",
+   "gap_min": 62.54,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T14:45:36.706743+00:00",
+   "gap_min": 62.0,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-15T04:09:38.790804+00:00",
+   "gap_min": 804.03,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-15T05:11:34.428285+00:00",
+   "gap_min": 61.93,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-15T06:13:54.847688+00:00",
+   "gap_min": 62.34,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-15T07:15:50.738721+00:00",
+   "gap_min": 61.93,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T04:13:55.712439+00:00",
+   "gap_min": 1258.08,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T05:16:04.049705+00:00",
+   "gap_min": 62.14,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T06:18:24.435264+00:00",
+   "gap_min": 62.34,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T07:20:39.824608+00:00",
+   "gap_min": 62.26,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T08:22:36.413052+00:00",
+   "gap_min": 61.94,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T11:40:54.216604+00:00",
+   "gap_min": 198.3,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T12:43:20.604579+00:00",
+   "gap_min": 62.44,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T13:46:17.291729+00:00",
+   "gap_min": 62.94,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T14:49:08.584849+00:00",
+   "gap_min": 62.85,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T04:13:16.119470+00:00",
+   "gap_min": 804.13,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T05:15:19.771229+00:00",
+   "gap_min": 62.06,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T06:17:37.784433+00:00",
+   "gap_min": 62.3,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T07:19:43.855910+00:00",
+   "gap_min": 62.1,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T08:22:18.276999+00:00",
+   "gap_min": 62.57,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T11:40:51.913356+00:00",
+   "gap_min": 198.56,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T12:52:06.020587+00:00",
+   "gap_min": 71.24,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T13:55:08.700128+00:00",
+   "gap_min": 63.04,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T14:57:17.808923+00:00",
+   "gap_min": 62.15,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T04:05:41.629433+00:00",
+   "gap_min": 788.4,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T05:08:15.014084+00:00",
+   "gap_min": 62.56,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T06:10:44.028354+00:00",
+   "gap_min": 62.48,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T07:13:21.218245+00:00",
+   "gap_min": 62.62,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T08:15:57.321420+00:00",
+   "gap_min": 62.6,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T11:34:37.336233+00:00",
+   "gap_min": 198.67,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T12:37:24.576811+00:00",
+   "gap_min": 62.79,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T13:39:55.905284+00:00",
+   "gap_min": 62.52,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T14:42:49.248121+00:00",
+   "gap_min": 62.89,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T04:08:11.977377+00:00",
+   "gap_min": 805.38,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T05:10:38.299347+00:00",
+   "gap_min": 62.44,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T06:13:44.469864+00:00",
+   "gap_min": 63.1,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T07:16:05.278042+00:00",
+   "gap_min": 62.35,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T08:18:38.865813+00:00",
+   "gap_min": 62.56,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T11:37:34.824486+00:00",
+   "gap_min": 198.93,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T12:40:13.918791+00:00",
+   "gap_min": 62.65,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T13:42:29.347223+00:00",
+   "gap_min": 62.26,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T14:45:20.531987+00:00",
+   "gap_min": 62.85,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T04:11:07.547910+00:00",
+   "gap_min": 805.78,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T05:14:10.541120+00:00",
+   "gap_min": 63.05,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T06:17:07.472724+00:00",
+   "gap_min": 62.95,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T07:20:17.203135+00:00",
+   "gap_min": 63.16,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T08:22:33.702773+00:00",
+   "gap_min": 62.27,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T11:41:06.554424+00:00",
+   "gap_min": 198.55,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T12:43:52.873518+00:00",
+   "gap_min": 62.77,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T13:47:02.552552+00:00",
+   "gap_min": 63.16,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T14:50:11.987970+00:00",
+   "gap_min": 63.16,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T04:01:33.525652+00:00",
+   "gap_min": 791.36,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T05:04:04.220662+00:00",
+   "gap_min": 62.51,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T06:06:39.366047+00:00",
+   "gap_min": 62.59,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T07:09:32.399503+00:00",
+   "gap_min": 62.88,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T08:12:34.059842+00:00",
+   "gap_min": 63.03,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T11:32:04.488765+00:00",
+   "gap_min": 199.51,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T12:34:34.840649+00:00",
+   "gap_min": 62.51,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T13:37:25.941637+00:00",
+   "gap_min": 62.85,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T14:40:35.074531+00:00",
+   "gap_min": 63.15,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-22T04:07:00.442366+00:00",
+   "gap_min": 806.42,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-22T05:09:46.061049+00:00",
+   "gap_min": 62.76,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-22T06:17:44.240717+00:00",
+   "gap_min": 67.97,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-22T07:19:59.330125+00:00",
+   "gap_min": 62.25,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T04:07:26.702796+00:00",
+   "gap_min": 1247.46,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T05:10:18.768669+00:00",
+   "gap_min": 62.87,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T06:13:09.642161+00:00",
+   "gap_min": 62.85,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T07:16:14.313949+00:00",
+   "gap_min": 63.08,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T08:18:58.312699+00:00",
+   "gap_min": 62.73,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T11:38:18.352625+00:00",
+   "gap_min": 199.33,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T12:41:46.483926+00:00",
+   "gap_min": 63.47,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T13:44:45.909380+00:00",
+   "gap_min": 62.99,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T14:47:37.394161+00:00",
+   "gap_min": 62.86,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T04:14:12.712382+00:00",
+   "gap_min": 806.59,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T05:16:51.217578+00:00",
+   "gap_min": 62.64,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T06:19:50.615468+00:00",
+   "gap_min": 62.99,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T07:22:22.038895+00:00",
+   "gap_min": 62.52,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T08:25:42.218982+00:00",
+   "gap_min": 63.34,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T11:45:33.754261+00:00",
+   "gap_min": 199.86,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T12:48:22.776436+00:00",
+   "gap_min": 62.82,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T13:51:39.472102+00:00",
+   "gap_min": 63.28,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-7319-9498-c18c799e670c",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T14:54:23.664094+00:00",
+   "gap_min": 62.74,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-11T04:05:36.117400+00:00",
+   "gap_min": 715.47,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-11T05:06:58.963611+00:00",
+   "gap_min": 30.69,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-11T11:31:54.731910+00:00",
+   "gap_min": 214.8,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-11T12:02:44.356509+00:00",
+   "gap_min": 30.83,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-12T04:00:54.982530+00:00",
+   "gap_min": 802.77,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-12T06:04:42.180468+00:00",
+   "gap_min": 30.94,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-12T07:37:53.230378+00:00",
+   "gap_min": 46.62,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-12T11:44:37.510038+00:00",
+   "gap_min": 215.48,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-12T13:42:50.527888+00:00",
+   "gap_min": 30.85,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-13T04:07:35.459649+00:00",
+   "gap_min": 817.83,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-13T04:53:47.517202+00:00",
+   "gap_min": 30.73,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-13T06:11:28.662086+00:00",
+   "gap_min": 30.98,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-13T11:43:08.675680+00:00",
+   "gap_min": 213.46,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-14T04:12:35.323183+00:00",
+   "gap_min": 818.32,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-14T07:35:02.019440+00:00",
+   "gap_min": 31.16,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-14T11:39:09.875957+00:00",
+   "gap_min": 213.07,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-14T13:59:08.498624+00:00",
+   "gap_min": 30.92,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-15T04:09:44.889102+00:00",
+   "gap_min": 819.47,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-15T04:56:17.860541+00:00",
+   "gap_min": 30.92,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-15T06:45:10.240493+00:00",
+   "gap_min": 31.16,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-16T04:14:01.886483+00:00",
+   "gap_min": 1273.51,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-16T05:47:20.103128+00:00",
+   "gap_min": 31.17,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-16T06:49:44.079866+00:00",
+   "gap_min": 31.22,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-16T11:41:01.040877+00:00",
+   "gap_min": 213.76,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-16T13:46:26.574085+00:00",
+   "gap_min": 31.36,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-17T04:13:22.738033+00:00",
+   "gap_min": 819.58,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-17T07:19:50.613394+00:00",
+   "gap_min": 30.84,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-17T11:40:58.758709+00:00",
+   "gap_min": 214.08,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-18T04:05:48.618360+00:00",
+   "gap_min": 819.29,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-18T04:52:43.635939+00:00",
+   "gap_min": 31.2,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-18T11:34:44.676414+00:00",
+   "gap_min": 198.66,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-18T12:37:31.808528+00:00",
+   "gap_min": 31.33,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-19T04:08:19.569473+00:00",
+   "gap_min": 820.81,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-19T07:00:36.519785+00:00",
+   "gap_min": 31.05,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-19T11:37:45.061374+00:00",
+   "gap_min": 214.42,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-19T13:42:37.138581+00:00",
+   "gap_min": 31.12,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-20T04:11:15.917156+00:00",
+   "gap_min": 821.35,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-20T07:51:42.799821+00:00",
+   "gap_min": 31.28,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-20T11:41:22.088394+00:00",
+   "gap_min": 214.22,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-21T04:01:51.256729+00:00",
+   "gap_min": 807.25,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-21T05:19:46.966600+00:00",
+   "gap_min": 46.68,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-21T11:47:45.438500+00:00",
+   "gap_min": 215.04,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-22T04:07:08.819950+00:00",
+   "gap_min": 822.25,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-22T06:33:28.743844+00:00",
+   "gap_min": 31.21,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-22T07:04:37.402013+00:00",
+   "gap_min": 31.14,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-23T04:07:35.629977+00:00",
+   "gap_min": 1262.97,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-23T04:39:09.391588+00:00",
+   "gap_min": 31.56,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-23T11:38:49.664694+00:00",
+   "gap_min": 215.19,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-23T14:16:16.091082+00:00",
+   "gap_min": 31.35,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-24T04:14:24.676846+00:00",
+   "gap_min": 822.18,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-24T05:48:26.385017+00:00",
+   "gap_min": 31.42,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-24T06:51:18.095400+00:00",
+   "gap_min": 31.3,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-24T11:45:42.949494+00:00",
+   "gap_min": 215.36,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "amoy",
+   "anchor_at": "2026-11-24T13:04:19.674154+00:00",
+   "gap_min": 31.52,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-11T04:05:38.593121+00:00",
+   "gap_min": 715.47,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-11T05:07:01.951047+00:00",
+   "gap_min": 30.7,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-11T11:31:56.997824+00:00",
+   "gap_min": 214.81,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-11T12:02:46.722107+00:00",
+   "gap_min": 30.83,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-12T04:00:57.450824+00:00",
+   "gap_min": 802.71,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-12T06:04:44.621014+00:00",
+   "gap_min": 30.93,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-12T07:37:56.306030+00:00",
+   "gap_min": 46.63,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-12T11:44:39.560988+00:00",
+   "gap_min": 215.43,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-12T13:42:53.287747+00:00",
+   "gap_min": 30.86,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-13T04:07:37.941821+00:00",
+   "gap_min": 817.83,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-13T04:53:49.455532+00:00",
+   "gap_min": 30.72,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-13T06:11:31.125334+00:00",
+   "gap_min": 30.98,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-13T11:43:10.705506+00:00",
+   "gap_min": 213.45,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-14T04:12:37.573414+00:00",
+   "gap_min": 818.29,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-14T07:35:04.713300+00:00",
+   "gap_min": 31.17,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-14T11:39:12.779532+00:00",
+   "gap_min": 213.08,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-14T13:59:11.045464+00:00",
+   "gap_min": 30.93,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-15T04:09:47.785721+00:00",
+   "gap_min": 819.46,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-15T04:56:23.582047+00:00",
+   "gap_min": 30.96,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-15T06:45:13.830378+00:00",
+   "gap_min": 31.17,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-16T04:14:04.574331+00:00",
+   "gap_min": 1273.5,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-16T05:47:23.047967+00:00",
+   "gap_min": 31.17,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-16T06:49:46.220495+00:00",
+   "gap_min": 31.17,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-16T11:41:03.770188+00:00",
+   "gap_min": 213.71,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-16T13:46:29.944759+00:00",
+   "gap_min": 31.33,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-17T04:13:24.915642+00:00",
+   "gap_min": 819.54,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-17T07:19:52.657502+00:00",
+   "gap_min": 30.83,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-17T11:41:00.914370+00:00",
+   "gap_min": 214.07,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-18T04:05:50.935331+00:00",
+   "gap_min": 819.28,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-18T04:52:45.918761+00:00",
+   "gap_min": 31.2,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-18T11:34:46.964914+00:00",
+   "gap_min": 198.66,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-18T12:37:34.249850+00:00",
+   "gap_min": 31.24,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-19T04:08:21.865360+00:00",
+   "gap_min": 820.81,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-19T07:00:38.803063+00:00",
+   "gap_min": 31.05,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-19T11:37:47.797271+00:00",
+   "gap_min": 214.43,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-19T13:42:39.942498+00:00",
+   "gap_min": 31.12,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-20T04:11:17.737594+00:00",
+   "gap_min": 821.33,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-20T07:51:44.651579+00:00",
+   "gap_min": 31.28,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-20T11:41:26.417998+00:00",
+   "gap_min": 214.26,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-21T04:01:53.728048+00:00",
+   "gap_min": 807.25,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-21T05:19:49.626361+00:00",
+   "gap_min": 46.68,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-21T11:47:47.621912+00:00",
+   "gap_min": 215.03,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-22T04:07:10.824599+00:00",
+   "gap_min": 822.25,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-22T06:33:31.160829+00:00",
+   "gap_min": 31.21,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-22T07:04:39.775683+00:00",
+   "gap_min": 31.14,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-23T04:07:37.921511+00:00",
+   "gap_min": 1262.97,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-23T04:39:12.170070+00:00",
+   "gap_min": 31.57,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-23T11:38:52.049892+00:00",
+   "gap_min": 215.19,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-23T14:16:18.752754+00:00",
+   "gap_min": 31.35,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-24T04:14:26.614050+00:00",
+   "gap_min": 822.18,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-24T05:48:31.166862+00:00",
+   "gap_min": 31.45,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-24T06:51:20.730199+00:00",
+   "gap_min": 31.31,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-24T11:45:45.751387+00:00",
+   "gap_min": 215.36,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "github",
+   "anchor_at": "2026-11-24T13:04:21.991332+00:00",
+   "gap_min": 31.52,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T04:05:41.279930+00:00",
+   "gap_min": 715.46,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T05:07:05.582764+00:00",
+   "gap_min": 61.41,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T06:08:55.249028+00:00",
+   "gap_min": 61.83,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T07:10:49.646094+00:00",
+   "gap_min": 61.91,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T08:12:26.141536+00:00",
+   "gap_min": 61.61,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T11:32:01.216797+00:00",
+   "gap_min": 199.58,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T12:33:44.463957+00:00",
+   "gap_min": 61.72,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T13:36:06.740666+00:00",
+   "gap_min": 62.37,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-11T14:38:18.716058+00:00",
+   "gap_min": 62.2,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T04:01:01.296543+00:00",
+   "gap_min": 802.71,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T05:02:53.981486+00:00",
+   "gap_min": 61.88,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T06:04:48.554897+00:00",
+   "gap_min": 61.91,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T07:06:48.656295+00:00",
+   "gap_min": 62.0,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T08:09:17.907722+00:00",
+   "gap_min": 62.49,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T11:44:42.454058+00:00",
+   "gap_min": 215.41,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T12:56:36.723345+00:00",
+   "gap_min": 71.9,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T13:58:33.889693+00:00",
+   "gap_min": 61.95,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-12T15:00:28.360647+00:00",
+   "gap_min": 61.91,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T04:07:42.393354+00:00",
+   "gap_min": 787.23,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T05:09:29.257191+00:00",
+   "gap_min": 61.78,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T06:11:34.410319+00:00",
+   "gap_min": 62.09,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T07:14:00.140109+00:00",
+   "gap_min": 62.43,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T08:25:18.882284+00:00",
+   "gap_min": 71.31,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T11:43:17.138025+00:00",
+   "gap_min": 197.97,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T12:45:30.225881+00:00",
+   "gap_min": 62.22,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T13:47:35.209579+00:00",
+   "gap_min": 62.08,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-13T14:49:42.746104+00:00",
+   "gap_min": 62.13,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T04:12:40.299055+00:00",
+   "gap_min": 802.96,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T05:14:47.815118+00:00",
+   "gap_min": 62.13,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T06:17:14.825057+00:00",
+   "gap_min": 62.45,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T07:19:27.341816+00:00",
+   "gap_min": 62.21,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T08:21:28.047319+00:00",
+   "gap_min": 62.01,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T11:39:16.955807+00:00",
+   "gap_min": 197.82,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T12:41:17.239279+00:00",
+   "gap_min": 62.0,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T13:43:42.462463+00:00",
+   "gap_min": 62.42,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-14T14:45:41.728202+00:00",
+   "gap_min": 61.99,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-15T04:09:51.870311+00:00",
+   "gap_min": 804.17,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-15T05:11:51.517307+00:00",
+   "gap_min": 61.99,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-15T06:14:06.888120+00:00",
+   "gap_min": 62.26,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-15T07:15:56.755714+00:00",
+   "gap_min": 61.83,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T04:14:08.742081+00:00",
+   "gap_min": 1258.2,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T05:16:17.168718+00:00",
+   "gap_min": 62.14,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T06:18:40.534453+00:00",
+   "gap_min": 62.39,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T07:20:51.903802+00:00",
+   "gap_min": 62.19,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T08:22:48.303672+00:00",
+   "gap_min": 61.94,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T11:41:07.264231+00:00",
+   "gap_min": 198.32,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T12:43:41.765020+00:00",
+   "gap_min": 62.58,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T13:46:33.823943+00:00",
+   "gap_min": 62.87,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-16T14:49:14.664432+00:00",
+   "gap_min": 62.68,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T04:13:29.208742+00:00",
+   "gap_min": 804.24,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T05:15:48.875624+00:00",
+   "gap_min": 62.33,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T06:17:50.865133+00:00",
+   "gap_min": 62.03,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T07:19:56.925876+00:00",
+   "gap_min": 62.1,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T08:22:25.264017+00:00",
+   "gap_min": 62.47,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T11:41:03.980487+00:00",
+   "gap_min": 198.65,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T12:52:21.166071+00:00",
+   "gap_min": 71.29,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T13:55:21.756565+00:00",
+   "gap_min": 63.01,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-17T14:57:24.793458+00:00",
+   "gap_min": 62.05,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T04:05:54.662565+00:00",
+   "gap_min": 788.5,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T05:08:30.024264+00:00",
+   "gap_min": 62.59,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T06:10:58.166153+00:00",
+   "gap_min": 62.47,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T07:13:36.320422+00:00",
+   "gap_min": 62.64,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T08:16:11.270973+00:00",
+   "gap_min": 62.58,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T11:34:50.781980+00:00",
+   "gap_min": 198.66,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T12:37:37.697199+00:00",
+   "gap_min": 62.78,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T13:40:13.004049+00:00",
+   "gap_min": 62.59,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-18T14:42:57.279648+00:00",
+   "gap_min": 62.74,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T04:08:24.983852+00:00",
+   "gap_min": 805.46,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T05:10:50.342893+00:00",
+   "gap_min": 62.42,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T06:13:58.532724+00:00",
+   "gap_min": 63.14,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T07:16:19.349882+00:00",
+   "gap_min": 62.35,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T08:18:45.898931+00:00",
+   "gap_min": 62.44,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T11:37:51.682759+00:00",
+   "gap_min": 199.1,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T12:40:30.011193+00:00",
+   "gap_min": 62.64,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T13:42:43.406931+00:00",
+   "gap_min": 62.22,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-19T14:45:27.506949+00:00",
+   "gap_min": 62.74,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T04:11:21.605623+00:00",
+   "gap_min": 805.9,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T05:14:24.639663+00:00",
+   "gap_min": 63.05,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T06:17:23.538790+00:00",
+   "gap_min": 62.98,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T07:20:32.263252+00:00",
+   "gap_min": 63.15,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T08:22:44.778900+00:00",
+   "gap_min": 62.21,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T11:41:29.672286+00:00",
+   "gap_min": 198.75,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T12:44:09.038785+00:00",
+   "gap_min": 62.66,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T13:47:16.637159+00:00",
+   "gap_min": 63.13,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-20T14:50:20.872854+00:00",
+   "gap_min": 63.07,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T04:01:57.913964+00:00",
+   "gap_min": 791.62,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T05:04:11.252736+00:00",
+   "gap_min": 62.22,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T06:06:55.468750+00:00",
+   "gap_min": 62.74,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T07:09:51.475322+00:00",
+   "gap_min": 62.93,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T08:12:49.187679+00:00",
+   "gap_min": 62.96,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T11:47:51.475415+00:00",
+   "gap_min": 215.04,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T12:50:47.684981+00:00",
+   "gap_min": 62.94,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T13:53:20.452785+00:00",
+   "gap_min": 62.55,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-21T14:56:08.665018+00:00",
+   "gap_min": 62.8,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-22T04:07:13.551870+00:00",
+   "gap_min": 791.08,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-22T05:10:00.136585+00:00",
+   "gap_min": 62.78,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-22T06:17:52.306149+00:00",
+   "gap_min": 67.87,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-22T07:20:06.378961+00:00",
+   "gap_min": 62.23,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T04:07:43.449291+00:00",
+   "gap_min": 1247.62,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T05:10:33.825839+00:00",
+   "gap_min": 62.84,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T06:13:23.742327+00:00",
+   "gap_min": 62.83,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T07:16:30.403479+00:00",
+   "gap_min": 63.11,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T08:19:06.423661+00:00",
+   "gap_min": 62.6,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T11:38:56.619190+00:00",
+   "gap_min": 199.84,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T12:42:06.654894+00:00",
+   "gap_min": 63.17,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T13:45:01.073810+00:00",
+   "gap_min": 62.91,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-23T14:47:44.448150+00:00",
+   "gap_min": 62.72,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T04:14:29.517572+00:00",
+   "gap_min": 806.75,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T05:17:08.744136+00:00",
+   "gap_min": 62.65,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T06:20:05.721797+00:00",
+   "gap_min": 62.95,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T07:22:45.319154+00:00",
+   "gap_min": 62.66,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T08:25:50.202077+00:00",
+   "gap_min": 63.08,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T11:45:48.906365+00:00",
+   "gap_min": 199.98,
+   "inside_one_opd_session": false
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T12:48:30.885594+00:00",
+   "gap_min": 62.7,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T13:51:57.530450+00:00",
+   "gap_min": 63.44,
+   "inside_one_opd_session": true
+  },
+  {
+   "clinic_id": "018b7266-7840-76c6-b6ad-fa7be7efed79",
+   "backend": "ots",
+   "anchor_at": "2026-11-24T14:54:31.664390+00:00",
+   "gap_min": 62.57,
+   "inside_one_opd_session": false
+  }
+ ],
+ "snapshot_taken_at": "2026-11-24T19:03:34.651933+00:00"
+}

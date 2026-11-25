@@ -1,0 +1,1 @@
+Windows AMD64, 12 CPUs, Python 3.12.13

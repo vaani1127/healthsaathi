@@ -112,6 +112,30 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
   - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
     `experiments/results/v1` and the pre-registration are not touched.
 
+### Anchoring snapshot B
+
+- Snapshot B of the live demo, taken 24 November 2026 at 19:03:34 UTC (25 November, 00:33 IST)
+  with a read-only session through the SSH tunnel: `experiments/results/anchoring/live`
+  (events, checkpoints and receipts: positions, times, tree sizes and transaction references
+  only), enriched with block times and gas from the public Amoy RPC and Blockstream. Snapshot A
+  (18 November) was not taken.
+- `python -m e2d_experiments.anchoring cadence`, `bench` and `report` rewrote
+  `experiments/results/anchoring/cadence`, `experiments/results/anchoring/bench`,
+  `paper/tables/anchoring_*.tex` and `paper/figures/fig_rewrite_window.{pdf,png}`.
+  `bench-receipts` was not run, so `apps/web/public/bench/receipts.json` is unchanged.
+- New `python -m e2d_experiments.anchoring.summary`: for one study period, anchors per clinic and
+  witness, gas per clinic, every gap between anchors longer than 30 minutes, and the events after
+  14 days, reusing the study's own functions. Output: `experiments/results/anchoring/summary_clean.json`.
+  Tests in `experiments/tests/test_anchoring.py`.
+- `anchoring_gas.tex` now has one row per study period (by the time each anchor was sent) and
+  the Besu bench row, like the windows table. The two first anchors of the clinics (85,639 gas,
+  sent before the first period) are left out, as events outside every period are in the windows
+  table. Test: `test_gas_table_has_one_row_per_period_and_the_bench_row`. The snapshot data is
+  unchanged.
+- `docs/PROGRESS.md` explains the 85,639 maximum and the Amoy lag of the timer-working period
+  (15 checkpoints with no Amoy receipt, on 2 and 4 November; the cause of the failed sends is not
+  proven), and records the clinic ids.
+
 ### Staff password recovery
 
 - "Forgot password?" on the staff sign-in page (`/forgot-password`).

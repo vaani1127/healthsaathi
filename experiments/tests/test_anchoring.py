@@ -4,7 +4,7 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from e2d_experiments.anchoring import analysis, bench, collect, report
+from e2d_experiments.anchoring import analysis, bench, cadence, collect, report, summary
 
 T0 = datetime(2026, 11, 1, 10, 0, tzinfo=UTC)
 TS = pl.Datetime("us", "UTC")
@@ -251,3 +251,100 @@ def test_tamper_table_from_the_committed_study() -> None:
     assert lines["Next checkpoint"].endswith("-- & caught & -- \\\\")
     assert lines["Root on chain"].endswith("-- & caught & caught \\\\")
     assert lines[r"Published heads (verify\_witness)"].endswith("-- & caught & caught \\\\")
+
+
+def live_receipts() -> pl.DataFrame:
+    _, _, receipts = frames()
+    return receipts.with_columns(
+        pl.lit("c").alias("clinic_id"),
+        pl.Series("submitted_at", [at(15.6), at(45.3), at(15.7), at(95.0)], dtype=TS),
+    )
+
+
+def test_summary_counts_anchors_gas_long_gaps_and_late_events() -> None:
+    events, checkpoints, _ = frames()
+    receipts = live_receipts()
+    period = cadence.Period("clean", "Clean", T0, None)
+    out = summary.summarise(
+        events,
+        checkpoints,
+        receipts,
+        period,
+        at(100),
+        "UTC",
+        cadence.sessions_from_config(cadence.DEMO_SESSIONS),
+        gap_minutes=30,
+        days=0,
+    )
+    assert out["events"] == 4
+    assert out["end"] == at(100).isoformat()
+    assert out["events_after_0_days"] == 4
+    anchors = {r["backend"]: (r["anchors"], r["confirmed"]) for r in out["anchors"]}
+    assert anchors == {"amoy": (2, 1), "github": (2, 1)}
+    assert out["gas"] == [
+        {
+            "clinic_id": "c",
+            "backend": "amoy",
+            "transactions": 1,
+            "gas_total": 50_000,
+            "gas_median": 50_000.0,
+            "gas_min": 50_000,
+            "gas_max": 50_000,
+            "fee_total": 50_000 * 30 * 10**9 / 1e18,
+        }
+    ]
+    # amoy 15.6 -> 45.3 is 29.7 minutes; github 15.7 -> 95.0 is 79.3 minutes.
+    gaps = out["gaps_over_30_min"]
+    assert [(g["backend"], g["gap_min"]) for g in gaps] == [("github", 79.3)]
+
+
+def test_summary_windows_match_the_study_table() -> None:
+    events, checkpoints, _ = frames()
+    receipts = live_receipts()
+    period = cadence.Period("clean", "Clean", T0, T0 + timedelta(hours=1))
+    sessions = cadence.sessions_from_config(cadence.DEMO_SESSIONS)
+    out = summary.summarise(events, checkpoints, receipts, period, at(100), "UTC", sessions)
+    table = analysis.window_summary(analysis.event_windows(events, checkpoints, receipts))
+    assert [r["backend"] for r in out["rewrite_window_min"]] == table["backend"].to_list()
+    amoy = next(r for r in out["rewrite_window_min"] if r["backend"] == "amoy")
+    assert amoy["median_min"] == round(
+        table.filter(pl.col("backend") == "amoy")["median_min"][0], 2
+    )
+    assert out["end_is_snapshot_time"] is False
+
+
+def test_gas_table_has_one_row_per_period_and_the_bench_row(tmp_path: Path) -> None:
+    events, checkpoints, _ = frames()
+    receipts = live_receipts().with_columns(
+        # k1's amoy anchor: sent before the first period, like each clinic's first anchor.
+        pl.Series("submitted_at", [at(-30), at(45.3), at(15.7), at(95.0)], dtype=TS),
+        pl.Series("status", ["confirmed", "confirmed", "confirmed", "pending"]),
+        pl.Series("final_at", [at(-29), at(45.75), None, None], dtype=TS),
+        pl.Series("gas_used", [85_639, 50_000, None, None], dtype=pl.Int64),
+        pl.Series("gas_price_wei", [30 * 10**9] * 2 + [None] * 2, dtype=pl.Int64),
+    )
+    snap = tmp_path / "live"
+    snap.mkdir()
+    events.write_parquet(snap / "events.parquet")
+    checkpoints.write_parquet(snap / "checkpoints.parquet")
+    receipts.write_parquet(snap / "enriched.parquet")
+    besu = tmp_path / "besu"
+    besu.mkdir()
+    checkpoints.with_columns(pl.col("checkpoint_id") + "-b").write_parquet(
+        besu / "checkpoints.parquet"
+    )
+    receipts.filter(pl.col("backend") == "amoy").with_columns(
+        pl.col("checkpoint_id") + "-b", pl.lit("besu").alias("backend")
+    ).write_parquet(besu / "enriched.parquet")
+    periods = [
+        cadence.Period("early", "Early", T0, at(30)),
+        cadence.Period("late", "Late", at(30), None),
+    ]
+    report.write(snap, tmp_path / "tables", tmp_path / "figures", [1.0], periods, "UTC")
+    gas = (tmp_path / "tables" / "anchoring_gas.tex").read_text(encoding="utf-8")
+    rows = [line for line in gas.splitlines() if line.endswith("\\\\") and "&" in line][1:]
+    assert [row.split(" & ")[:3] for row in rows] == [
+        ["Late", "Polygon Amoy", "1"],
+        ["Bench run", "Besu QBFT (4 nodes)", "2"],
+    ]
+    assert "85,639" not in rows[0] and "85,639" in rows[1]
