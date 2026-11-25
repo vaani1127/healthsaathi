@@ -311,10 +311,15 @@ finalise the whole history instead, run the job once by hand before the worker g
    `detect_daily` audit event per clinic per past day, all of which are then anchored; either
    would change the anchoring study's data. Deploy outside OPD hours (09:30-13:30 and
    17:00-20:00 IST), as usual.
-2. On the VM, in `/opt/healthsaathi`, stop the worker so it does not start skipping days:
+2. Before pushing the tag, set `DETECT_CATCH_UP_DAYS` in `/opt/healthsaathi/.env` to the window of
+   step 4. `deploy.sh` starts the new worker as soon as the release is up, before you can stop it,
+   and with the default of 7 its first pass would mark every older day with accesses skipped, for
+   good. The worker also finalises days with this window until it is stopped: on 25 November 2026
+   it wrote 96 of clinic A's empty lists this way.
+3. After the deploy, on the VM, in `/opt/healthsaathi`, stop the worker:
    `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml stop worker`
    (this stops the anchor fallback timer too; the GitHub schedule keeps anchoring).
-3. Finalise the history with a catch-up window of (today minus the first access date) plus 2
+4. Finalise the history with a catch-up window of (today minus the first access date) plus 2
    days, with both dates in clinic time and the earliest first access of all clinics. For
    example, 57 on 25 November 2026 with a first access on 1 October:
    `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml run --rm worker python -m app.detect.job --daily --catch-up <days>`
@@ -325,10 +330,14 @@ finalise the whole history instead, run the job once by hand before the worker g
    for good. The 2 days are a margin, at the cost of a few empty lists.
    This runs without the per-tick caps and can take a while on a long history. It is safe to
    stop and run again: finalised days are never redone.
-4. Start the worker again:
+5. Start the worker again:
    `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml start worker`
-5. Check the log for "day finalised" lines and no "day skipped" lines, and the admin alert
+6. Check the log for "day finalised" lines and no "day skipped" lines, and the admin alert
    page: past days say "Final list".
+7. When every clinic is finalised up to the day before yesterday, set `DETECT_CATCH_UP_DAYS` back
+   to 7 in `.env` and recreate the worker, which reads `.env` only then (`start` is not enough):
+   `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml up -d worker`
+   If the run of step 4 was stopped early, wait until the worker has done the remaining days.
 
 The local demo does this itself: `hs_demo.seed` finalises every loaded day that is due.
 - The daily feature cache is in `MODEL_DIR/daily`. It can be deleted at any time; it is rebuilt

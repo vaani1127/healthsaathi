@@ -137,6 +137,7 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
   final list. ADR 0008 amended. Not in v0.1.7; the empty lists it wrote stay (see Deviations).
   Tests in `apps/api/tests/detect/test_daily.py`: a 400-day catch-up, the worker's capped call,
   a clinic with no staff access, and the local day of the first access.
+- `docs/RUNBOOK.md`: set `DETECT_CATCH_UP_DAYS` in the VM `.env` before the tag, and back to 7 after.
 
 ### Docs: v0.1.7 deploy
 
