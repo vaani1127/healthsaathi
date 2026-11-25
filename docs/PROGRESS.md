@@ -124,6 +124,14 @@ Clinic ids in the snapshot: `018b7266-7840-7319-9498-c18c799e670c` is Saathi Dem
 `018b7266-7840-76c6-b6ad-fa7be7efed79` is Saathi Demo Clinic B (one read-only SELECT on the live
 `clinics` table, 25 November 2026).
 
+**After the snapshot: empty final lists.** The v0.1.7 history catch-up (25 November 2026) used a
+400-day window and wrote an empty final list, with an anchored `detect_daily` audit event, for
+347 days of clinic A (2025-10-20 to 2026-10-01) and 346 of clinic B (2025-10-20 to 2026-09-30),
+all before the first staff access. `audit_events` went from 145,057 rows (10:02:44 UTC, before the
+deploy) to 147,755 (13:09:01 UTC), 800 of them `detect_daily`. The log is append-only, so they
+stay. Snapshot B was taken before and no alert changed for those days. Details: the 25 November
+entry under Deviations in `docs/CHANGELOG.md`.
+
 **Gas by period.** `anchoring_gas.tex` has one row per study period (by the time the anchor was
 sent) and the Besu bench row. The 85,639 gas maximum of the earlier version of the table was each
 clinic's first Amoy anchor (clinic A tree size 1,283, sent 31 October 16:54:59 UTC; clinic B tree

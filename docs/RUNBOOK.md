@@ -146,16 +146,32 @@ address (`TRUSTED_PROXY_IPS`).
    it should print nothing either. If either prints a line, pick another subnet in
    `docker-compose.prod.yml` (subnet, ip_range, gateway, Caddy's `ipv4_address` and
    `TRUSTED_PROXY_IPS` together) before deploying.
-2. `deploy.sh` needs no change: `up -d` creates the new network (a new name, so the old one is
-   not modified) and recreates `api`, `worker`, `caddy` and `activity` on it. Expect the usual
-   few seconds of downtime while they restart.
-3. The old network `healthsaathi_default` is left empty. It does no harm. To remove it, first
+2. Docker Compose v5.6.1 (the VM's version) does not simply create the new network beside the old
+   one. On the v0.1.7 deploy (25 November 2026, deploy run 45593273154, attempt 1) the first
+   compose command in `deploy.sh` (`--profile migrate run --rm migrate`) created
+   `healthsaathi_edge`, then tried to remove the old `default` network, `healthsaathi_default`,
+   and failed because the running containers were still attached:
+   `error while removing network: network healthsaathi_default has active endpoints`.
+   No migration ran and the old containers kept running.
+3. What worked: re-running the failed job once (`gh run rerun <run id> --failed`), with no other
+   change. `healthsaathi_edge` now existed with the compose file's settings, so compose used it,
+   warned that `healthsaathi_default` "does not match the compose file ... it is left untouched",
+   migrated, and recreated `api`, `worker`, `caddy` and `activity` on the new network. Stopping
+   the containers first was not needed. The downtime was not measured. From the deploy log, the
+   containers were replaced from 10:48:15 to 10:48:32 UTC and the release was reported healthy at
+   10:48:59, so it was at most 44 seconds. A VM with no old network was not tested.
+4. The old network `healthsaathi_default` is left empty. It does no harm. To remove it, first
    check it has no containers with `docker network inspect healthsaathi_default`, then
    `docker network rm healthsaathi_default`.
-4. Rolling back to an image older than this change works with the new compose file and keeps
+5. Rolling back to an image older than this change works with the new compose file and keeps
    real client IPs: the older image reads `FORWARDED_ALLOW_IPS`, which the compose file sets to
    Caddy's address only (`10.250.0.2`). The current image ignores that variable (uvicorn runs
    with `--no-proxy-headers`) and reads `TRUSTED_PROXY_IPS` instead.
+6. Since the v0.1.7 deploy, a manual rollback to v0.1.6 (or any older tag) must use the v0.1.7
+   compose file now in `/opt/healthsaathi` (with the `healthsaathi_edge` network block), not the
+   compose file of the older tag. The old compose file puts the services back on
+   `healthsaathi_default`, so compose may hit the same network error in reverse. Neither rollback
+   was tested.
 
 ## Staging
 
@@ -175,7 +191,8 @@ takes up to a minute.
 - API: on the VM, `cat /opt/healthsaathi/current_tag` shows the running tag, and
   `docker image ls healthsaathi-api` the previous one, which is always kept. Run
   `HS_TAG=<previous> docker compose -f /opt/healthsaathi/docker-compose.prod.yml up -d api worker`
-  and write the tag into `current_tag`. Or re-run the deploy workflow for the older tag.
+  and write the tag into `current_tag`. Or re-run the deploy workflow for the older tag. Use the
+  compose file that is on the VM, not the older tag's (see "Fixed network", step 6).
 - Migrations: write them so the previous release still works on the new schema (add columns and
   tables first, remove them in a later release). Never edit an applied revision. If a migration
   must be undone, add a new revision that undoes it.
@@ -219,6 +236,9 @@ accepting invites hashed with the raw `OTP_HMAC_KEY`, so invites sent before it 
 Remove that fallback in a later release, **7 days after that deploy** (invites last 72 hours):
 
 1. Note the date of that deploy (`cat /opt/healthsaathi/current_tag` and the deploy workflow run).
+   That deploy was v0.1.7, deployed on 25 November 2026 at 10:48:59 UTC (16:18:59 IST), deploy
+   run 45593273154. **Remove the legacy invite check on or after 2 December 2026**, and use
+   `2026-11-25 10:48:59+00` as the deploy time in the check below.
 2. On or after deploy date + 7 days, confirm that no unused, unexpired invite is still hashed
    the old way. With the old hashes unknown to SQL, check that every open invite was created
    after the deploy:
@@ -294,9 +314,15 @@ finalise the whole history instead, run the job once by hand before the worker g
 2. On the VM, in `/opt/healthsaathi`, stop the worker so it does not start skipping days:
    `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml stop worker`
    (this stops the anchor fallback timer too; the GitHub schedule keeps anchoring).
-3. Finalise the history with a catch-up window longer than the history (in days since the
-   first access), for example 400:
-   `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml run --rm worker python -m app.detect.job --daily --catch-up 400`
+3. Finalise the history with a catch-up window of (today minus the first access date) plus 2
+   days, with both dates in clinic time and the earliest first access of all clinics. For
+   example, 57 on 25 November 2026 with a first access on 1 October:
+   `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml run --rm worker python -m app.detect.job --daily --catch-up <days>`
+   Why not a large round number: v0.1.7 finalises every due day in the window, with or without
+   accesses, and each one writes a `detect_daily` audit event that stays for good (a window of
+   400 wrote 347 and 346 empty ones, see the Deviations in `docs/CHANGELOG.md`). Why plus 2: the
+   window must reach the first access day, because an older day with accesses is marked skipped
+   for good. The 2 days are a margin, at the cost of a few empty lists.
    This runs without the per-tick caps and can take a while on a long history. It is safe to
    stop and run again: finalised days are never redone.
 4. Start the worker again:

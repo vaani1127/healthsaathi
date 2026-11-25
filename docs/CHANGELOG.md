@@ -112,6 +112,33 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
   - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
     `experiments/results/v1` and the pre-registration are not touched.
 
+- **25 November 2026: the v0.1.7 history catch-up used a 400-day window.** Reason: 400 was the
+  RUNBOOK's example, and the job finalises every due day in its window, not only days with
+  accesses. What happened on the live demo (read-only queries, 25 November 2026, 13:09 UTC):
+  - Clinic A got 347 empty final lists, dated 2025-10-20 to 2026-10-01, before its first staff
+    access (2 October 2026). Clinic B got 346, dated 2025-10-20 to 2026-09-30 (first staff access
+    1 October 2026). Each has a `detect_daily` audit event, inside a tree size with confirmed
+    Amoy and GitHub anchors.
+  - Each clinic has 400 `detect_daily` events. With no staff access that day: 354 for clinic A
+    and 353 for clinic B. The other 7 of each are days after the first access with no staff
+    access.
+  - `audit_events` held 145,057 rows at 10:02:44 UTC, before the deploy, and 147,755 at 13:09:01
+    UTC. Of the 2,698 new rows 800 are `detect_daily` and 1,898 are of other kinds.
+  - The log is append-only, so these events stay.
+  - Effect: none on anchoring snapshot B, which was taken before (24 November 2026, 19:03:34
+    UTC). None on any alert: the 693 entries before the first access have 0 staff accesses and
+    empty final, added, finalised and retired lists.
+
+### Docs: v0.1.7 deploy
+
+- `docs/RUNBOOK.md`: v0.1.7 was deployed on 25 November 2026 at 10:48:59 UTC (16:18:59 IST);
+  remove the legacy invite check on or after 2 December 2026. "Fixed network" now records that
+  Docker Compose v5.6.1 tried to remove the old `default` network and failed while containers
+  were attached, that re-running the failed job alone then worked (downtime not measured, at
+  most 44 seconds from the deploy log), and that a manual rollback to v0.1.6 needs the compose
+  file now on the VM, not the old one. "First deploy of the daily final list" now gives the
+  catch-up window as (today minus the first access date) plus 2 days, and why.
+
 ### Anchoring snapshot B
 
 - Snapshot B of the live demo, taken 24 November 2026 at 19:03:34 UTC (25 November, 00:33 IST)
