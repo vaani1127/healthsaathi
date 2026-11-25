@@ -156,10 +156,10 @@ address (`TRUSTED_PROXY_IPS`).
 3. What worked: re-running the failed job once (`gh run rerun <run id> --failed`), with no other
    change. `healthsaathi_edge` now existed with the compose file's settings, so compose used it,
    warned that `healthsaathi_default` "does not match the compose file ... it is left untouched",
-   migrated, and recreated `api`, `worker`, `caddy` and `activity` on the new network. There was
-   no outage beyond the usual few seconds of container restarts (containers recreated from
-   10:48:15 to 10:48:32 UTC). Stopping the containers first was not needed. On a fresh VM with
-   no old network, the first run works as is.
+   migrated, and recreated `api`, `worker`, `caddy` and `activity` on the new network. Stopping
+   the containers first was not needed. The downtime was not measured. From the deploy log, the
+   containers were replaced from 10:48:15 to 10:48:32 UTC and the release was reported healthy at
+   10:48:59, so it was at most 44 seconds. A VM with no old network was not tested.
 4. The old network `healthsaathi_default` is left empty. It does no harm. To remove it, first
    check it has no containers with `docker network inspect healthsaathi_default`, then
    `docker network rm healthsaathi_default`.
@@ -169,8 +169,9 @@ address (`TRUSTED_PROXY_IPS`).
    with `--no-proxy-headers`) and reads `TRUSTED_PROXY_IPS` instead.
 6. Since the v0.1.7 deploy, a manual rollback to v0.1.6 (or any older tag) must use the v0.1.7
    compose file now in `/opt/healthsaathi` (with the `healthsaathi_edge` network block), not the
-   compose file of the older tag. The old compose file names the network `default` again, and
-   compose would hit the same network error in reverse.
+   compose file of the older tag. The old compose file puts the services back on
+   `healthsaathi_default`, so compose may hit the same network error in reverse. Neither rollback
+   was tested.
 
 ## Staging
 
@@ -313,9 +314,15 @@ finalise the whole history instead, run the job once by hand before the worker g
 2. On the VM, in `/opt/healthsaathi`, stop the worker so it does not start skipping days:
    `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml stop worker`
    (this stops the anchor fallback timer too; the GitHub schedule keeps anchoring).
-3. Finalise the history with a catch-up window longer than the history (in days since the
-   first access), for example 400:
-   `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml run --rm worker python -m app.detect.job --daily --catch-up 400`
+3. Finalise the history with a catch-up window of (today minus the first access date) plus 2
+   days, with both dates in clinic time and the earliest first access of all clinics. For
+   example, 57 on 25 November 2026 with a first access on 1 October:
+   `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml run --rm worker python -m app.detect.job --daily --catch-up <days>`
+   Why not a large round number: v0.1.7 finalises every due day in the window, with or without
+   accesses, and each one writes a `detect_daily` audit event that stays for good (a window of
+   400 wrote 347 and 346 empty ones, see the Deviations in `docs/CHANGELOG.md`). Why plus 2: the
+   window must reach the first access day, because an older day with accesses is marked skipped
+   for good. The 2 days are a margin, at the cost of a few empty lists.
    This runs without the per-tick caps and can take a while on a long history. It is safe to
    stop and run again: finalised days are never redone.
 4. Start the worker again:
