@@ -350,3 +350,254 @@ async def test_deactivated_member_cannot_select_clinic(
         headers={"authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 403
+
+
+# Report status changes are audited, and a closed report stays closed (AUDIT_REPORT M4) ------------
+
+
+async def _report(
+    client: AsyncClient, staff: dict[Role, Actor], patient_actor: Actor, patient: uuid.UUID
+) -> str:
+    await client.get(f"/api/v1/patients/{patient}", headers=staff[Role.NURSE].headers)
+    log = (
+        await client.get(f"/api/v1/patients/{patient}/access-log", headers=patient_actor.headers)
+    ).json()
+    report = await client.post(
+        f"/api/v1/access-events/{log['items'][0]['id']}/query",
+        json={"message": "I do not know this nurse"},
+        headers=patient_actor.headers,
+    )
+    assert report.status_code == 201
+    return str(report.json()["id"])
+
+
+async def test_closing_a_report_is_written_to_the_audit_chain(
+    client: AsyncClient,
+    admin_engine: AsyncEngine,
+    clinic: uuid.UUID,
+    staff: dict[Role, Actor],
+    patient_actor: Actor,
+    patient: uuid.UUID,
+) -> None:
+    from sqlalchemy import select
+
+    from app.core.db import tenant_session
+    from app.ledger.checkpoint import load_tree
+
+    query_id = await _report(client, staff, patient_actor, patient)
+    admin = staff[Role.CLINIC_ADMIN]
+    closed = await client.patch(
+        f"/api/v1/access-queries/{query_id}", json={"status": "closed"}, headers=admin.headers
+    )
+    assert closed.status_code == 200
+    async with AsyncSession(admin_engine) as s:
+        events = (
+            await s.scalars(
+                select(m.AuditEvent)
+                .where(m.AuditEvent.clinic_id == clinic, m.AuditEvent.kind == "access_query")
+                .order_by(m.AuditEvent.seq)
+            )
+        ).all()
+    assert len(events) == 1
+    payload = events[0].payload
+    assert payload["type"] == "access_query"
+    assert payload["query_id"] == query_id
+    assert (payload["old_status"], payload["new_status"]) == ("open", "closed")
+    assert payload["by"] == str(admin.user_id)
+    assert payload["at"]
+    # The chain, with the new event in it, still verifies.
+    async with tenant_session(admin.ctx) as db:
+        tree, seqs = await load_tree(db, clinic)
+    assert events[0].seq in seqs
+    assert tree.size == len(seqs)
+    # With a signed checkpoint over it, the audit page reports the chain intact and a receipt for
+    # the reported access still verifies: the new kind is just another leaf.
+    from app.ledger.checkpoint import build_checkpoint
+    from e2d_core.ledger import TreeHead, leaf_hash, verify_inclusion
+
+    await build_checkpoint(clinic)
+    status = (await client.get("/api/v1/audit/status", headers=admin.headers)).json()
+    assert status["chain_ok"] is True and status["problem"] is None
+    log = (
+        await client.get(f"/api/v1/patients/{patient}/access-log", headers=patient_actor.headers)
+    ).json()
+    receipt = await client.get(
+        f"/api/v1/access-events/{log['items'][-1]['id']}/receipt", headers=patient_actor.headers
+    )
+    assert receipt.status_code == 200, receipt.text
+    body = receipt.json()
+    head = TreeHead.from_json(body["sth"])
+    assert verify_inclusion(
+        leaf_hash(bytes.fromhex(body["payload_hash"])),
+        body["leaf_index"],
+        head.tree_size,
+        [bytes.fromhex(x) for x in body["proof"]],
+        bytes.fromhex(head.root_hex),
+    )
+
+
+async def test_a_closed_report_cannot_be_reopened(
+    client: AsyncClient,
+    admin_engine: AsyncEngine,
+    clinic: uuid.UUID,
+    staff: dict[Role, Actor],
+    patient_actor: Actor,
+    patient: uuid.UUID,
+) -> None:
+    from sqlalchemy import func, select
+
+    query_id = await _report(client, staff, patient_actor, patient)
+    admin = staff[Role.CLINIC_ADMIN]
+    url = f"/api/v1/access-queries/{query_id}"
+    assert (
+        await client.patch(url, json={"status": "closed"}, headers=admin.headers)
+    ).status_code == 200
+    reopened = await client.patch(url, json={"status": "open"}, headers=admin.headers)
+    assert reopened.status_code == 409
+    assert reopened.json()["code"] == "query-closed"
+    async with AsyncSession(admin_engine) as s:
+        status = await s.scalar(
+            select(m.PatientAccessQuery.status).where(
+                m.PatientAccessQuery.id == uuid.UUID(query_id)
+            )
+        )
+        audited = await s.scalar(
+            select(func.count())
+            .select_from(m.AuditEvent)
+            .where(m.AuditEvent.clinic_id == clinic, m.AuditEvent.kind == "access_query")
+        )
+    assert status == "closed"
+    assert audited == 1
+
+
+async def _query_events(engine: AsyncEngine, clinic: uuid.UUID) -> int:
+    from sqlalchemy import func, select
+
+    async with AsyncSession(engine) as s:
+        return int(
+            await s.scalar(
+                select(func.count())
+                .select_from(m.AuditEvent)
+                .where(m.AuditEvent.clinic_id == clinic, m.AuditEvent.kind == "access_query")
+            )
+            or 0
+        )
+
+
+async def test_closing_twice_records_one_change(
+    client: AsyncClient,
+    admin_engine: AsyncEngine,
+    clinic: uuid.UUID,
+    staff: dict[Role, Actor],
+    patient_actor: Actor,
+    patient: uuid.UUID,
+) -> None:
+    query_id = await _report(client, staff, patient_actor, patient)
+    admin = staff[Role.CLINIC_ADMIN]
+    url = f"/api/v1/access-queries/{query_id}"
+    for _ in range(2):
+        closed = await client.patch(url, json={"status": "closed"}, headers=admin.headers)
+        assert closed.status_code == 200
+        assert closed.json()["status"] == "closed"
+    assert await _query_events(admin_engine, clinic) == 1
+
+
+async def test_another_clinics_admin_cannot_change_a_report(
+    client: AsyncClient,
+    admin_engine: AsyncEngine,
+    clinic: uuid.UUID,
+    staff: dict[Role, Actor],
+    patient_actor: Actor,
+    patient: uuid.UUID,
+) -> None:
+    query_id = await _report(client, staff, patient_actor, patient)
+    other_clinic = await make_clinic(admin_engine)
+    other = await make_actor(admin_engine, other_clinic, Role.CLINIC_ADMIN)
+    resp = await client.patch(
+        f"/api/v1/access-queries/{query_id}", json={"status": "closed"}, headers=other.headers
+    )
+    assert resp.status_code == 404
+    assert resp.json()["code"] == "query-not-found"
+    assert await _query_events(admin_engine, clinic) == 0
+    assert await _query_events(admin_engine, other_clinic) == 0
+
+
+async def test_observation_performers_change_only_the_fhir_part(
+    client: AsyncClient,
+    admin_engine: AsyncEngine,
+    clinic: uuid.UUID,
+    staff: dict[Role, Actor],
+    patient_actor: Actor,
+    patient: uuid.UUID,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AUDIT_REPORT m8: the patient download outside "fhir" is byte for byte the same with and
+    without the Observation performers, for the same data. Both exports run on the same database
+    state (each rolled back to a savepoint) at a fixed time."""
+    import json
+
+    from app.access.service import RequestInfo
+    from app.core.db import tenant_session
+    from app.portal import service as portal
+
+    await visit_with_token(client, staff, patient)
+    nurse = staff[Role.NURSE]
+    vitals = await client.post(
+        f"/api/v1/patients/{patient}/vitals",
+        json={"pulse": 76, "spo2": 98},
+        headers=nurse.headers,
+    )
+    assert vitals.status_code == 201, vitals.text
+    fixed = datetime(2026, 11, 21, 12, 0, tzinfo=UTC)
+
+    async def at_fixed_time(_db: object) -> datetime:
+        return fixed
+
+    monkeypatch.setattr(portal, "db_now", at_fixed_time)
+    real = portal.observation_performers
+
+    async def none(_db: object, _v: object, _l: object) -> dict[str, dict[uuid.UUID, uuid.UUID]]:
+        return {"vital_performers": {}, "lab_performers": {}}
+
+    async def export(with_performers: bool) -> dict[str, object]:
+        monkeypatch.setattr(portal, "observation_performers", real if with_performers else none)
+        async with tenant_session(patient_actor.ctx) as db:
+            savepoint = await db.begin_nested()
+            out = await portal.export(db, patient_actor.principal, patient, RequestInfo())
+            await savepoint.rollback()
+        data: dict[str, object] = json.loads(out.model_dump_json())
+        return data
+
+    before, after = await export(False), await export(True)
+
+    def outside_fhir(data: dict[str, object]) -> str:
+        rest = {k: v for k, v in data.items() if k != "fhir"}
+        # The export's own access entry is new in each run (a new id); everything else is the
+        # same data.
+        log = rest["access_log"]
+        assert isinstance(log, list)
+        rest["access_log"] = [e for e in log if e["action"] != "export"]
+        return json.dumps(rest, ensure_ascii=False)
+
+    assert outside_fhir(before) == outside_fhir(after)
+    record = after["record"]
+    assert isinstance(record, dict)
+    assert all("recorded_by" not in v for v in record["vitals"])
+    fhir = after["fhir"]
+    assert isinstance(fhir, dict)
+    observations = [
+        e["resource"] for e in fhir["entry"] if e["resource"]["resourceType"] == "Observation"
+    ]
+    assert observations
+    nurse_ref = f"urn:uuid:{nurse.user_id}"
+    assert all(
+        o["performer"] == [{"reference": nurse_ref, "display": o["performer"][0]["display"]}]
+        for o in observations
+    )
+    before_fhir = before["fhir"]
+    assert isinstance(before_fhir, dict)
+    assert all(
+        "performer" not in e["resource"]
+        for e in before_fhir["entry"]
+        if e["resource"]["resourceType"] == "Observation"
+    )

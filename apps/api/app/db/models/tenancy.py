@@ -1,13 +1,24 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import ForeignKey, Index, LargeBinary, String, Text, UniqueConstraint, func, text
+from sqlalchemy import (
+    BigInteger,
+    ForeignKey,
+    Index,
+    LargeBinary,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import (
     Base,
     ClinicScopedMixin,
     CreatedAtMixin,
+    EvidenceCreatedAtMixin,
     IdMixin,
     scoped_args,
     str_enum,
@@ -56,7 +67,7 @@ class StaffProfile(ClinicScopedMixin, Base):
     department: Mapped[str | None] = mapped_column(Text)
 
 
-class Patient(ClinicScopedMixin, CreatedAtMixin, Base):
+class Patient(ClinicScopedMixin, EvidenceCreatedAtMixin, Base):
     __tablename__ = "patients"
     __table_args__ = scoped_args(UniqueConstraint("clinic_id", "mrn"))
 
@@ -100,6 +111,9 @@ class MfaSecret(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), primary_key=True)
     totp_secret_enc: Mapped[bytes] = mapped_column(LargeBinary)
     enabled_at: Mapped[datetime | None]
+    # The last authenticator time step accepted for this user. A code is accepted only by an
+    # update that moves this forward, so each step works once across all API workers.
+    last_step: Mapped[int | None] = mapped_column(BigInteger)
 
 
 class EmailOtp(IdMixin, CreatedAtMixin, Base):

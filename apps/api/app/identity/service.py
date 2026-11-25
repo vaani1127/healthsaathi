@@ -18,16 +18,18 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import keys
 from app.core.config import get_settings
 from app.core.db import ANONYMOUS, TenantContext, tenant_session
 from app.core.errors import ProblemError
-from app.core.ratelimit import hit
+from app.core.ratelimit import OTP_PER_EMAIL, allow, hit
 from app.db.enums import STAFF_ROLES, Role
 from app.db.models import Device, EmailOtp, Membership, MfaSecret, User, UserSession
 from app.identity import lockout, password_policy, passwords, tokens, totp
+from app.ledger.writer import append_audit_event
 from app.notify.email import Email, send_email
 from e2d_core.ids import uuid7
 
@@ -83,10 +85,22 @@ def _normalise_email(email: str) -> str:
     return email.strip().lower()
 
 
-def _otp_hash(email: str, purpose: str, code: str) -> str:
-    key = get_settings().otp_hmac_key.get_secret_value().encode()
-    message = f"{_normalise_email(email)}|{purpose}|{code}".encode()
-    return hmac.new(key, message, hashlib.sha256).hexdigest()
+def _otp_message(email: str, purpose: str, code: str) -> bytes:
+    return f"{_normalise_email(email)}|{purpose}|{code}".encode()
+
+
+def _otp_hash(email: str, purpose: Literal["login", "invite"], code: str) -> str:
+    """Email sign-in codes and invite tokens, each under its own derived key (ADR 0009)."""
+    label = keys.EMAIL_CODE if purpose == "login" else keys.INVITE
+    return keys.hmac_hex(label, _otp_message(email, purpose, code))
+
+
+def _legacy_invite_hash(email: str, token: str) -> str:
+    """LEGACY, remove after the cutover (docs/RUNBOOK.md, "Derived keys: remove the legacy invite
+    check"): invites created before the derived keys were hashed under the raw OTP_HMAC_KEY.
+    Email codes have no such fallback: they last 10 minutes, and one sent before the deploy
+    simply fails."""
+    return keys.legacy_hmac_hex(_otp_message(email, "invite", token))
 
 
 async def _user_by_email(db: AsyncSession, email: str) -> User | None:
@@ -110,10 +124,8 @@ async def active_memberships(user_id: uuid.UUID) -> list[MembershipInfo]:
 
 
 async def login_with_password(email: str, password: str) -> LoginChallenge:
-    if lockout.is_locked(email):
-        raise ProblemError(
-            429, "account-locked", "Too many wrong passwords. Try again in 15 minutes."
-        )
+    # Counted before the password is checked (identity/lockout.py).
+    await lockout.count_attempt(email)
 
     async with tenant_session(ANONYMOUS) as db:
         user = await _user_by_email(db, email)
@@ -123,9 +135,9 @@ async def login_with_password(email: str, password: str) -> LoginChallenge:
     else:
         passwords.verify_password(_DUMMY_HASH, password)
     if not valid or user is None:
-        lockout.record_failure(email)
+        # A wrong password keeps the attempt counted.
         raise ProblemError(401, "invalid-credentials", "Email or password is wrong.")
-    lockout.clear(email)
+    await lockout.clear(email)
 
     memberships = await active_memberships(user.id)
     if memberships and all(m.role == Role.PATIENT for m in memberships):
@@ -151,15 +163,41 @@ def _user_from(token: str, token_type: tokens.TokenType) -> uuid.UUID:
         raise ProblemError(401, "invalid-token", "Sign in again.") from exc
 
 
+async def _claim_step(db: AsyncSession, user_id: uuid.UUID, step: int | None) -> bool:
+    """Take an authenticator time step for this user, at most once.
+
+    One conditional update: it changes the row only if the step is later than the last accepted
+    one. Two requests with the same code (on any worker) both try it; Postgres runs them one
+    after the other on the row lock and re-checks the condition, so exactly one changes the row.
+    The step is kept in the database, so a restart does not forget it.
+    """
+    if step is None:
+        return False
+    result = await db.execute(
+        update(MfaSecret)
+        .where(
+            MfaSecret.user_id == user_id,
+            or_(MfaSecret.last_step.is_(None), MfaSecret.last_step < step),
+        )
+        .values(last_step=step)
+        .execution_options(synchronize_session=False)
+    )
+    return bool(result.rowcount == 1)  # type: ignore[attr-defined]
+
+
 async def verify_totp(challenge_token: str, code: str, device: DeviceInfo) -> IssuedTokens:
     user_id = _user_from(challenge_token, "mfa_challenge")
-    hit(TOTP_ATTEMPTS, "totp", str(user_id))
+    await hit(TOTP_ATTEMPTS, "totp", str(user_id))
     async with tenant_session(ANONYMOUS) as db:
         mfa = await db.get(MfaSecret, user_id)
-    if mfa is None or mfa.enabled_at is None:
-        raise ProblemError(400, "mfa-not-enrolled")
-    if not totp.verify(totp.decrypt_secret(mfa.totp_secret_enc, str(user_id)), code, str(user_id)):
-        raise ProblemError(401, "invalid-code", "The code is wrong or has expired.")
+        if mfa is None or mfa.enabled_at is None:
+            raise ProblemError(400, "mfa-not-enrolled")
+        step = totp.matching_step(totp.decrypt_secret(mfa.totp_secret_enc, str(user_id)), code)
+        if not await _claim_step(db, user_id, step):
+            raise ProblemError(401, "invalid-code", "The code is wrong or has expired.")
+    # The claimed step is committed before the session is created. If creating the session
+    # fails, the step stays used and the user signs in with the next code. That is on purpose:
+    # a code must never work twice, even after an error.
     return await create_session(user_id, "mfa", device)
 
 
@@ -177,24 +215,27 @@ async def start_totp_enrolment(enroll_token: str) -> tuple[str, str]:
         if mfa is None:
             db.add(MfaSecret(user_id=user_id, totp_secret_enc=encrypted))
         else:
+            # A new secret: steps accepted for the old one say nothing about the new one.
             mfa.totp_secret_enc = encrypted
+            mfa.last_step = None
         return secret, totp.provisioning_uri(secret, user.email)
 
 
 async def activate_totp(enroll_token: str, code: str, device: DeviceInfo) -> IssuedTokens:
     user_id = _user_from(enroll_token, "mfa_enroll")
-    hit(TOTP_ATTEMPTS, "totp", str(user_id))
+    await hit(TOTP_ATTEMPTS, "totp", str(user_id))
     async with tenant_session(ANONYMOUS) as db:
         mfa = await db.get(MfaSecret, user_id)
         if mfa is None:
             raise ProblemError(400, "mfa-enrolment-not-started")
         if mfa.enabled_at is not None:
             raise ProblemError(409, "mfa-already-enrolled")
-        if not totp.verify(
-            totp.decrypt_secret(mfa.totp_secret_enc, str(user_id)), code, str(user_id)
-        ):
+        step = totp.matching_step(totp.decrypt_secret(mfa.totp_secret_enc, str(user_id)), code)
+        if not await _claim_step(db, user_id, step):
             raise ProblemError(401, "invalid-code", "The code is wrong or has expired.")
         mfa.enabled_at = _now()
+    # As in verify_totp: the step is committed with enabled_at, before the session is created.
+    # If creating the session fails, the step stays used. That is fine.
     return await create_session(user_id, "mfa", device)
 
 
@@ -202,9 +243,12 @@ async def activate_totp(enroll_token: str, code: str, device: DeviceInfo) -> Iss
 
 
 async def request_email_code(email: str) -> None:
-    """Send a login code to a patient. Gives the same answer whether or not the email is known."""
+    """Send a login code to a patient. Gives the same answer whether or not the email is known,
+    and also when this address has asked too often: then nothing is sent, but the caller cannot
+    tell, so the limit does not reveal which emails exist."""
     email = _normalise_email(email)
-    hit("3/minute", "otp-email", email)
+    if not await allow(OTP_PER_EMAIL, "otp-email", email):
+        return
     async with tenant_session(ANONYMOUS) as db:
         user = await _user_by_email(db, email)
     if user is None or not user.is_active:
@@ -507,6 +551,58 @@ async def revoke_session(user_id: uuid.UUID, family: uuid.UUID) -> bool:
 # Staff invites ------------------------------------------------------------------------------------
 
 INVITABLE_ROLES = frozenset(STAFF_ROLES - {Role.PLATFORM_ADMIN})
+# Sending an invite again sends an email, so both are limited (database counters).
+INVITE_AGAIN_PER_MEMBERSHIP = "3/hour"
+INVITE_AGAIN_PER_ADMIN = "20/hour"
+STAFF_AUDIT_KIND = "staff"
+
+
+async def _audit_invite(
+    db: AsyncSession,
+    ctx: TenantContext,
+    action: Literal["invite", "invite_again"],
+    membership_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: Role,
+) -> None:
+    """One audit event per invite sent, in the same transaction as the invite row. No email."""
+    assert ctx.clinic_id is not None and ctx.user_id is not None
+    at = await db.scalar(text("SELECT clock_timestamp()"))
+    assert isinstance(at, datetime)
+    await append_audit_event(
+        db,
+        ctx.clinic_id,
+        STAFF_AUDIT_KIND,
+        {
+            "type": "staff_invite",
+            "action": action,
+            "at": at.isoformat(),
+            "membership_id": str(membership_id),
+            "user_id": str(user_id),
+            "role": role.value,
+            "by": str(ctx.user_id),
+        },
+    )
+
+
+async def _send_invite(email: str, role: Role, token: str) -> None:
+    """The invite email, after the invite is committed. If it cannot be sent the request fails
+    with 502; the invite row stays, and the next "send again" replaces it."""
+    link = f"{get_settings().public_app_url}/invite?email={email}&token={token}"
+    try:
+        await send_email(
+            Email(
+                to=email,
+                subject="You have been invited to HealthSaathi",
+                text=f"You have been added as {role.value.replace('_', ' ')}. "
+                f"Set your password here within 72 hours: {link}",
+            )
+        )
+    except Exception as exc:
+        logger.exception("invite email not sent")
+        raise ProblemError(
+            502, "invite-email-failed", "The invite email could not be sent. Try again."
+        ) from exc
 
 
 async def change_password(
@@ -585,17 +681,58 @@ async def invite_staff(
         )
         await db.flush()
         user_id, membership_id = user.id, membership.id
+        await _audit_invite(db, ctx, "invite", membership_id, user_id, role)
 
-    link = f"{get_settings().public_app_url}/invite?email={email}&token={token}"
-    await send_email(
-        Email(
-            to=email,
-            subject="You have been invited to HealthSaathi",
-            text=f"You have been added as {role.value.replace('_', ' ')}. "
-            f"Set your password here within 72 hours: {link}",
-        )
-    )
+    await _send_invite(email, role, token)
     return user_id, membership_id
+
+
+async def invite_again(ctx: TenantContext, membership_id: uuid.UUID) -> None:
+    """Send a new invite to a staff member who has not set a password yet. Every open invite for
+    that email stops working, so only the newest link is valid. The membership row is locked, so
+    two requests at once run one after the other and leave exactly one valid invite."""
+    assert ctx.user_id is not None
+    await hit(INVITE_AGAIN_PER_ADMIN, "invite-again-admin", str(ctx.user_id))
+    await hit(INVITE_AGAIN_PER_MEMBERSHIP, "invite-again", str(membership_id))
+    token = secrets.token_urlsafe(24)
+    async with tenant_session(ctx) as db:
+        membership = await db.scalar(
+            select(Membership).where(Membership.id == membership_id).with_for_update()
+        )
+        # Another clinic's membership is hidden by row level security; a patient membership is
+        # hidden like in set_membership_active. Both look like a missing membership.
+        if membership is None or membership.role not in INVITABLE_ROLES:
+            raise ProblemError(404, "membership-not-found")
+        if not membership.is_active:
+            raise ProblemError(409, "membership-inactive", "Make the membership active first.")
+        user = await db.get(User, membership.user_id)
+        if user is None:
+            raise ProblemError(404, "membership-not-found")
+        if user.password_hash is not None:
+            raise ProblemError(
+                409, "already-has-password", "This person has already set a password."
+            )
+        email, role = user.email, Role(membership.role)
+        await db.execute(
+            update(EmailOtp)
+            .where(
+                EmailOtp.email == email,
+                EmailOtp.purpose == "invite",
+                EmailOtp.used_at.is_(None),
+            )
+            .values(used_at=_now())
+        )
+        db.add(
+            EmailOtp(
+                email=email,
+                code_hash=_otp_hash(email, "invite", token),
+                purpose="invite",
+                expires_at=_now() + INVITE_TTL,
+            )
+        )
+        await _audit_invite(db, ctx, "invite_again", membership.id, user.id, role)
+
+    await _send_invite(email, role, token)
 
 
 async def accept_invite(email: str, token: str, password: str) -> None:
@@ -608,7 +745,9 @@ async def accept_invite(email: str, token: str, password: str) -> None:
                 EmailOtp.email == email,
                 EmailOtp.purpose == "invite",
                 EmailOtp.used_at.is_(None),
-                EmailOtp.code_hash == _otp_hash(email, "invite", token),
+                EmailOtp.code_hash.in_(
+                    (_otp_hash(email, "invite", token), _legacy_invite_hash(email, token))
+                ),
             )
             .with_for_update()
         )
@@ -631,6 +770,9 @@ class StaffRow:
     role: Role
     is_active: bool
     mfa_enabled: bool
+    # Only whether a password is set, never the hash: the Staff tab offers "Send invite again"
+    # when it is not.
+    password_set: bool
 
 
 async def list_staff(ctx: TenantContext) -> list[StaffRow]:
@@ -643,7 +785,16 @@ async def list_staff(ctx: TenantContext) -> list[StaffRow]:
             .order_by(Membership.role, User.name)
         )
         return [
-            StaffRow(m.id, u.id, u.name, u.email, Role(m.role), m.is_active, enabled is not None)
+            StaffRow(
+                m.id,
+                u.id,
+                u.name,
+                u.email,
+                Role(m.role),
+                m.is_active,
+                enabled is not None,
+                u.password_hash is not None,
+            )
             for m, u, enabled in rows.all()
         ]
 

@@ -1,17 +1,17 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
 from app.core.config import get_settings
 from app.core.db import ANONYMOUS, tenant_session
 from app.core.errors import ProblemError, problem_response
-from app.core.ratelimit import LOGIN, client_ip, limiter
+from app.core.ratelimit import LOGIN_SHARED_IP, per_ip
 from app.db.enums import Role
 from app.db.models import User
-from app.identity import schemas, service
+from app.identity import recovery, schemas, service
 from app.identity.deps import ClinicPrincipal, CurrentPrincipal, require_roles
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -66,9 +66,10 @@ def _token_response(response: Response, issued: service.IssuedTokens) -> schemas
     )
 
 
-@router.post("/login", response_model=schemas.LoginResponse)
-@limiter.limit(LOGIN, key_func=client_ip)
-async def login(request: Request, body: schemas.LoginRequest) -> schemas.LoginResponse:
+@router.post(
+    "/login", response_model=schemas.LoginResponse, dependencies=[per_ip("login", LOGIN_SHARED_IP)]
+)
+async def login(body: schemas.LoginRequest) -> schemas.LoginResponse:
     challenge = await service.login_with_password(body.email, body.password)
     return schemas.LoginResponse(
         status=challenge.status,
@@ -77,8 +78,11 @@ async def login(request: Request, body: schemas.LoginRequest) -> schemas.LoginRe
     )
 
 
-@router.post("/totp/verify", response_model=schemas.TokenResponse)
-@limiter.limit(LOGIN, key_func=client_ip)
+@router.post(
+    "/totp/verify",
+    response_model=schemas.TokenResponse,
+    dependencies=[per_ip("totp-verify", LOGIN_SHARED_IP)],
+)
 async def totp_verify(
     request: Request, response: Response, body: schemas.TotpVerifyRequest
 ) -> schemas.TokenResponse:
@@ -100,14 +104,17 @@ async def totp_activate(
     return _token_response(response, issued)
 
 
-@router.post("/otp/request", status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/otp/request", status_code=status.HTTP_202_ACCEPTED, dependencies=[per_ip("otp-request")]
+)
 async def email_code_request(body: schemas.EmailCodeRequest) -> dict[str, str]:
     await service.request_email_code(body.email)
     return {"status": "sent_if_registered"}
 
 
-@router.post("/otp/verify", response_model=schemas.TokenResponse)
-@limiter.limit(LOGIN, key_func=client_ip)
+@router.post(
+    "/otp/verify", response_model=schemas.TokenResponse, dependencies=[per_ip("otp-verify")]
+)
 async def email_code_verify(
     request: Request, response: Response, body: schemas.EmailCodeVerify
 ) -> schemas.TokenResponse:
@@ -179,10 +186,9 @@ async def revoke_session(principal: CurrentPrincipal, session_id: uuid.UUID) -> 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
-@limiter.limit(LOGIN, key_func=client_ip)
+@router.post("/password", status_code=status.HTTP_204_NO_CONTENT, dependencies=[per_ip("password")])
 async def change_password(
-    request: Request, principal: CurrentPrincipal, body: schemas.ChangePasswordRequest
+    principal: CurrentPrincipal, body: schemas.ChangePasswordRequest
 ) -> Response:
     await service.change_password(
         principal.user_id, principal.session_id, body.current_password, body.new_password
@@ -196,6 +202,31 @@ async def logout(principal: CurrentPrincipal) -> Response:
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     _clear_refresh_cookie(response)
     return response
+
+
+@router.post(
+    "/password-reset/request",
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[per_ip("password-reset-request")],
+)
+async def password_reset_request(
+    body: schemas.PasswordResetRequest, background: BackgroundTasks
+) -> dict[str, str]:
+    """Always the same answer, straight after the per-IP limit. Looking up the email, the
+    per-email limit, the new link, the audit event and the email all happen after the response
+    (ADR 0010), so neither the answer nor its timing shows whether the email has an account."""
+    background.add_task(recovery.process_reset_request, body.email)
+    return {"status": "sent_if_registered"}
+
+
+@router.post(
+    "/password-reset/confirm",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[per_ip("password-reset-confirm")],
+)
+async def password_reset_confirm(body: schemas.PasswordResetConfirm) -> Response:
+    await recovery.confirm_reset(body.email, body.token, body.password, body.code)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/invite/accept", status_code=status.HTTP_204_NO_CONTENT)
@@ -223,6 +254,16 @@ async def list_staff(
 ) -> list[schemas.StaffMemberOut]:
     rows = await service.list_staff(principal.tenant())
     return [schemas.StaffMemberOut(**r.__dict__) for r in rows]
+
+
+@staff_router.post("/members/{membership_id}/invite", status_code=status.HTTP_204_NO_CONTENT)
+async def invite_again(
+    principal: Annotated[ClinicPrincipal, Depends(require_roles(Role.CLINIC_ADMIN))],
+    membership_id: uuid.UUID,
+) -> Response:
+    """A new invite for a staff member without a password; earlier links stop working."""
+    await service.invite_again(principal.tenant(), membership_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @staff_router.patch("/members/{membership_id}", status_code=status.HTTP_204_NO_CONTENT)

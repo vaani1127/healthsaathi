@@ -7,6 +7,7 @@
     python -m hs_demo.native code EMAIL  # current authenticator code of a demo login
     python -m hs_demo.native restart-api # restart the api (DEMO_RATE_LIMIT=false for tests)
     python -m hs_demo.native sql "..."   # one statement as the database owner (tamper demo)
+    python -m hs_demo.native alive NAME  # exit 0 only if the demo's NAME process is running
 
 Database URLs come from .env.local (see .env.local.example): CONNECT_CONNECTION_POOLING_ON
 (pooled) for the api, CONNECT_CONNECTION_POOLING_OFF (direct) for migrations, the seed and the
@@ -140,15 +141,80 @@ def start(name: str, args: list[str], cwd: Path, env: dict[str, str]) -> None:
         creationflags=flags,
         start_new_session=not WINDOWS,
     )
-    (PIDS / f"{name}.pid").write_text(str(proc.pid), encoding="utf-8")
+    # The command is kept with the pid, so a later stop can tell the demo's process from an
+    # unrelated one that was given the same pid after the demo's process ended.
+    record = {"pid": proc.pid, "args": [str(a) for a in args]}
+    (PIDS / f"{name}.pid").write_text(json.dumps(record), encoding="utf-8")
     say(f"started {name} (pid {proc.pid}, log .demo/logs/{name}.log)")
 
 
-def kill(name: str) -> None:
+def read_pid(name: str) -> tuple[int, list[str] | None] | None:
+    """(pid, command) from the pid file, or None without one. Pid files written before the
+    command was recorded hold only the number; their command is None."""
     pid_file = PIDS / f"{name}.pid"
     if not pid_file.exists():
-        return
-    pid = int(pid_file.read_text(encoding="utf-8"))
+        return None
+    text = pid_file.read_text(encoding="utf-8").strip()
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return None
+    if isinstance(data, int):
+        return data, None
+    if isinstance(data, dict) and isinstance(data.get("pid"), int):
+        args = data.get("args")
+        return data["pid"], [str(a) for a in args] if isinstance(args, list) else None
+    return None
+
+
+def command_line(pid: int) -> str | None:
+    """The command line of the running process `pid`, or None if no such process runs."""
+    if WINDOWS:
+        result = subprocess.run(  # noqa: S603
+            [  # noqa: S607
+                "powershell",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                f"(Get-CimInstance Win32_Process -Filter 'ProcessId={int(pid)}').CommandLine",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        line = result.stdout.strip()
+        return line or None
+    proc = Path(f"/proc/{int(pid)}/cmdline")
+    if proc.exists():
+        with contextlib.suppress(OSError):
+            return proc.read_bytes().replace(b"\0", b" ").decode(errors="replace").strip() or None
+    result = subprocess.run(  # noqa: S603
+        ["ps", "-o", "command=", "-p", str(int(pid))],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.stdout.strip() or None if result.returncode == 0 else None
+
+
+def is_demo_process(command: str | None, args: list[str] | None) -> bool:
+    """The running command is the one the demo started: every argument after the program
+    appears in it. Without a recorded command (old pid files) nothing can be confirmed."""
+    if command is None or not args:
+        return False
+    return all(arg in command for arg in args[1:])
+
+
+def alive(name: str) -> bool:
+    """The demo's `name` process is running (the pid is alive and runs the recorded command)."""
+    found = read_pid(name)
+    if found is None:
+        return False
+    pid, args = found
+    return is_demo_process(command_line(pid), args)
+
+
+def terminate(pid: int) -> None:
     if WINDOWS:
         subprocess.run(  # noqa: S603
             ["taskkill", "/PID", str(pid), "/T", "/F"],  # noqa: S607
@@ -158,6 +224,31 @@ def kill(name: str) -> None:
     else:
         with contextlib.suppress(ProcessLookupError):
             getattr(os, "killpg")(pid, signal.SIGTERM)  # noqa: B009 - POSIX only
+
+
+def kill(name: str) -> None:
+    """Stop the demo's `name` process. Only a running process that runs the command the demo
+    started is stopped; a stale pid file (process gone, or the pid now belongs to another
+    program) is removed without stopping anything."""
+    pid_file = PIDS / f"{name}.pid"
+    if not pid_file.exists():
+        return
+    found = read_pid(name)
+    if found is None:
+        pid_file.unlink()
+        say(f"{name} not running (unreadable pid file removed)")
+        return
+    pid, args = found
+    command = command_line(pid)
+    if command is None:
+        pid_file.unlink()
+        say(f"{name} not running (stale pid file removed)")
+        return
+    if not is_demo_process(command, args):
+        pid_file.unlink()
+        say(f"{name} not running: pid {pid} is now another program, left alone (pid file removed)")
+        return
+    terminate(pid)
     pid_file.unlink()
     say(f"stopped {name}")
 
@@ -257,6 +348,8 @@ def start_api() -> None:
             "127.0.0.1",
             "--port",
             str(API_PORT),
+            # Only the app's own middleware reads X-Forwarded-For (TRUSTED_PROXY_IPS).
+            "--no-proxy-headers",
         ],
         API_DIR,
         demo_env(),
@@ -389,6 +482,8 @@ def main(argv: list[str]) -> int:
         return smoke(argv[1:])
     elif command == "restart-api":
         start_api()
+    elif command == "alive":
+        return 0 if alive(argv[1]) else 1
     elif command == "sql":
         result = subprocess.run(  # noqa: S603
             [sys.executable, "-m", "hs_demo.native", "_sql", argv[1]],

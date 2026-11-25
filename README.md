@@ -72,7 +72,7 @@ Other commands:
 |---|---|
 | `make demo` | Build and start, or start again (the data is kept) |
 | `make demo-down` | Stop the demo, keep its data |
-| `make demo-reset` | Stop and delete all demo data; the next `make demo` starts fresh |
+| `make demo-reset` | Stop and delete all demo data, including the local witness folder; the next `make demo` starts fresh |
 | `make demo-e2e` | Browser tests against the running demo |
 | `make fhir-validate` | FHIR export of 10 patients checked by the HAPI validator |
 
@@ -126,9 +126,8 @@ Requirements: Docker, Python 3.12 with [uv](https://docs.astral.sh/uv/), Node 22
 ```sh
 git clone --recurse-submodules https://github.com/vaani1127/healthsaathi.git
 cd healthsaathi
-cp .env.example .env
 make install
-make dev      # postgres, api on :8000, web on :5173
+make dev      # writes .env with fresh secrets the first time (make env), then postgres, api on :8000, web on :5173
 make lint
 make test
 ```

@@ -113,3 +113,6 @@ contracts/broadcast/**/*.lock
 # Local Besu QBFT network (make besu-up): throwaway deployment
 contracts/deployments/besu.json
 contracts/broadcast/*/1337/
+
+# Full app audit walkthrough output (make demo-audit)
+audit-artifacts/

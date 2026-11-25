@@ -2,6 +2,116 @@
 
 ## Unreleased
 
+### Deviations
+
+Changes that depart from docs/SPEC.md, from what the experiments did, or from an earlier ADR,
+each with its date, reason and effect. Deviations from the registered experiment plan made before
+this heading existed are in section 9 of experiments/PREREGISTRATION.md.
+
+- **17 November 2026: sign-in limits in the database (migration 0007, ADR 0003 amended).**
+  Reason: the limits were counted in each API process's memory, so with 2 workers each was
+  counted per worker, and a restart cleared them (`docs/APP_GAPS.md` 31); and the API believed
+  X-Forwarded-For from any peer. What changes against SPEC 4 ("slowapi, in-memory, single VM"):
+  - Login per IP, email codes per address, authenticator attempts per user and the password
+    lockout are counted in the new table `rate_counters`. Search, export and print stay in memory.
+  - Per IP, password sign-in and the authenticator check allow 20 per minute (SPEC 4 says
+    5/min/IP). Reason: staff of one clinic often share one router address, and 5 a minute
+    would block a clinic opening for the day. Guessing one account is still limited by the
+    per-account lockout (5 in 15 minutes) and the authenticator attempts (5 per user in 15
+    minutes), which are unchanged. Email code requests, email code checks and password
+    changes stay at 5 per minute per IP.
+  - New limit: email code requests, 5 per minute per IP. Over the per-address limit an email
+    code request now answers 202 and sends nothing (it answered 429).
+  - The lockout counts each attempt before the password is checked.
+  - New setting `TRUSTED_PROXY_IPS`; Caddy has a fixed address on a fixed compose subnet.
+  - SPEC 4 is edited in the local copy only (SPEC.md is not in the repository).
+  - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
+    `experiments/results/v1` and the pre-registration are not touched.
+
+- **17 November 2026: last accepted authenticator step in the database (migration 0006, ADR
+  0003 amended).** Reason: each TOTP step was accepted once per user only within one API
+  process, and the API runs 2 workers (SPEC 2), so a code could be accepted once per worker, and
+  again after a restart (`docs/APP_GAPS.md` 30). What changes:
+  - `mfa_secrets` gains `last_step bigint NULL`, now listed in SPEC 3.1.
+  - A code is accepted only if one conditional update moves `last_step` forward; the in-memory
+    `_last_step` is removed. ADR 0003's decision to keep TOTP replay state in memory is replaced.
+  - The accepted window is unchanged: the current step or one either side.
+  - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
+    `experiments/results/v1` and the pre-registration are not touched.
+
+- **16 November 2026: statement-time stamps and one clock (migration 0005, ADR 0008).**
+  Reason: evidence rows and status changes were stamped with the transaction's start time
+  (`now()`), so a row created, or a status set, after an access in the same request was dated
+  before the access; and four workflow times came from the API host's clock while access times
+  come from the database's, so explanation tie-breaks depended on the offset between the two
+  (the gated count of the same test scenario changed from run to run). What changes:
+  - The `created_at` of `patients`, `appointments`, `queue_tokens`, `encounters`, `referrals`,
+    `care_team_assignments`, `invoices`, `lab_orders`, `shifts`, `schedules`, `clinical_notes`,
+    `prescriptions` and `vitals`, and `status_events.at`, `vitals.recorded_at`,
+    `lab_results.resulted_at` and `break_glass_events.at`, default to `clock_timestamp()`.
+    Audit and anchoring timestamps are unchanged.
+  - The walk-in slot, the care team start and end, and the clinic's today use the database clock.
+  - Rows written before migration 0005 keep their transaction-time stamps; only new rows are
+    stamped at statement time.
+  - The simulator already stamps each event at its own instant, so this change brings the
+    product's timestamps closer to what the experiments assume. It does not change any v1
+    input: `sim/`, `packages/e2d-core`, `experiments/configs`, `experiments/results/v1` and the
+    pre-registration are untouched.
+
+- **13 November 2026: daily final alert list (ADR 0008, amended).** Reason: the product never
+  computed the two late forgery flags (`no_progress`, `cancelled_after_access`), and it raised
+  alerts one access at a time against a calibrated threshold, so its alerts were not the ranking
+  the registered E2D results describe (forgery flags as of 24 hours after each access, top B per
+  clinic day). What changes against the experiments and the earlier design:
+  - Two stages. The per-minute scorer still raises provisional alerts. A daily job makes each
+    clinic day's final list once every access of the day is 24 hours old; it adds alerts and
+    retires unreviewed provisional ones, and never changes a reviewed alert.
+  - Delay. A day becomes due at 00:00 clinic time two days after it, so an access reaches the
+    final list 24 hours (access at 23:59:59) to 48 hours (access at 00:00) later, 28 hours for an
+    access at 20:00 and 38.5 hours for one at 09:30, plus up to one worker tick (60 s) and the
+    job's run time. The paper times every E2D alert at 24 hours.
+  - Training window. The registered runs fit one model per clinic on days 1 to 120 and score days
+    121 to 180. The product fits a final model for each day D on the gated staff accesses of the
+    30 days before D (per clinic with at least 500 rows, otherwise one model over all clinics, as
+    in the experiments), with seed 0; the experiments seed each run with its index. The 30-day
+    window is the one SPEC 5.5 names.
+  - Late flags. The experiments re-explain every access from the final data as of 24 hours
+    after it and take the late flags of whatever evidence that picks. On live data the product
+    computes the late flags for the evidence that explained the access when it happened (its
+    stored explanation), as of 24 hours after it, and does not choose the template again. The
+    two can differ only when later rows would change the chosen evidence (for example a token
+    assigned to the nurse after her access). On the parity test's SaathiBench run, 0 of 5,447
+    accesses change template or evidence between the access time and 24 hours later, and the
+    product's late flags equal the experiments' for every staff access of the days it ranks
+    (`infra/demo/tests/test_daily_parity.py`, which counts and checks both). The flags stay
+    undecided only if the named record cannot be found; those accesses are listed in the daily
+    audit event. Accesses whose evidence the late flags do not look at (queue token,
+    registration, typed reason, break-glass) are counted as not applicable.
+  - Naming. The product's fallback scorer is now called the starter rules in code, API values,
+    docs and UI (`scorer: "starter_rules"`; alerts raised earlier keep `"rules"`). Its rules,
+    points, threshold and version hash are unchanged. SPEC 1.2 still says "Rules baseline
+    running"; SPEC is not changed here.
+  - Data. No schema change: the stage is under `features.lifecycle`, the recomputed flags under
+    `features.late_flags`, and each finalised or skipped day writes one audit event of the new
+    kind `detect_daily`. The feature cache is a file in `MODEL_DIR`.
+  - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
+    `experiments/results/v1` and the pre-registration are not touched, so no v1 number can change.
+
+- **24 November 2026: staff password recovery (ADR 0010, ADR 0009 table amended).** Reason:
+  staff who forgot their password could only ask the platform team; `docs/PROGRESS.md` listed
+  recovery as an open item. What changes against SPEC:
+  - SPEC 1.2 (Identity) does not list password recovery; it is added for staff only.
+  - SPEC 4 lists every rate limit; two endpoints are added, each 5 per minute per IP, and reset
+    links are limited to 3 an hour per email (over it the request still answers 202).
+  - `docs/SECURITY_CHECKLIST.md` 2.5.6 had kept recovery out because a flow by email alone would
+    weaken the two-factor staff login. The flow added here asks for the authenticator code when
+    the account has one, so that reason no longer holds; 2.5.1, 2.5.3 and 2.5.6 are updated.
+  - Data: no schema change. Reset links are rows in `email_otps` with purpose `password_reset`,
+    hashed under the new derived key label `healthsaathi/password-reset/v1`.
+  - SPEC 1.2 and 4 are edited in the local copy only (SPEC.md is not in the repository).
+  - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/configs`,
+    `experiments/results/v1` and the pre-registration are not touched.
+
 ### Anchoring snapshot B
 
 - Snapshot B of the live demo, taken 24 November 2026 at 19:03:34 UTC (25 November, 00:33 IST)
@@ -25,6 +135,213 @@
 - `docs/PROGRESS.md` explains the 85,639 maximum and the Amoy lag of the timer-working period
   (15 checkpoints with no Amoy receipt, on 2 and 4 November; the cause of the failed sends is not
   proven), and records the clinic ids.
+
+### Staff password recovery
+
+- "Forgot password?" on the staff sign-in page (`/forgot-password`).
+  `POST /api/v1/auth/password-reset/request` answers 202 with the same body for every email,
+  straight after the per-IP limit; the rest runs in a background task. A link goes only to an
+  active user with a password and an active staff membership; patients and invited people
+  without a password get nothing.
+- The link is `/reset-password#email=...&token=...`: the token is in the fragment, never sent to
+  a server, and the page removes it from the address bar at once. 30 minutes, single use, stored
+  only as a keyed hash (derived key `healthsaathi/password-reset/v1`); a new link cancels older
+  ones under a lock on the user row.
+- `POST /api/v1/auth/password-reset/confirm` sets the new password. A person with an
+  authenticator also gives a current code (single-use step claim and attempt limit as at
+  sign-in); a wrong or reused code gets the same 400 `invalid-reset-link` as a bad link and
+  leaves the link unused; a missing code gets 400 `authenticator-code-required`. Two requests
+  with one link at once succeed once.
+- After a reset every session is signed out, the password lockout is cleared, and an email says
+  the password was changed. The next sign-in still asks for the authenticator (or its setup).
+- Limits in `rate_counters`: 5 a minute per IP for each endpoint, 3 links an hour per email.
+- Audit: kind `staff`, `{type: "password_reset", action: "requested" | "completed", at,
+  user_id}` in each of the person's clinics, without email, token, password or address. None for
+  unknown emails.
+- English and Hindi; the browser test runs at 360 px.
+- Tests: `tests/identity/test_password_reset.py`, `tests/test_keys.py`,
+  `apps/web/test/passwordReset.test.tsx`, `apps/web/e2e/password-reset.spec.ts`.
+- Docs: ADR 0010, USER_GUIDE, APP_GAPS 36 fixed and 37 open, SECURITY_CHECKLIST 2.5.1, 2.5.3,
+  2.5.6.
+
+### Send a staff invite again
+
+- `POST /api/v1/staff/members/{membership_id}/invite` (clinic admin, own clinic): for a member
+  with an active membership and no password, every open invite for that email is marked used
+  and a new one is issued (derived invite key, 72 hours), under a row lock on the membership, so
+  two requests at once leave exactly one valid link. 404 `membership-not-found` for another
+  clinic's or a patient membership, 409 `membership-inactive`, 409 `already-has-password`.
+  Database limits: 3 an hour per membership, 20 an hour per admin.
+- The first invite and each resend write one audit event of the new kind `staff`
+  (`staff_invite`, action `invite` or `invite_again`, membership, user, role, by), in the same
+  transaction, without the email address. Receipts, the daily job, the detection loader and the
+  research view ignore it (tested).
+- If the invite email cannot be sent, both the first invite and a resend answer 502
+  `invite-email-failed`; the invite row stays and the next resend replaces it.
+- The staff list returns `password_set` (yes or no only). The Staff tab shows "No password yet"
+  and "Send invite again" (disabled while sending) with a page-level confirmation that only the
+  newest link works. English and Hindi.
+- Sending an invite again marks every open invite for that email used, including one sent by
+  another clinic. That clinic's link stops working; the person can still join with the newest
+  link, which sets one password for all their memberships; nothing is revealed across clinics.
+- Tests: `tests/identity/test_invite_again.py`, `apps/web/e2e/staff-invite.spec.ts`.
+- Docs: RUNBOOK (invites are sent again after an `OTP_HMAC_KEY` rotation), APP_GAPS 35 fixed.
+
+### One derived key per use of OTP_HMAC_KEY
+
+- `app/core/keys.py`: HKDF-SHA256 (RFC 5869) from `OTP_HMAC_KEY`, salt `healthsaathi/keys`, one
+  versioned label per use: email codes, invites, access log IP hash, consent commitments and rate
+  counters (v2). No new environment variables (ADR 0009).
+- Cutover at the first deploy with this change: email codes sent before it fail (10 minutes);
+  invites sent before it keep working through `_legacy_invite_hash`, removed 7 days after that
+  deploy (`docs/RUNBOOK.md`); rate counts start again once; old `access_events.ip_hash` and
+  `consents.salt_hash` rows are never rewritten, and `verify_commitment` checks the derived key,
+  then the raw key.
+- Not changed: `JWT_SECRET`, `DATA_KEYS`, `LEDGER_SIGNING_SEED`, refresh tokens. Nobody is signed
+  out and no stored data becomes unreadable.
+- Tests: `tests/test_keys.py` (RFC 5869 test case 1, each label against a separate HKDF written
+  with `hmac`, keys differ, nothing in logs or reprs), `tests/test_key_separation.py`.
+- Docs: ADR 0009 (new), ADR 0003, THREAT_MODEL, SECURITY_CHECKLIST 6.2.2, 6.4.1 and 6.4.2,
+  RUNBOOK (rotating `OTP_HMAC_KEY`, removing the legacy invite check), APP_GAPS 34 fixed,
+  APP_GAPS 35 added (invites cannot be sent again).
+
+### Default rate limit applied
+
+- The SPEC 4 default limit (120 requests a minute) limited nothing: slowapi's middleware could
+  not find the routes inside FastAPI 0.142's included routers (`docs/APP_GAPS.md` 32). A small
+  ASGI middleware (`DefaultRateLimitMiddleware`) now counts every request, per user for a valid
+  access token and per client IP otherwise; login challenge and enrolment tokens count as no
+  token. Health checks, WebSockets and OPTIONS are skipped. In memory, per worker.
+  SlowAPIMiddleware and slowapi's `default_limits` are removed; the search, export and print
+  decorators work without them.
+- Every 429 now has a Retry-After header (default, search, export, print, sign-in limits and the
+  lockout).
+- Web: the query client options moved to `src/lib/queryClient.ts`; a test shows a 429 is shown
+  with the rate limit message and not retried.
+- Docs: SECURITY_CHECKLIST 2.2.1 and 11.1.2, THREAT_MODEL, ADR 0003 (with the demo
+  measurement), APP_GAPS 32 fixed.
+- `make demo-measure` (`apps/web/e2e-demo/measure/requests.spec.ts`): requests per minute per
+  user on the running demo, the source of the numbers in ADR 0003. It runs only in the Playwright
+  project "measure", which exists only when `DEMO_MEASURE=1`, so `make demo-e2e` never runs it.
+
+### Sign-in limits shared by API workers
+
+- `app/core/counters.py` and migration 0007 (`rate_counters`): fixed-window counters, one atomic
+  statement per hit, on the database clock, keys HMAC'd with a derived key. Fails closed (503).
+- `ratelimit.hit()` and `allow()` are async and use the counters; `per_ip()` is a route
+  dependency for login, authenticator check, email code request and check, and password change.
+  `identity/lockout.py` counts first and clears on a correct password.
+- The worker deletes ended windows every minute.
+- The app applies proxy headers itself, only from `TRUSTED_PROXY_IPS`; uvicorn runs with
+  `--no-proxy-headers`. The prod and demo compose files give Caddy a fixed address
+  (`10.250.0.2` and `10.250.1.2`) on new networks `healthsaathi_edge` and
+  `healthsaathi-demo_edge`.
+- Tests: `tests/test_client_ip.py`, `tests/test_rate_counters.py`,
+  `tests/identity/test_db_limits.py`, `tests/test_worker_prune.py`,
+  `infra/demo/tests/test_proxy_trust.py`.
+- Docs: SECURITY_CHECKLIST 2.2.1 and 11.1.2, THREAT_MODEL, ADR 0003, RUNBOOK (DNS only, fixed
+  network), APP_GAPS 31 fixed and 32 to 34 added (33, Render staging, accepted).
+- `FORWARDED_ALLOW_IPS` stays in the compose files, set to Caddy's address only, so rolling
+  back to an older image keeps real client IPs. uvicorn runs with `--no-proxy-headers` in the
+  image, the demo, the dev compose file, the native demo and the e2e server.
+- Per IP: 20 a minute for password sign-in and the authenticator check, 5 for the rest.
+
+### Authenticator codes work once across workers
+
+- `identity/totp.py`: `verify()` becomes `matching_step()`, which only finds the code's step.
+  `identity/service.py` `_claim_step` takes the step with one atomic update, used by
+  `verify_totp` and `activate_totp`; `start_totp_enrolment` clears it with a new secret.
+- Tests (`apps/api/tests/identity/test_single_use.py`), each running two attempts at once on
+  separate database sessions and checking that both were waiting on the same row lock: the same
+  authenticator code (exactly one session), the same email code (exactly one session, one
+  `used_at`), and the same refresh token (one rotation; the other is treated as reuse and the
+  whole family, including the new token, is revoked). Also: a used code is refused after a
+  restart, an older step after a newer one is refused, a wrong code claims nothing, and a new
+  enrolment secret clears the old step.
+- No code change was needed for email codes, refresh rotation or invite tokens: each already
+  locks its row with `SELECT ... FOR UPDATE` before checking and updating it.
+- Docs: `docs/SECURITY_CHECKLIST.md` (ASVS 2.2.1, 2.7.3, 2.8.1), `docs/THREAT_MODEL.md`,
+  `docs/APP_GAPS.md` 30 fixed and 31 added (rate limits and lockout counted per API process).
+
+### Confirmations that outlive the list
+
+- After an alert review, the admin's alert screen shows "Reviewed: ... Moved out of the open
+  list." in a page-level status region (`aria-live="polite"`) outside the alert list. The
+  reviewed alert leaves the open list when it refetches, and the status line inside it used to
+  go with it, sometimes before it could be read. The confirmation stays until it is dismissed or
+  another alert is opened. Closing a patient report and signing out a session, which also
+  remove the item from their lists, show the same kind of confirmation. English and Hindi.
+- Flow 8 checks the review's API response (200, outcome misuse) and the page-level
+  confirmation, and no longer checks inside an alert that can leave the list.
+
+### Docs: authenticator code reuse
+
+- `docs/APP_GAPS.md` 30, `docs/THREAT_MODEL.md` and `docs/SECURITY_CHECKLIST.md` (ASVS 2.8.1): a
+  code is refused a second time only within one API process, and the API runs 2 workers, so a
+  code can be accepted once per worker. Not fixed here; the fix (last accepted step in the
+  database, one atomic update) goes on its own branch.
+
+### Statement-time stamps and one clock
+
+- Migration 0005: `clock_timestamp()` defaults for the timestamps the explanation engine reads
+  (models: `EvidenceCreatedAtMixin`, `WorkflowMixin`); audit and anchoring stamps unchanged.
+- Walk-in `slot_start` and `slot_end`, care team `starts_at` and `ends_at`, and `local_today` use
+  `db_now()`; the API host's clock (`_now()`) is no longer used in the clinic service.
+- Tests: `apps/api/tests/db/test_statement_time.py` (the defaults on every listed column and the
+  unchanged audit ones; stored times after an access in the same request for a walk-in, a token
+  change and a cancellation; the access recorded in the cancelling request gets
+  `cancelled_after_access`).
+
+### Daily final alert list
+
+- `app/detect/daily.py`: the daily final ranking (ADR 0008). Runs from the worker after the
+  per-minute scoring and by hand with `python -m app.detect.job --daily`. Session advisory lock,
+  one transaction per clinic day, one `detect_daily` audit event per clinic day (finalised or
+  skipped), 15-minute retry after a failed clinic. Catch-up window `DETECT_CATCH_UP_DAYS`
+  (default 7; `--catch-up N` on the command line for the first run on a database with history).
+  The worker caps each tick at one clinic day with accesses and 3 days of training features, so
+  per-minute scoring and the anchor timer are not held up behind a long run.
+- `hs_demo.seed` makes the final alert list of every loaded day that is due.
+- `GET /alerts?status=open` never returns retired alerts; the open view has no retired switch,
+  and its empty message no longer says every alert was reviewed when some were retired.
+- `app/detect/days.py`: when a clinic day is due, and which days have their audit event.
+- `app/detect/starter_rules.py`: the product's fallback scorer under its new name.
+- API: alerts carry `stage`, `list_state` and `day_final`; `GET /alerts` hides retired alerts
+  unless `include_retired=true`; new `GET /alerts/days/{day}` says whether a day's list is
+  provisional, final or skipped, and from when it can be final.
+- Web: alerts show Provisional, Final, Retired or "Reviewed, not in final list"; the one-day view
+  says whether the list is final and when it will be; a switch shows retired alerts; the scorer
+  name is translated. English and Hindi.
+- Tests: `apps/api/tests/detect/test_daily.py` (rerun changes nothing, a reviewed provisional
+  alert survives, a crash before commit leaves the day to be redone, skipped days, late flags
+  computed for the stored evidence and left undecided when it is missing,
+  cache rebuild, role and clinic checks, worker order) and `infra/demo/tests/test_daily_parity.py`
+  (the product and the experiments' E2D path pick the same top-B set, in the same order, for the
+  same SaathiBench clinic days with one fitted model, and give every staff access the same two
+  late flags) and `apps/api/tests/detect/test_daily_lifecycle.py` (a day recorded through the API,
+  with and without the nurse assigned to the token: undecided late flags on at most 1% of the
+  accesses where the flags apply).
+
+### Tooling
+
+- `make demo-e2e`, `demo-videos` and `demo-code` pick the native demo only when the pid in
+  `.demo/pids/api.pid` is a running process that runs the command the demo started
+  (`python -m hs_demo.native alive api`), not whenever the file exists. A stale pid file from an
+  earlier native demo sent a run against the Docker demo to a native API it could not use.
+- `hs_demo.native stop` stops a process only if its pid is still running the command the demo
+  started (the command is now kept in the pid file and compared with the live command line).
+  A stale pid file is removed and reported as "not running", so a pid that Windows has given to
+  another program is never killed. Old pid files that hold only a number are never acted on.
+  Tests: `infra/demo/tests/test_native.py`.
+- `make demo-reset` also empties `.demo/witness`. The local witness is a bind mount, not a Docker
+  volume, so it survived the reset, and the seeded clinics get the same ids every time: the audit
+  page's witness check then compared a fresh log with the largest head left by the earlier demo
+  (`the log is shorter than the published head`). The native reset already removed the folder.
+  Flow 9 now also requires the witness check to show Pass.
+- Browser tests: `freshCode()` sends a code for a future authenticator step only once this
+  machine is 5 s into the step before it. It used to allow 0.5 s, and the Docker demo's clock can
+  lag the host's by more: a demo run failed when the server, about 0.6 s behind, was still one
+  step earlier and refused a code two steps ahead. The server check is unchanged.
 
 ### Docs: anchoring snapshot plan
 

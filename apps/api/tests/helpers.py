@@ -1,5 +1,7 @@
 """Shared helpers for API tests: clinics, signed-in actors, counting log rows."""
 
+import asyncio
+import time
 import uuid
 from dataclasses import dataclass
 
@@ -116,3 +118,13 @@ async def count_rows(
             )
             or 0
         )
+
+
+async def within_one_window(needed_seconds: float = 25.0, window_seconds: int = 60) -> None:
+    """Rate limits use fixed windows that reset on the minute. A test that sends many requests
+    and expects the last to be refused waits for the next window when fewer than
+    `needed_seconds` are left, so all its requests land in one window. The 2 extra seconds
+    cover a database clock a little behind this machine's."""
+    left = window_seconds - (time.time() % window_seconds)
+    if left < needed_seconds:
+        await asyncio.sleep(left + 2)

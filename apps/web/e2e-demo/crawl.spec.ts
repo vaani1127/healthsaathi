@@ -111,6 +111,10 @@ test("public pages", async ({ page }, info) => {
   for (const path of ["/login", "/patient/login", "/verify", "/status", "/dev/mailbox"]) {
     await visit(page, path, inHindi);
   }
+  // An unknown address gets the app's own translated page with a link home (AUDIT_REPORT m1).
+  await visit(page, "/no-such-page", inHindi);
+  await expect(page.getByTestId("not-found")).toBeVisible();
+  await expect(page.getByRole("link", { name: /^(Go to the home page|होम पेज पर जाएँ)$/ })).toBeVisible();
   noProblems(found);
 });
 

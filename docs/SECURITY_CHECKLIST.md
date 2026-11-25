@@ -23,20 +23,20 @@ the row.
 | 2.1.10 | No periodic rotation or history rules | Pass | None |
 | 2.1.11 | Paste and password managers allowed | Pass | Standard inputs with `autocomplete` |
 | 2.1.12 | Option to show the password | Pass | `components/ui/password.tsx` on every password field |
-| 2.2.1 | Anti-automation | Pass | 5 logins per minute per IP, account lock after 5 failures in 15 minutes, 3 email codes per minute per address |
+| 2.2.1 | Anti-automation | Pass | Per IP: 20 password sign-ins and 20 authenticator checks per minute (staff of one clinic often share one router address), and 5 per minute each for email code requests, email code checks and password changes, each counted separately. Per account: 3 email codes per minute per address, 5 authenticator code attempts per user in 15 minutes, and the password lockout (each attempt is counted before the password is checked; over 5 in 15 minutes the account is refused as locked; a correct password clears the count). These are counted in Postgres (`rate_counters`, migration 0007, `core/counters.py`): one atomic statement per attempt, shared by both API workers and kept across restarts. If the database cannot be reached the request is refused (503). Over the per-address limit an email code request still answers 202, so it does not reveal which emails exist. The client IP is taken from X-Forwarded-For only when the request comes from Caddy's fixed address (`TRUSTED_PROXY_IPS`). Fixed windows: up to twice a limit can get through in a short burst across a window edge (the end of one window and the start of the next); over any longer stretch the rate stays at the limit. The 5 attempts allowed per email code are counted on the code's row. The coarse per-route limits (search 30, export and print 10 per minute) stay in each process's memory. The default limit, 120 requests per minute, applies to every other API request (`DefaultRateLimitMiddleware`, `core/ratelimit.py`): per user for a valid access token, else per client IP; health checks, WebSockets and OPTIONS are not counted. These in-memory limits are per worker, so up to twice the limit, and cleared on restart. Every 429 carries Retry-After |
 | 2.2.2 | Email and SMS only as a secondary factor | Accepted | Patients sign in with an email code alone (SPEC 1.1). A patient account only reaches that patient's own record, the code expires in 10 minutes and allows 5 attempts |
 | 2.2.3 | Notify after changes to authentication details | Pass | Emails on a new device and on a password change |
 | 2.3.1 | Initial secrets random, at least 6 characters, expire | Pass | Invite tokens are random and expire after 72 hours |
-| 2.5.1 | Recovery secret not sent in clear text | N/A | No self-service password recovery |
+| 2.5.1 | Recovery secret not sent in clear text | Accepted | Staff invite links are initial activation secrets and are sent by email, the only channel the app has. Each link is single use, expires after 72 hours, is stored only as a keyed hash (derived invite key, ADR 0009), and sending a new invite makes every older link stop working (`identity/service.py` `invite_again`). Password reset links are sent by email too: single use, 30 minutes, keyed hash only (derived reset link key), the token in the URL fragment so it reaches no server, and a new link cancels older ones (`identity/recovery.py`, ADR 0010) |
 | 2.5.2 | No password hints or knowledge questions | Pass | None |
-| 2.5.3 | Recovery does not reveal the password | N/A | No recovery flow |
+| 2.5.3 | Recovery does not reveal the password | Pass | The reset link lets the person choose a new password; the old one is never sent or shown (ADR 0010) |
 | 2.5.4 | No shared or default accounts | Pass | Every account is personal; the demo prints per-person logins |
-| 2.5.6 | Forgotten password uses a secure recovery | Accepted | There is no password recovery flow yet: staff who forget their password need help from the platform team. Kept out of scope for now because a recovery flow by email alone would weaken the staff login, which also needs TOTP; listed as an open item |
+| 2.5.6 | Forgotten password uses a secure recovery | Pass | Staff ask for a reset link by email; setting the new password also needs a current authenticator code when the account has one, checked with the single-use step and attempt limit, so the email alone is not enough. The request gives the same answer and timing for every email; every session is signed out after a reset (`identity/recovery.py`, ADR 0010). A lost authenticator still goes to the clinic admin |
 | 2.7.1 | Clear-text SMS not used for secrets | Pass | No SMS (out of scope in SPEC 1.2) |
 | 2.7.2 | Out-of-band codes expire after 10 minutes | Pass | Email codes, 10 minutes |
-| 2.7.3 | Out-of-band codes used once | Pass | `used_at` set on use, `identity/service.py` |
+| 2.7.3 | Out-of-band codes used once | Pass | The code row is read with `SELECT ... FOR UPDATE` and `used_at` is set in the same transaction (`identity/service.py` `verify_email_code`). A second request with the same code, on any worker, waits for the lock and then finds no unused code. Tested with two requests at once: `tests/identity/test_single_use.py` |
 | 2.7.4 | Out-of-band channel is secure | Pass | Brevo API over HTTPS |
-| 2.8.1 | Time-based OTPs have a defined lifetime | Pass | 30 second TOTP steps, each accepted once |
+| 2.8.1 | Time-based OTPs have a defined lifetime | Pass | 30 second TOTP steps (the current step or one either side). Each step is accepted once per user, across all API workers and restarts: the last accepted step is kept in `mfa_secrets.last_step` (migration 0006), and a code is accepted only if one `UPDATE ... WHERE last_step IS NULL OR last_step < :step` changes the row (`identity/service.py` `_claim_step`). A step at or before the last accepted one is refused. Tested with two requests at once, after a restart, and with an older step after a newer one: `tests/identity/test_single_use.py` |
 
 ## V3 Session management
 
@@ -102,6 +102,14 @@ the row.
 | ID | Requirement (short) | Status | Evidence |
 |---|---|---|---|
 | 6.2.1 | Crypto modules fail securely | Pass | AES-GCM tag failures raise; `tests/identity/test_crypto.py` |
+| 6.2.2 | Industry proven or government approved algorithms, modes and libraries are used, instead of custom coded cryptography | Pass | AES-256-GCM, HMAC-SHA256, HKDF-SHA256 (RFC 5869), Ed25519 and Argon2id, all from `cryptography`, `hmac` and `argon2-cffi`. Each use of `OTP_HMAC_KEY` has its own HKDF-derived key (`core/keys.py`, ADR 0009); the HKDF call is checked against RFC 5869 test case 1 in `tests/test_keys.py` |
+
+### V6.4 Secret management
+
+| ID | Requirement (short) | Status | Evidence |
+|---|---|---|---|
+| 6.4.1 | A secrets management solution such as a key vault is used to securely create, store, control access to and destroy secrets | Accepted | No vault: secrets live in `/opt/healthsaathi/.env` (chmod 600) on the one VM and in GitHub Actions secrets. The deployment is one free-tier VM and a paid or extra key service is out of scope (CLAUDE.md, zero cost). Secrets are never in the repo (`.env.example` holds names only), and `docs/RUNBOOK.md` lists how to rotate each one |
+| 6.4.2 | Key material is not exposed to the application but uses an isolated security module like a vault for cryptographic operations | Accepted | The API process holds the keys in memory for the same reason as 6.4.1. Keys are never logged or returned by an endpoint (`tests/test_keys.py`), and one derived key per use limits what a single misuse exposes (ADR 0009) |
 
 ## V7 Error handling and logging
 
@@ -143,7 +151,7 @@ the row.
 | ID | Requirement (short) | Status | Evidence |
 |---|---|---|---|
 | 11.1.1 | Steps in order | Pass | Status transitions are checked (appointments, queue, lab orders, notes) |
-| 11.1.2 | Realistic time for steps | Pass | Rate limits per user and route |
+| 11.1.2 | Realistic time for steps | Pass | Sign-in limits counted in the database (see 2.2.1); search, export and print limits per user and route, and the default 120 per minute per user or IP, counted per worker |
 | 11.1.3 | Business limits enforced | Pass | Overpayment, signed records immutable, break-glass window |
 | 11.1.4 | Anti-automation for business functions | Pass | Rate limits (export and print 10 per minute) |
 | 11.1.5 | Limits on business logic attacks | Pass | Break-glass review, alert budget, own-review refused |

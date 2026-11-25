@@ -45,9 +45,10 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 
 | Threat | Control | Where |
 |---|---|---|
-| Password guessing | Argon2id hashes, 10 character minimum and a common-password list, 5 failures per 15 minutes lock the account, 5 logins per minute per IP | `identity/passwords.py`, `password_policy.py`, `lockout.py`, `core/ratelimit.py` |
+| Password guessing | Argon2id hashes, 10 character minimum and a common-password list, 5 attempts per 15 minutes lock the account (counted before the password is checked, cleared by a correct password), 20 logins per minute per IP (staff behind one clinic router share an address; the per-account lockout is what limits guessing one account). Both are counted in the database, shared by the API workers and kept across restarts. The IP is the client's: X-Forwarded-For is believed only from Caddy's fixed address. Residual: fixed windows let up to twice a limit through in a short burst across a window edge; anyone who knows an email can lock that account for 15 minutes | `identity/passwords.py`, `password_policy.py`, `lockout.py`, `core/ratelimit.py` |
 | Stolen staff password | TOTP is required for every staff role before any patient data (amr `otp` checked on clinic selection) | `identity/service.py` `_check_membership` |
-| Patient account takeover by guessing codes | 6 digit email code, 10 minutes, 5 attempts, 3 requests per minute per email | `identity/service.py`, `core/ratelimit.py` |
+| Replaying an authenticator code seen over someone's shoulder or intercepted | A code is valid for its 30 second step and one step either side, and each step is accepted once per user: the last accepted step is kept in the database and taken with one atomic update, so a second use is refused on any worker and after a restart. An attacker who uses a seen code before its owner gets in only with the password too | `identity/totp.py`, `identity/service.py` `_claim_step` |
+| Patient account takeover by guessing codes | 6 digit email code, 10 minutes, 5 attempts per code (counted on the code's row under a row lock), 3 requests per minute per email and 5 per minute per IP, counted in the database. Over the per-email limit the answer is still 202, so the limit does not reveal which emails exist. Residual: the fixed-window edge (up to twice a limit in a short burst) | `identity/service.py`, `core/ratelimit.py` |
 | Stolen refresh token | Stored hashed, rotated on every use, reuse of an old token revokes the whole family; HttpOnly, Secure, SameSite=Lax cookie | `identity/service.py`, `identity/router.py` |
 | Session on an unknown device | New-device email alert; "My sessions" page lists and revokes sessions | `identity/service.py`, `SessionsPage.tsx` |
 | Shared staff login (SPEC 7 type 7) | Not prevented; device and session features feed the detector | `e2d-core` features (residual) |
@@ -61,6 +62,9 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 | Rewriting history and re-signing | The signing key is derived from `LEDGER_SIGNING_SEED`; anchored roots on the chain cannot be replaced by the operator; the anchor job refuses to anchor a log that no longer matches the anchored root | `anchor/job.py` `anchor_on_chain` |
 | Changing a signed note or prescription | Signed rows are immutable (trigger); edits create a new version | migration `0002`, `clinical/service.py` |
 | Forged workflow evidence to make an access look explained (SPEC 7 type 10) | Forgery indicators in the explanation engine, scored by the detector | `e2d-core` (research result H4) |
+| Changing workflow rows after an access so that a later look at it finds different evidence, to escape the late forgery flags (no progress, cancelled after access) | The daily job computes the late flags for the evidence the stored explanation named when the access happened, as of 24 hours later, without choosing the template again; if that record cannot be found the flags stay undecided and the access id is in the day's `detect_daily` audit event. Residual: queue tokens and shifts have no status history (`docs/APP_GAPS.md` 24) | `detect/daily.py` |
+| Cancelling the evidence in the same request that records an access (for example the request that cancels an appointment also records a view of that patient) | Evidence and status rows are stamped at statement time (`clock_timestamp()`, migration 0005), so the cancellation is dated after the access recorded before it in that request, and that access gets `cancelled_after_access` (`tests/db/test_statement_time.py`). Residual: rows written before migration 0005 keep transaction-time stamps | `app/db/base.py`, `app/db/models/workflow.py` |
+| Editing the daily feature cache in `MODEL_DIR` to change a final model | The cache is never the source of truth: its sha256 is in each daily audit event, and a missing or unreadable file is rebuilt from the database. Residual: a cache edited consistently by someone with server access changes the next final models until it is rebuilt | `detect/daily.py` |
 | Malicious file upload | PDF, PNG or JPEG only, checked by declared type and file signature, 10 MB limit, stored with its SHA-256 and served as an attachment with `nosniff` | `clinical/service.py`, `clinical/router.py` |
 
 ### Repudiation
@@ -77,6 +81,8 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 |---|---|---|
 | A user of clinic A reads clinic B | Row level security on every clinic table, set per transaction; a test per table | migration `0001`, `tests/db/test_rls.py` |
 | A role reads more than its task needs | Policy module (role x resource x action) and task-view response schemas per role | `access/policy.yaml`, `chart/schemas.py` |
+| Sending an invite again stops another clinic's invite | Sending an invite again marks every open invite for that email used, including one sent by another clinic. That clinic's link stops working; the person can still join with the newest link, which sets one password for all their memberships; nothing is revealed across clinics | `identity/service.py` `invite_again` |
+| One keyed hash reused or checked in another context (an email code hash as an invite, an IP hash as a consent commitment) | Each use of `OTP_HMAC_KEY` has its own HKDF-derived key with a versioned label (ADR 0009). Residual: rows written before the change keep raw-key hashes and are checked with the raw key as a fallback; pending invites are accepted under either key until the legacy check is removed | `core/keys.py` |
 | Notes and TOTP secrets leaked from a database copy | AES-256-GCM with a key id prefix, key from the environment | `core/crypto.py` |
 | Patient data on a witness | Only signed tree heads, roots and sizes are published; push messages carry no patient data | `anchor/`, `notify/push.py` |
 | Data cached on a shared device | Only the app shell and today's queue are cached; vitals drafts are encrypted with an in-memory key; caches are cleared on sign-out | `vite.config.ts`, `lib/drafts.ts`, `stores/auth.ts` |
@@ -87,10 +93,12 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 
 | Threat | Control | Where |
 |---|---|---|
-| Request floods | Per-route rate limits (slowapi, in memory, single VM) | `core/ratelimit.py` |
+| Request floods | 120 requests per minute per user (valid access token) or per client IP for every API request except health checks, WebSockets and OPTIONS; search, export and print have lower limits. In memory: counted per API process, so with 2 workers up to twice the limit, and cleared on restart. Requests without a token from one clinic share the per-IP count (measured: 60 in the busiest minute for six users reloading every 5 s, ADR 0003) | `core/ratelimit.py` `DefaultRateLimitMiddleware` |
 | Large uploads | 10 MB limit | `core/config.py` |
 | Witness outage | Each witness is independent; a failed one does not stop the others; the worker runs the job if the scheduler is late | `anchor/job.py`, `worker.py` |
-| Rate limits are per process | Residual: in-memory limits reset on restart and are not shared between Uvicorn workers | accepted for a single-VM deployment |
+| Rate limits are per process | Sign-in limits and the lockout are in the database. Residual: the search, export and print limits are in memory, reset on restart and are not shared between Uvicorn workers | accepted for a single-VM deployment |
+| Staging client sets its own IP with X-Forwarded-For | Accepted: Render staging trusts the header from any peer (`render.yaml`), but it holds synthetic data only and has no real users; prod-demo believes the header only from Caddy (`docs/APP_GAPS.md` 33) | `render.yaml` |
+| A client sets its own IP with X-Forwarded-For to skip per-IP limits | The header is believed only from Caddy's fixed address (`TRUSTED_PROXY_IPS`, `10.250.0.2`); Caddy replaces any value the client sent. From any other peer the header is ignored | `main.py`, `docker-compose.prod.yml` |
 
 ### Elevation of privilege
 
@@ -103,13 +111,24 @@ Act 2023 and DPDP Rules 2025; it is not legally reviewed or certified.
 
 ## 5. Residual risks
 
+- Sign-in limits use fixed windows: up to twice a limit can get through in a short burst across
+  a window edge.
+- The default, search, export and print limits are counted in each API process's memory (up to
+  twice the limit with 2 workers, cleared on restart).
+- Per-IP limits trust Caddy's X-Forwarded-For. If the API's DNS record were proxied through a CDN,
+  every user would share the CDN's few addresses; it must stay DNS only (`docs/RUNBOOK.md`).
 - An insider with a genuine care relationship (on the care team, or treating the patient) is
   explained by that relationship; the research results show this is the main source of false
   explanations (`docs/results-v1.md`, section 6).
+- Rows written before migration 0005 keep transaction-time stamps, so for that older data an
+  access recorded in the same request as a cancellation of its own evidence does not get
+  `cancelled_after_access`, and a row created after an access in the same request looks older
+  than the access.
+- Final alerts come 24 to 48 hours after the access (ADR 0008); until then only the provisional
+  alerts exist.
 - Anchoring proves the log was not changed after a checkpoint; events written between two
   checkpoints are protected only by the hash chain until the next anchor (15 minutes in the
   deployment design, 2 minutes in the local demo).
 - The server operator holds `LEDGER_SIGNING_SEED`; a compromised operator could sign a new
   history for events that were never anchored.
-- Rate limits are in memory per process.
 - Email codes depend on the security of the patient's mailbox.

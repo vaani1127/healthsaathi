@@ -14,6 +14,7 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { PatientLoginPage } from "@/features/auth/PatientLoginPage";
 import { SelectClinicPage } from "@/features/auth/SelectClinicPage";
 import { TotpPage } from "@/features/auth/TotpPage";
+import { NotFoundPage } from "@/features/common/NotFoundPage";
 import { HomePage } from "@/features/home/HomePage";
 import { NurseQueue } from "@/features/nurse/NurseQueue";
 import { ReceptionHome } from "@/features/reception/ReceptionHome";
@@ -22,6 +23,7 @@ import type { Role } from "@/lib/api/client";
 import { homeFor, useAuth } from "@/stores/auth";
 
 const rootRoute = createRootRoute({
+  notFoundComponent: NotFoundPage,
   component: () => (
     <>
       <GlobalBusy />
@@ -67,6 +69,17 @@ const inviteRoute = createRoute({
     token: typeof search.token === "string" ? search.token : "",
   }),
   component: lazyRouteComponent(() => import("@/features/auth/InvitePage"), "InvitePage"),
+});
+const forgotPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/forgot-password",
+  component: lazyRouteComponent(() => import("@/features/auth/ForgotPasswordPage"), "ForgotPasswordPage"),
+});
+// The token is in the fragment (#email=...&token=...), read by the page itself (ADR 0010).
+const resetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reset-password",
+  component: lazyRouteComponent(() => import("@/features/auth/ResetPasswordPage"), "ResetPasswordPage"),
 });
 const devMailboxRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -227,6 +240,8 @@ const routeTree = rootRoute.addChildren([
   receiptBenchRoute,
   patientLoginRoute,
   inviteRoute,
+  forgotPasswordRoute,
+  resetPasswordRoute,
   devMailboxRoute,
   appRoute.addChildren([
     receptionRoute,

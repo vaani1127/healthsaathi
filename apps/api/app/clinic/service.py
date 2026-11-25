@@ -6,13 +6,20 @@ Every function that reads or writes patient data records the access through
 
 import uuid
 from collections.abc import Sequence
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.access.service import RequestInfo, clinic_timezone, record_and_explain, record_many
+from app.access.service import (
+    RequestInfo,
+    clinic_timezone,
+    clock_and_timezone,
+    db_now,
+    record_and_explain,
+    record_many,
+)
 from app.clinic import schemas
 from app.core.errors import ProblemError
 from app.core.pagination import DEFAULT_LIMIT, MAX_LIMIT, decode_cursor, encode_cursor
@@ -75,10 +82,6 @@ QUEUE_TO_APPOINTMENT = {
 }
 
 
-def _now() -> datetime:
-    return datetime.now(UTC)
-
-
 async def _touch(
     db: AsyncSession,
     principal: ClinicPrincipal,
@@ -91,7 +94,9 @@ async def _touch(
 
 
 async def local_today(db: AsyncSession, clinic_id: uuid.UUID) -> date:
-    return _now().astimezone(ZoneInfo(await clinic_timezone(db, clinic_id))).date()
+    """The clinic's calendar date by the database clock, the clock every access is stamped by."""
+    now, timezone = await clock_and_timezone(db, clinic_id)
+    return now.astimezone(ZoneInfo(timezone)).date()
 
 
 async def require_member(
@@ -494,7 +499,9 @@ async def create_walkin(
 ) -> tuple[Appointment, QueueToken]:
     await _touch(db, principal, body.patient_id, AccessAction.VIEW, req)
     await require_member(db, principal.clinic_id, body.doctor_user_id, frozenset({Role.DOCTOR}))
-    now = _now()
+    # The database clock, like the access just recorded, so the walk-in's slot never looks older
+    # than the access it follows because of a clock difference with the API host.
+    now = await db_now(db)
     appointment = Appointment(
         clinic_id=principal.clinic_id,
         patient_id=body.patient_id,
@@ -596,7 +603,7 @@ async def add_care_team_member(
     if body.role not in STAFF_ROLES:
         raise ProblemError(422, "not-a-staff-role")
     await require_member(db, principal.clinic_id, body.user_id, frozenset({body.role}))
-    starts = body.starts_at or _now()
+    starts = body.starts_at or await db_now(db)
     if body.ends_at is not None and body.ends_at <= starts:
         raise ProblemError(422, "bad-window", "ends_at must be after starts_at.")
     assignment = CareTeamAssignment(
@@ -640,6 +647,6 @@ async def end_care_team_member(
         db, principal, assignment.patient_id, DEMOGRAPHICS, AccessAction.EDIT, req
     )
     assignment.status = RecordStatus.INACTIVE
-    assignment.ends_at = assignment.ends_at or _now()
+    assignment.ends_at = assignment.ends_at or await db_now(db)
     await db.flush()
     return assignment

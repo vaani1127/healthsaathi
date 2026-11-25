@@ -13,6 +13,10 @@ accounts and resources themselves are listed in `docs/MANUAL_TASKS.md` ("Before 
 
 Staging is optional. Its steps are skipped while its secrets are not set.
 
+The local Docker demo (`make demo`) keeps its data in Docker volumes and its witness commits in
+`.demo/witness`. `make demo-reset` deletes both, so a fresh demo never reads heads published by an
+earlier one (the seeded clinics get the same ids every time).
+
 Workflows: `.github/workflows/deploy.yml`, `anchor.yml` (every 15 minutes), `nightly.yml`
 (backup and schema drift check). Each step is skipped while its secrets are not set.
 
@@ -113,7 +117,10 @@ On the VM (Ubuntu 24.04):
    `CORS_ORIGINS=["https://app.<domain>"]`, `PUBLIC_APP_URL=https://app.<domain>`, the Brevo, blob
    and anchoring values. `chmod 600` the file.
 4. Point `api.<domain>` (A record) at the VM IP and `app.<domain>` (CNAME) at the Pages project
-   before tagging, so Caddy can get its certificate.
+   before tagging, so Caddy can get its certificate. The `api.` record must stay **DNS only** (grey
+   cloud in Cloudflare). If it were proxied, Caddy would see Cloudflare's addresses instead of
+   the users', every user would share a few IPs, and the per-IP sign-in limits would lock out
+   whole groups of people at once.
 5. Tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
 
 The workflow checks that the tagged commit is on `main` and passed CI, builds the image, copies it
@@ -126,6 +133,29 @@ and the compose files to `/opt/healthsaathi`, and runs `infra/deploy/deploy.sh`,
 5. on failure starts the previous tag again and fails the job.
 
 After the first deploy, register each clinic on chain (see "Anchoring" below).
+
+### Fixed network (first deploy after fix/db-rate-limits)
+
+The compose file puts the containers on a network named `healthsaathi_edge` with the fixed subnet
+`10.250.0.0/24`, and Caddy on `10.250.0.2`. The API believes X-Forwarded-For only from that
+address (`TRUSTED_PROXY_IPS`).
+
+1. Before the deploy, on the VM, check that nothing already uses the subnet:
+   `ip route | grep 10.250.` should print nothing. Also run
+   `docker network inspect $(docker network ls -q) --format '{{.Name}} {{range .IPAM.Config}}{{.Subnet}}{{end}}' | grep 10.250.`;
+   it should print nothing either. If either prints a line, pick another subnet in
+   `docker-compose.prod.yml` (subnet, ip_range, gateway, Caddy's `ipv4_address` and
+   `TRUSTED_PROXY_IPS` together) before deploying.
+2. `deploy.sh` needs no change: `up -d` creates the new network (a new name, so the old one is
+   not modified) and recreates `api`, `worker`, `caddy` and `activity` on it. Expect the usual
+   few seconds of downtime while they restart.
+3. The old network `healthsaathi_default` is left empty. It does no harm. To remove it, first
+   check it has no containers with `docker network inspect healthsaathi_default`, then
+   `docker network rm healthsaathi_default`.
+4. Rolling back to an image older than this change works with the new compose file and keeps
+   real client IPs: the older image reads `FORWARDED_ALLOW_IPS`, which the compose file sets to
+   Caddy's address only (`10.250.0.2`). The current image ignores that variable (uvicorn runs
+   with `--no-proxy-headers`) and reads `TRUSTED_PROXY_IPS` instead.
 
 ## Staging
 
@@ -157,12 +187,49 @@ takes up to a minute.
 |---|---|---|
 | `JWT_SECRET` | Replace in `.env`, restart `api` and `worker` | Access tokens in use stop working; the web app refreshes them silently |
 | `DATA_KEYS` | Add the new key FIRST in the list and keep the old ones, restart | New data uses the new key; old data still decrypts. Never remove a key that encrypted stored data |
-| `OTP_HMAC_KEY` | Replace, restart | Email codes sent before the change stop working |
+| `OTP_HMAC_KEY` | See "Rotating OTP_HMAC_KEY" below | Every key derived from it changes (ADR 0009): email codes and invites in flight stop working, rate counts start again, and new `ip_hash` and consent commitments no longer match older ones |
 | `ANCHOR_TRIGGER_TOKEN` | Replace in the VM `.env` and the GitHub secret together | Scheduled runs fail until both match; the worker fallback keeps anchoring |
 | `ANCHOR_POSTER_PRIVATE_KEY` | New wallet, fund it, then two registry admins re-register the poster | Anchoring stops until the new poster is registered |
 | `LEDGER_SIGNING_SEED` | Do not change | Checkpoints are refused if the derived key does not match the key stored for the clinic. Rotating it needs `ClinicRegistry.rotateKey` and app support that is not built yet |
 | Database passwords | `ALTER ROLE ... PASSWORD`, update `.env`, restart | Short reconnect |
 | `VM_SSH_KEY` | New key pair, add the public key on the VM, update the secret, remove the old key | None |
+
+### Rotating OTP_HMAC_KEY
+
+All five derived keys (email codes, invites, IP hash, consent commitments, rate counters) come
+from this one secret, so rotating it changes all of them at once.
+
+1. Pick a quiet time and count the open invites, which stop working at the rotation:
+   `SELECT count(*) FROM email_otps WHERE purpose = 'invite' AND used_at IS NULL AND expires_at > now();`
+2. Generate a new value: `make env` on a laptop prints a full set; copy only the `OTP_HMAC_KEY` line.
+3. Keep a sealed offline copy of the old value. Without it, consent commitments and `ip_hash`
+   values made before the rotation cannot be checked again.
+4. Put the new value in `/opt/healthsaathi/.env`, then
+   `docker compose -f /opt/healthsaathi/docker-compose.prod.yml up -d api worker`.
+5. Each clinic admin sends the open invites again: Staff tab, "Send invite again" on every member
+   marked "No password yet". The new links use the new key. Email codes in flight fail; patients
+   ask for a new one. Rate counts start again.
+6. Write the rotation date in the operations log, so a person comparing `ip_hash` values by hand
+   knows where they stop matching.
+
+### Derived keys: remove the legacy invite check
+
+The first prod deploy that contains fix/key-separation (on or after 25 November 2026) keeps
+accepting invites hashed with the raw `OTP_HMAC_KEY`, so invites sent before it still work.
+Remove that fallback in a later release, **7 days after that deploy** (invites last 72 hours):
+
+1. Note the date of that deploy (`cat /opt/healthsaathi/current_tag` and the deploy workflow run).
+2. On or after deploy date + 7 days, confirm that no unused, unexpired invite is still hashed
+   the old way. With the old hashes unknown to SQL, check that every open invite was created
+   after the deploy:
+   `SELECT count(*) FROM email_otps WHERE purpose = 'invite' AND used_at IS NULL AND expires_at > now() AND created_at < '<deploy time, UTC>';`
+   It must print 0. (Any invite created before the deploy has expired by then, since invites
+   last 72 hours.)
+3. In `apps/api/app/identity/service.py` delete `_legacy_invite_hash` and the second value in the
+   `code_hash.in_(...)` of `accept_invite`; delete the old-key invite tests in
+   `apps/api/tests/test_key_separation.py`. Keep `keys.legacy_hmac_hex`: `verify_commitment`
+   still needs it for consents made before the change.
+4. Note the removal in `docs/CHANGELOG.md` and ADR 0009.
 
 ## Anchoring
 
@@ -198,13 +265,54 @@ takes up to a minute.
 
 ## Detection
 
-- The worker scores every clinic's accesses each `DETECT_INTERVAL_SECONDS` and refits models
-  once a day (models in the `models` volume, `MODEL_DIR`). Before the first fit, and for clinics
-  with few accesses, the rules baseline or the global model is used.
+- The worker scores every clinic's accesses each `DETECT_INTERVAL_SECONDS` and raises
+  provisional alerts, and refits the provisional models once a day (models in the `models`
+  volume, `MODEL_DIR`). Before the first fit, and for clinics with few accesses, the starter
+  rules or the global model are used.
+- After scoring, the worker makes the final alert list of every clinic day that is due (from
+  00:00 clinic time two days after the day; ADR 0008). Each finalised or skipped day writes one
+  `detect_daily` audit event. A clinic whose daily run fails is logged ("daily detection
+  failed") and tried again after 15 minutes.
+- Each worker tick does a little of the daily work: it finalises at most one clinic day with
+  accesses and computes at most 3 days of training features (`DAILY_DAYS_PER_TICK`,
+  `DAILY_CACHE_DAYS_PER_TICK` in `app/worker.py`), so per-minute scoring and the anchor timer are
+  not held up. A first run with no feature cache needs about 30 training days per clinic, so it
+  is spread over several ticks.
+- Days that are due and older than `DETECT_CATCH_UP_DAYS` (7 by default) without a final list
+  are skipped for good (a `detect_daily` event with outcome `skipped`).
+
+### First deploy of the daily final list on a database with history
+
+The first worker run after this release would skip every clinic day older than 7 days. To
+finalise the whole history instead, run the job once by hand before the worker gets to it:
+
+1. Do not deploy before anchoring snapshot B (25 November 2026, after 00:17 IST) is taken.
+   Stopping the worker pauses the anchor fallback timer, and finalising the history writes one
+   `detect_daily` audit event per clinic per past day, all of which are then anchored; either
+   would change the anchoring study's data. Deploy outside OPD hours (09:30-13:30 and
+   17:00-20:00 IST), as usual.
+2. On the VM, in `/opt/healthsaathi`, stop the worker so it does not start skipping days:
+   `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml stop worker`
+   (this stops the anchor fallback timer too; the GitHub schedule keeps anchoring).
+3. Finalise the history with a catch-up window longer than the history (in days since the
+   first access), for example 400:
+   `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml run --rm worker python -m app.detect.job --daily --catch-up 400`
+   This runs without the per-tick caps and can take a while on a long history. It is safe to
+   stop and run again: finalised days are never redone.
+4. Start the worker again:
+   `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml start worker`
+5. Check the log for "day finalised" lines and no "day skipped" lines, and the admin alert
+   page: past days say "Final list".
+
+The local demo does this itself: `hs_demo.seed` finalises every loaded day that is due.
+- The daily feature cache is in `MODEL_DIR/daily`. It can be deleted at any time; it is rebuilt
+  from the database.
 - Run by hand on the VM, in `/opt/healthsaathi`:
   `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml exec -T worker python -m app.detect.job`
-  (add `--fit` to refit now).
-- Every alert stores `model_version` (sha256 of the model file) and `policy_version`.
+  (add `--fit` to refit now, or `--daily` to make the final lists of the due days, with
+  `--catch-up N` to reach further back; all are safe to repeat).
+- Every alert stores `model_version` (sha256 of the model file, or of the day's final model) and
+  `policy_version`.
 
 ## Backups and restore
 

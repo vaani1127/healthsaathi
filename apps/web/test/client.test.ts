@@ -28,6 +28,17 @@ describe("call", () => {
     expect(errorMessage(error)).toBe("The doctor already has an appointment at that time.");
   });
 
+  it("keeps the fields a validation error names", async () => {
+    setRefresher(() => Promise.resolve(false));
+    const op = () =>
+      Promise.resolve({
+        response: res(422),
+        error: { code: "validation-error", errors: [{ loc: ["body", "bp_sys"], msg: "too high" }, { loc: ["body"], msg: "pair" }] },
+      });
+    const error = await call(op).catch((e: unknown) => e);
+    expect((error as ApiError).fields).toEqual(["bp_sys"]);
+  });
+
   it("reports network failures", async () => {
     const error = await call(() => Promise.reject(new TypeError("offline"))).catch((e: unknown) => e);
     expect((error as ApiError).code).toBe("network");

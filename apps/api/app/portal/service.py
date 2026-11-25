@@ -5,12 +5,14 @@ The access log hides the patient's own views of their record, so opening the log
 """
 
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.access.service import RequestInfo, db_now, record_and_explain
+from app.chart.schemas import LabOrderOut, VitalOut
 from app.chart.service import patient_chart
 from app.clinic.schemas import ClinicOut
 from app.consent.service import history as consent_history
@@ -24,6 +26,7 @@ from app.db.models import (
     Appointment,
     Clinic,
     LabOrder,
+    LabResult,
     Membership,
     Patient,
     PatientAccessQuery,
@@ -31,9 +34,11 @@ from app.db.models import (
     Referral,
     StaffProfile,
     User,
+    Vital,
 )
 from app.fhir.bundle import StaffRef, build_bundle
 from app.identity.deps import ClinicPrincipal
+from app.ledger.writer import append_audit_event
 from app.notify.email import Email, send_email
 from app.portal import schemas
 
@@ -204,13 +209,38 @@ async def list_queries(
 
 
 async def update_query(
-    db: AsyncSession, query_id: uuid.UUID, body: schemas.QueryUpdate
+    db: AsyncSession, principal: ClinicPrincipal, query_id: uuid.UUID, body: schemas.QueryUpdate
 ) -> PatientAccessQuery:
-    query = await db.get(PatientAccessQuery, query_id)
+    """Change a patient's access report status, with one audit event per change. Setting the
+    status it already has is a no-op. SPEC 3.1 gives no way back from closed, so a closed report
+    cannot be reopened (409)."""
+    query = await db.scalar(
+        select(PatientAccessQuery).where(PatientAccessQuery.id == query_id).with_for_update()
+    )
     if query is None:
         raise ProblemError(404, "query-not-found")
+    old = QueryStatus(query.status)
+    if body.status == old:
+        # Setting a status it already has changes nothing and records nothing.
+        return query
+    if old == QueryStatus.CLOSED:
+        raise ProblemError(409, "query-closed", "A closed report cannot be reopened.")
     query.status = body.status
     await db.flush()
+    at = await db_now(db)
+    await append_audit_event(
+        db,
+        principal.clinic_id,
+        "access_query",
+        {
+            "type": "access_query",
+            "query_id": str(query.id),
+            "old_status": old.value,
+            "new_status": QueryStatus(body.status).value,
+            "by": str(principal.user_id),
+            "at": at.isoformat(),
+        },
+    )
     return query
 
 
@@ -254,8 +284,37 @@ async def export(
             consents=consents,
             access_log=entries,
             exported_at=exported_at,
+            **await observation_performers(db, record.vitals, record.lab_orders),
         ),
     )
+
+
+async def observation_performers(
+    db: AsyncSession, vitals: Sequence[VitalOut], lab_orders: Sequence[LabOrderOut]
+) -> dict[str, dict[uuid.UUID, uuid.UUID]]:
+    """Who recorded each vital and who released each lab result, for the FHIR Observation
+    performer only. Reads the records this export already returns (and recorded as accessed);
+    the chart schemas and every other response stay as they are."""
+    vital_ids = [v.id for v in vitals]
+    result_ids = [o.result.id for o in lab_orders if o.result is not None]
+    vital_rows = (
+        (await db.execute(select(Vital.id, Vital.recorded_by).where(Vital.id.in_(vital_ids)))).all()
+        if vital_ids
+        else []
+    )
+    result_rows = (
+        (
+            await db.execute(
+                select(LabResult.id, LabResult.resulted_by).where(LabResult.id.in_(result_ids))
+            )
+        ).all()
+        if result_ids
+        else []
+    )
+    return {
+        "vital_performers": {rid: uid for rid, uid in vital_rows},
+        "lab_performers": {rid: uid for rid, uid in result_rows},
+    }
 
 
 async def staff_refs(db: AsyncSession, clinic_id: uuid.UUID) -> dict[uuid.UUID, StaffRef]:

@@ -65,7 +65,7 @@ class BreakGlassEvent(ClinicScopedMixin, Base):
     patient_id: Mapped[uuid.UUID]
     reason_code: Mapped[str] = mapped_column(String(32))
     reason_text: Mapped[str] = mapped_column(Text)
-    at: Mapped[datetime] = mapped_column(server_default=func.now())
+    at: Mapped[datetime] = mapped_column(server_default=func.clock_timestamp())
     reviewed_by: Mapped[uuid.UUID | None] = user_fk(nullable=True)
     reviewed_at: Mapped[datetime | None]
     outcome: Mapped[ReviewOutcome | None] = mapped_column(str_enum(ReviewOutcome, "outcome"))

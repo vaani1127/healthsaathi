@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import { api, call, type Role, type Schemas, setAccessToken, setRefresher } from "@/lib/api/client";
 import { dropAllDrafts } from "@/lib/drafts";
+import { clearCacheBookkeeping } from "@/lib/offline";
 
 type Token = Schemas["TokenResponse"];
 type Me = Schemas["MeResponse"];
@@ -121,7 +122,7 @@ export const useAuth = create<AuthState>((set, get) => ({
 
 setRefresher(() => useAuth.getState().refresh());
 
-/** Remove cached API responses and unsent drafts when someone signs out. */
+/** Remove cached API responses, Workbox's record of them, and unsent drafts when someone signs out. */
 async function clearOfflineData(): Promise<void> {
   try {
     if ("caches" in window) {
@@ -131,6 +132,7 @@ async function clearOfflineData(): Promise<void> {
         }
       }
     }
+    await clearCacheBookkeeping();
     await dropAllDrafts();
   } catch {
     // Nothing cached or storage blocked.

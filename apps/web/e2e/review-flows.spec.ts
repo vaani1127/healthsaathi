@@ -50,7 +50,18 @@ test.describe.serial("review", () => {
     const item = page.getByRole("article").filter({ hasText: emergencyName });
     await expect(item).toContainText(user("doctor").name);
     await expect(item).toContainText(tx("breakGlass.codes.unconscious"));
+    // A review cannot be changed, so the app asks first. Cancel records nothing.
+    await item.getByRole("button", { name: tx("outcome.misuse") }).click();
+    const dialog = page.getByRole("dialog", { name: tx("confirm.reviewTitle") });
+    await expect(dialog).toContainText(tx("confirm.outcome", { outcome: tx("outcome.misuse") }));
+    await expect(dialog).toContainText(tx("confirm.patient", { name: emergencyName }));
+    await expect(dialog).toContainText(tx("confirm.permanent"));
+    await expect(dialog.getByRole("button", { name: tx("confirm.cancel") })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(item.getByRole("button", { name: tx("outcome.misuse") })).toBeVisible();
     await item.getByRole("button", { name: tx("outcome.benign") }).click();
+    await dialog.getByRole("button", { name: tx("confirm.recordReview") }).click();
     await expect(item.getByText(tx("outcome.benign"))).toBeVisible();
   });
 
@@ -81,11 +92,25 @@ test.describe.serial("review", () => {
         stdio: "inherit",
       });
     }
-    await signIn(page, "clinic_admin");
+    const admin = await signIn(page, "clinic_admin");
     await expect(page.getByRole("tab", { name: tx("admin.tabs.alerts") })).toHaveAttribute("aria-selected", "true");
     // The reason-only access was gated and scored; the queue shows today's top alerts.
-    await expect(page.getByTestId("alert")).not.toHaveCount(0);
-    const first = page.getByTestId("alert").first();
+    const alerts = page.getByTestId("alert");
+    await expect(alerts).not.toHaveCount(0);
+    // Alerts about the signed-in admin's own accesses can be listed (the admin opens records
+    // too), but nobody may review an alert about themselves.
+    const aboutMe = `${admin.name} (${tx("roles.clinic_admin")})`;
+    const mine = alerts.filter({ hasText: aboutMe });
+    if ((await mine.count()) > 0) {
+      const own = mine.first();
+      await own.getByRole("button", { name: tx("admin.alerts.open") }).click();
+      const ownDetail = own.getByTestId("alert-detail");
+      await ownDetail.getByRole("button", { name: tx("outcome.misuse") }).click();
+      await page.getByRole("dialog").getByRole("button", { name: tx("confirm.recordReview") }).click();
+      await expect(ownDetail.getByRole("alert")).toHaveText(tx("errors.own-alert"));
+      await own.getByRole("button", { name: tx("admin.alerts.close") }).click();
+    }
+    const first = alerts.filter({ hasNotText: aboutMe }).first();
     await expect(first).toContainText(/#\d+/);
     await expect(first).toContainText(tx("admin.alerts.score"));
     await first.getByRole("button", { name: tx("admin.alerts.open") }).click();
@@ -93,10 +118,33 @@ test.describe.serial("review", () => {
     await expect(detail).toContainText(`${tx("admin.alerts.patient")}:`);
     await expect(detail).toContainText(tx("admin.alerts.topFeatures"));
     await expect(detail).toContainText(tx("admin.alerts.timeline"));
-    await expect(detail).toContainText(DEMO ? tx("admin.alerts.scorer", { scorer: "" }).trim() : tx("admin.alerts.scorer", { scorer: "rules" }));
+    await expect(detail).toContainText(
+      DEMO
+        ? tx("admin.alerts.scorer", { scorer: "" }).trim()
+        : tx("admin.alerts.scorer", { scorer: tx("admin.alerts.scorers.starter_rules") }),
+    );
+    // Today's alerts are provisional until the day's final list is made (the demo also holds
+    // finalised past days, so its first alert can be either).
+    if (!DEMO) {
+      await expect(first.getByTestId("alert-state")).toHaveText(tx("admin.alerts.listState.provisional"));
+    }
     await detail.getByLabel(tx("admin.alerts.note")).fill("Not asked for a second opinion");
+    // The reviewed alert leaves the open list when it refetches, so nothing is checked inside
+    // it after the click: the API's answer, then the page-level confirmation outside the list.
+    const reviewed = page.waitForResponse((r) => r.request().method() === "POST" && /\/api\/v1\/alerts\/[^/]+\/review$/.test(r.url()));
     await detail.getByRole("button", { name: tx("outcome.misuse") }).click();
-    await expect(detail.getByRole("status")).toHaveText(tx("admin.alerts.reviewed", { outcome: tx("outcome.misuse") }));
+    const dialog = page.getByRole("dialog", { name: tx("confirm.reviewTitle") });
+    await expect(dialog).toContainText(tx("confirm.note", { note: "Not asked for a second opinion" }));
+    await expect(dialog).toContainText(tx("confirm.permanent"));
+    await dialog.getByRole("button", { name: tx("confirm.recordReview") }).click();
+    const response = await reviewed;
+    expect(response.status()).toBe(200);
+    const body = (await response.json()) as { status: string; reviews: { outcome: string }[] };
+    expect(body.status).toBe("misuse");
+    expect(body.reviews.at(-1)?.outcome).toBe("misuse");
+    await expect(page.getByTestId("review-confirmation")).toContainText(
+      tx("admin.alerts.reviewedMoved", { outcome: tx("outcome.misuse") }),
+    );
     // A reviewed alert leaves the open queue; the day view still lists it with its outcome.
     await page.getByRole("button", { name: tx("admin.alerts.view.day") }).click();
     await expect(page.getByTestId("alert").filter({ hasText: tx("admin.alerts.status.misuse") }).first()).toBeVisible();

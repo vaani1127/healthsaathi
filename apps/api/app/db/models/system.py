@@ -24,6 +24,18 @@ class Job(IdMixin, CreatedAtMixin, Base):
     error: Mapped[str | None] = mapped_column(Text)
 
 
+class RateCounter(Base):
+    """One fixed window of one rate limit (`app/core/counters.py`). No clinic and no personal
+    data: the key is an HMAC of the limit's scope and identifier (an IP or an email)."""
+
+    __tablename__ = "rate_counters"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    window_start: Mapped[datetime] = mapped_column(primary_key=True)
+    count: Mapped[int]
+    expires_at: Mapped[datetime]
+
+
 class PushSubscription(IdMixin, CreatedAtMixin, Base):
     __tablename__ = "push_subscriptions"
 

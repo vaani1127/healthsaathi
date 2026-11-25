@@ -5,12 +5,15 @@ Scores only rank accesses for review. Nothing here grants or refuses access.
 
 Scoring one clinic at a time, each access is compared with the model's calibrated threshold, and
 at most ALERT_BUDGET alerts are raised per clinic and local day, highest score first. Without a
-fitted model the rules baseline is used. Break-glass accesses never use the budget: they are
+fitted model the starter rules are used. Break-glass accesses never use the budget: they are
 reviewed in their own 24-hour queue.
+
+Alerts raised here are provisional. The final list of a day is made by app.detect.daily once every
+access of the day is 24 hours old (ADR 0008); it adds alerts and retires provisional ones, and
+never changes an alert someone has reviewed.
 """
 
 import hashlib
-import json
 import logging
 import os
 import uuid
@@ -37,14 +40,13 @@ from app.db.models import (
     Patient,
     User,
 )
-from app.detect import schemas
+from app.detect import schemas, starter_rules
+from app.detect.days import Outcome, entries, ready_after
 from app.detect.loader import load_clinic
 from app.identity.deps import ClinicPrincipal
 from app.ledger.writer import append_audit_event
 from app.realtime.hub import notify
 from e2d_core.detect import (
-    RULES,
-    RULES_THRESHOLD,
     ModelBundle,
     calibrate,
     dumps,
@@ -52,7 +54,6 @@ from e2d_core.detect import (
     gate,
     loads,
     model_version,
-    rules_score,
 )
 from e2d_core.features import ALL_FEATURES, build_features
 
@@ -62,7 +63,34 @@ SYSTEM = "system"
 FIT_DAYS = 30
 TIMELINE_LENGTH = 50
 GLOBAL_KEY = "global"
-RULES_VERSION = model_version(json.dumps([RULES, RULES_THRESHOLD]).encode())
+
+
+class Stage:
+    """Where an alert is in its life (alerts.features["lifecycle"]["stage"])."""
+
+    PROVISIONAL = "provisional"
+    FINAL = "final"
+    RETIRED = "retired"
+
+
+def stage_of(alert: Alert) -> str:
+    """Alerts raised before stages existed have no lifecycle key; they are provisional."""
+    lifecycle = alert.features.get("lifecycle") or {}
+    return str(lifecycle.get("stage", Stage.PROVISIONAL))
+
+
+def list_state(alert: Alert, entry: dict[str, Any] | None) -> str:
+    """How the alert list shows an alert, given its day's detect_daily entry (if any)."""
+    stage = stage_of(alert)
+    if stage != Stage.PROVISIONAL:
+        return stage
+    if entry is None or entry.get("outcome") != Outcome.FINALISED:
+        return Stage.PROVISIONAL
+    return Stage.FINAL if str(alert.access_event_id) in entry.get("final", []) else "outside_final"
+
+
+def _finalised(entry: dict[str, Any] | None) -> bool:
+    return entry is not None and entry.get("outcome") == Outcome.FINALISED
 
 
 # Model files ----------------------------------------------------------------------------------
@@ -149,9 +177,9 @@ async def score_clinic(
             threshold = bundle.threshold if bundle.threshold is not None else 0.0
             scorer = bundle.scorer
         else:
-            bundle, version = None, RULES_VERSION
-            scores = rules_score(features)
-            threshold, scorer = RULES_THRESHOLD, "rules"
+            bundle, version = None, starter_rules.VERSION
+            scores = starter_rules.score(features)
+            threshold, scorer = starter_rules.THRESHOLD, starter_rules.NAME
 
         existing = (
             await db.scalars(
@@ -177,15 +205,7 @@ async def score_clinic(
         created = 0
         for row in scored.head(max(0, budget - raised)).iter_rows(named=True):
             values = _feature_values(row)
-            top = (
-                bundle.top_features(values)
-                if bundle is not None
-                else [
-                    {"feature": name, "value": values[name], "z": 0.0}
-                    for name, at_least, _ in RULES
-                    if values[name] >= at_least
-                ]
-            )
+            top = bundle.top_features(values) if bundle is not None else starter_rules.fired(values)
             db.add(
                 Alert(
                     clinic_id=clinic_id,
@@ -193,7 +213,12 @@ async def score_clinic(
                     day=day,
                     score=float(row["score"]),
                     rank_in_day=raised + created + 1,
-                    features={"values": values, "top": top, "scorer": scorer},
+                    features={
+                        "values": values,
+                        "top": top,
+                        "scorer": scorer,
+                        "lifecycle": {"stage": Stage.PROVISIONAL},
+                    },
                     model_version=version,
                     policy_version=row["policy_version"],
                 )
@@ -272,7 +297,11 @@ def _top(alert: Alert) -> list[schemas.TopFeature]:
 
 
 async def _alert_out(
-    db: AsyncSession, alert: Alert, event: AccessEvent, user_name: str
+    db: AsyncSession,
+    alert: Alert,
+    event: AccessEvent,
+    user_name: str,
+    entry: dict[str, Any] | None,
 ) -> dict[str, Any]:
     explanation = await db.get(AccessExplanation, event.id)
     return {
@@ -295,11 +324,18 @@ async def _alert_out(
         "template_code": explanation.template_code if explanation else None,
         "strength": float(explanation.strength) if explanation else 0.0,
         "top_features": _top(alert),
+        "stage": stage_of(alert),
+        "list_state": list_state(alert, entry),
+        "day_final": _finalised(entry),
     }
 
 
 async def list_alerts(
-    db: AsyncSession, clinic_id: uuid.UUID, day: date | None, status: AlertStatus | None
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    day: date | None,
+    status: AlertStatus | None,
+    include_retired: bool = False,
 ) -> list[schemas.AlertOut]:
     stmt = (
         select(Alert, AccessEvent, User.name)
@@ -311,8 +347,40 @@ async def list_alerts(
         stmt = stmt.where(Alert.day == day)
     if status is not None:
         stmt = stmt.where(Alert.status == status)
+    # A retired alert keeps status open in the table, but it is not open for review.
+    if not include_retired or status == AlertStatus.OPEN:
+        stmt = stmt.where(
+            Alert.features["lifecycle"]["stage"].astext.is_distinct_from(Stage.RETIRED)
+        )
     rows = (await db.execute(stmt.order_by(Alert.day.desc(), Alert.rank_in_day).limit(200))).all()
-    return [schemas.AlertOut(**await _alert_out(db, a, e, name)) for a, e, name in rows]
+    found = await entries(db, clinic_id, {a.day for a, _, _ in rows})
+    out = []
+    for alert, event, name in rows:
+        out.append(
+            schemas.AlertOut(**await _alert_out(db, alert, event, name, found.get(alert.day)))
+        )
+    return out
+
+
+async def day_status(db: AsyncSession, clinic_id: uuid.UUID, day: date) -> schemas.DayStatus:
+    timezone = await db.scalar(select(Clinic.timezone).where(Clinic.id == clinic_id))
+    tz = ZoneInfo(timezone or "Asia/Kolkata")
+    entry = (await entries(db, clinic_id, [day])).get(day)
+    if entry is None:
+        state = "provisional"
+    elif entry.get("outcome") == Outcome.FINALISED:
+        state = "final"
+    else:
+        state = "skipped"
+    return schemas.DayStatus(
+        day=day,
+        state=state,
+        timezone=str(tz),
+        ready_after=ready_after(day, tz),
+        finalised_at=datetime.fromisoformat(entry["at"]) if entry else None,
+        final_count=len(entry.get("final", [])) if _finalised(entry) and entry else None,
+        retired_count=entry.get("retired_count") if _finalised(entry) and entry else None,
+    )
 
 
 async def _get(db: AsyncSession, alert_id: uuid.UUID) -> tuple[Alert, AccessEvent, str]:
@@ -333,6 +401,7 @@ async def alert_detail(
     db: AsyncSession, principal: ClinicPrincipal, alert_id: uuid.UUID, req: RequestInfo
 ) -> schemas.AlertDetail:
     alert, event, user_name = await _get(db, alert_id)
+    entry = (await entries(db, alert.clinic_id, [alert.day])).get(alert.day)
     # Seeing who the patient is reads patient data, so it is recorded like any other access.
     await record_and_explain(
         db,
@@ -361,7 +430,7 @@ async def alert_detail(
         )
     ).all()
     return schemas.AlertDetail(
-        **await _alert_out(db, alert, event, user_name),
+        **await _alert_out(db, alert, event, user_name, entry),
         patient_id=patient.id,
         patient_name=patient.name,
         patient_mrn=patient.mrn,
@@ -397,6 +466,14 @@ async def review_alert(
     alert, event, _ = await _get(db, alert_id)
     if event.user_id == principal.user_id:
         raise ProblemError(403, "own-alert", "Someone else must review an alert about you.")
+    # A review is final, like a break-glass review. The alert row is locked so two reviews sent
+    # at the same time run one after the other, and the second finds the first.
+    locked = await db.scalar(select(Alert).where(Alert.id == alert.id).with_for_update())
+    already = await db.scalar(
+        select(AlertReview.id).where(AlertReview.alert_id == alert.id).limit(1)
+    )
+    if locked is None or locked.status != AlertStatus.OPEN or already is not None:
+        raise ProblemError(409, "already-reviewed", "This alert was already reviewed.")
     at = await db_now(db)
     db.add(
         AlertReview(

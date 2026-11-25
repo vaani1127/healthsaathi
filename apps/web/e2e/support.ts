@@ -72,16 +72,27 @@ function usedSteps(): Record<string, number> {
   return existsSync(USED) ? (JSON.parse(readFileSync(USED, "utf-8")) as Record<string, number>) : {};
 }
 
+// How far the server's clock may lag this machine's. The demo API runs in Docker, whose clock
+// drifts from the host's by a second or two; a sign-in failed when it lagged by about 0.6 s.
+const SERVER_LAG_MS = 5_000;
+
 /**
- * A TOTP code the server has not seen yet for this user. The server accepts the current step or
+ * A TOTP code the server has not seen yet for this user. The server accepts its current step or
  * one either side, each only once, so after many sign-ins in a row this waits for the clock.
+ * A code for step `next` is sent only once this machine is SERVER_LAG_MS into step `next - 1`:
+ * a server whose clock is up to that much behind is then in step `next - 1` or later, and still
+ * accepts `next`.
  */
 async function freshCode(secret: string): Promise<string> {
   const used = usedSteps();
   const step = Math.floor(Date.now() / 30_000);
   const next = Math.max(step, (used[secret] ?? -1) + 1);
-  if (next > step + 1) {
-    await new Promise((resolve) => setTimeout(resolve, (next - 1) * 30_000 - Date.now() + 500));
+  if (next > step) {
+    const ready = (next - 1) * 30_000 + SERVER_LAG_MS;
+    const wait = ready - Date.now();
+    if (wait > 0) {
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
   }
   writeFileSync(USED, JSON.stringify({ ...usedSteps(), [secret]: next }));
   return new TOTP({ secret, digits: 6, period: 30 }).generate({ timestamp: next * 30_000 });
@@ -127,4 +138,46 @@ export async function emailCode(email: string, sinceMs: number, baseURL = "http:
     }
   }
   return null;
+}
+
+/** The invite tokens emailed to this address after `sinceMs`, oldest first: from the files the
+ * test API writes, or from the dev mailbox of the demo stack. */
+export async function inviteTokens(email: string, sinceMs: number, baseURL = "http://localhost:8080"): Promise<string[]> {
+  const token = (text: string) => /token=([^\s&]+)/.exec(text)?.[1];
+  if (DEMO) {
+    const resp = await fetch(`${baseURL}/api/v1/dev/mailbox?to=${encodeURIComponent(email)}`);
+    const mails = (await resp.json()) as { text: string; sent_at: string | null }[];
+    return mails
+      .filter((m) => m.sent_at && Date.parse(m.sent_at) >= sinceMs)
+      .sort((a, b) => Date.parse(a.sent_at ?? "") - Date.parse(b.sent_at ?? ""))
+      .map((m) => token(m.text))
+      .filter((t): t is string => Boolean(t));
+  }
+  const key = `${email.replace("@", "_at_")}.json`;
+  return readdirSync(OUTBOX)
+    .filter((f) => f.endsWith(key) && Number(f.split("-")[0]) / 1e6 >= sinceMs)
+    .sort()
+    .map((f) => token((JSON.parse(readFileSync(join(OUTBOX, f), "utf-8")) as { text: string }).text))
+    .filter((t): t is string => Boolean(t));
+}
+
+/** The reset links emailed to this address after `sinceMs`, oldest first, as the path and
+ * fragment to open (`/reset-password#email=...&token=...`). */
+export async function resetLinks(email: string, sinceMs: number, baseURL = "http://localhost:8080"): Promise<string[]> {
+  const link = (text: string) => /(\/reset-password#\S+)/.exec(text)?.[1];
+  if (DEMO) {
+    const resp = await fetch(`${baseURL}/api/v1/dev/mailbox?to=${encodeURIComponent(email)}`);
+    const mails = (await resp.json()) as { text: string; sent_at: string | null }[];
+    return mails
+      .filter((m) => m.sent_at && Date.parse(m.sent_at) >= sinceMs)
+      .sort((a, b) => Date.parse(a.sent_at ?? "") - Date.parse(b.sent_at ?? ""))
+      .map((m) => link(m.text))
+      .filter((l): l is string => Boolean(l));
+  }
+  const key = `${email.replace("@", "_at_")}.json`;
+  return readdirSync(OUTBOX)
+    .filter((f) => f.endsWith(key) && Number(f.split("-")[0]) / 1e6 >= sinceMs)
+    .sort()
+    .map((f) => link((JSON.parse(readFileSync(join(OUTBOX, f), "utf-8")) as { text: string }).text))
+    .filter((l): l is string => Boolean(l));
 }

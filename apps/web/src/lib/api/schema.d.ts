@@ -79,8 +79,33 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Alerts */
+        /**
+         * List Alerts
+         * @description Retired alerts (provisional, not in the day's final list, never reviewed) are left out
+         *     unless `include_retired` is true. They are never in `status=open`: they are not open for
+         *     review.
+         */
         get: operations["list_alerts_api_v1_alerts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/alerts/days/{day}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Day Status
+         * @description Whether the day's alert list is final, and from when it can be.
+         */
+        get: operations["day_status_api_v1_alerts_days__day__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -322,6 +347,45 @@ export interface paths {
         put?: never;
         /** Change Password */
         post: operations["change_password_api_v1_auth_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password-reset/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Password Reset Confirm */
+        post: operations["password_reset_confirm_api_v1_auth_password_reset_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password-reset/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Password Reset Request
+         * @description Always the same answer, straight after the per-IP limit. Looking up the email, the
+         *     per-email limit, the new link, the audit event and the email all happen after the response
+         *     (ADR 0010), so neither the answer nor its timing shows whether the email has an account.
+         */
+        post: operations["password_reset_request_api_v1_auth_password_reset_request_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1706,6 +1770,26 @@ export interface paths {
         patch: operations["update_membership_api_v1_staff_members__membership_id__patch"];
         trace?: never;
     };
+    "/api/v1/staff/members/{membership_id}/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Invite Again
+         * @description A new invite for a staff member without a password; earlier links stop working.
+         */
+        post: operations["invite_again_api_v1_staff_members__membership_id__invite_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/walkins": {
         parameters: {
             query?: never;
@@ -1818,6 +1902,8 @@ export interface components {
              * Format: date
              */
             day: string;
+            /** Day Final */
+            day_final: boolean;
             /** Evidence */
             evidence: {
                 [key: string]: unknown;
@@ -1835,6 +1921,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * List State
+             * @enum {string}
+             */
+            list_state: "provisional" | "final" | "retired" | "outside_final";
             /** Model Version */
             model_version: string;
             /**
@@ -1858,6 +1949,11 @@ export interface components {
             score: number;
             /** Scorer */
             scorer: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "provisional" | "final" | "retired";
             status: components["schemas"]["AlertStatus"];
             /** Strength */
             strength: number;
@@ -1898,11 +1994,18 @@ export interface components {
              * Format: date
              */
             day: string;
+            /** Day Final */
+            day_final: boolean;
             /**
              * Id
              * Format: uuid
              */
             id: string;
+            /**
+             * List State
+             * @enum {string}
+             */
+            list_state: "provisional" | "final" | "retired" | "outside_final";
             /** Model Version */
             model_version: string;
             /** Policy Version */
@@ -1915,6 +2018,11 @@ export interface components {
             score: number;
             /** Scorer */
             scorer: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "provisional" | "final" | "retired";
             status: components["schemas"]["AlertStatus"];
             /** Strength */
             strength: number;
@@ -2417,6 +2525,35 @@ export interface components {
             payments: number;
             /** Total Paise */
             total_paise: number;
+        };
+        /**
+         * DayStatus
+         * @description Whether a clinic day's alert list is final, and when it will be.
+         */
+        DayStatus: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Final Count */
+            final_count: number | null;
+            /** Finalised At */
+            finalised_at: string | null;
+            /**
+             * Ready After
+             * Format: date-time
+             */
+            ready_after: string;
+            /** Retired Count */
+            retired_count: number | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "provisional" | "final" | "skipped";
+            /** Timezone */
+            timezone: string;
         };
         /** DoctorChart */
         DoctorChart: {
@@ -2944,6 +3081,22 @@ export interface components {
             items: components["schemas"]["PatientSummary"][];
             /** Next Cursor */
             next_cursor?: string | null;
+        };
+        /** PasswordResetConfirm */
+        PasswordResetConfirm: {
+            /** Code */
+            code?: string | null;
+            /** Email */
+            email: string;
+            /** Password */
+            password: string;
+            /** Token */
+            token: string;
+        };
+        /** PasswordResetRequest */
+        PasswordResetRequest: {
+            /** Email */
+            email: string;
         };
         /**
          * PatientChart
@@ -3652,6 +3805,8 @@ export interface components {
             mfa_enabled: boolean;
             /** Name */
             name: string;
+            /** Password Set */
+            password_set: boolean;
             role: components["schemas"]["Role"];
             /**
              * User Id
@@ -4021,6 +4176,7 @@ export interface operations {
             query?: {
                 day?: string | null;
                 status?: components["schemas"]["AlertStatus"] | null;
+                include_retired?: boolean;
             };
             header?: never;
             path?: never;
@@ -4035,6 +4191,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AlertOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    day_status_api_v1_alerts_days__day__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                day: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayStatus"];
                 };
             };
             /** @description Validation Error */
@@ -4489,6 +4676,72 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    password_reset_confirm_api_v1_auth_password_reset_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    password_reset_request_api_v1_auth_password_reset_request_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
             };
             /** @description Validation Error */
             422: {
@@ -7280,6 +7533,35 @@ export interface operations {
                 "application/json": components["schemas"]["MembershipUpdate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invite_again_api_v1_staff_members__membership_id__invite_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                membership_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             204: {

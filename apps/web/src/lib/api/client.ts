@@ -29,18 +29,22 @@ export interface Problem {
   status: number;
   code: string;
   detail?: string;
+  /** The request fields a validation error names (the last part of each `errors[].loc`). */
+  fields?: string[];
 }
 
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
   readonly detail: string | undefined;
+  readonly fields: string[];
 
   constructor(problem: Problem) {
     super(problem.detail ?? problem.code);
     this.status = problem.status;
     this.code = problem.code;
     this.detail = problem.detail;
+    this.fields = problem.fields ?? [];
   }
 }
 
@@ -60,11 +64,17 @@ export function setRefresher(fn: Refresher): void {
 
 function toProblem(status: number, error: unknown): Problem {
   if (error && typeof error === "object" && "code" in error) {
-    const e = error as { code: unknown; detail?: unknown };
+    const e = error as { code: unknown; detail?: unknown; errors?: unknown };
+    const fields = Array.isArray(e.errors)
+      ? e.errors
+          .map((item) => (item && typeof item === "object" && "loc" in item && Array.isArray(item.loc) ? item.loc.at(-1) : undefined))
+          .filter((field): field is string => typeof field === "string" && field !== "body")
+      : [];
     return {
       status,
       code: String(e.code),
       detail: typeof e.detail === "string" ? e.detail : undefined,
+      fields,
     };
   }
   return { status, code: status === 0 ? "network" : `http-${status}` };

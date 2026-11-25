@@ -1,6 +1,6 @@
 import uuid
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -11,6 +11,12 @@ class TopFeature(BaseModel):
     feature: str
     value: float
     z: float
+
+
+# provisional: raised as accesses happened; the day's final list is not made yet.
+# final: in the day's final list. retired: provisional, not in the final list, never reviewed.
+# outside_final: reviewed while provisional and not in the final list (kept as it was).
+ListState = Literal["provisional", "final", "retired", "outside_final"]
 
 
 class AlertOut(BaseModel):
@@ -33,6 +39,22 @@ class AlertOut(BaseModel):
     template_code: str | None
     strength: float
     top_features: list[TopFeature]
+    stage: Literal["provisional", "final", "retired"]
+    list_state: ListState
+    day_final: bool
+
+
+class DayStatus(BaseModel):
+    """Whether a clinic day's alert list is final, and when it will be."""
+
+    day: date
+    state: Literal["provisional", "final", "skipped"]
+    timezone: str
+    # 00:00 clinic time two days after `day`: from then the final list can be made.
+    ready_after: datetime
+    finalised_at: datetime | None
+    final_count: int | None
+    retired_count: int | None
 
 
 class TimelineEntry(BaseModel):

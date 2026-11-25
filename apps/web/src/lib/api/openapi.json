@@ -207,6 +207,10 @@
             "title": "Day",
             "type": "string"
           },
+          "day_final": {
+            "title": "Day Final",
+            "type": "boolean"
+          },
           "evidence": {
             "additionalProperties": true,
             "title": "Evidence",
@@ -227,6 +231,16 @@
           "id": {
             "format": "uuid",
             "title": "Id",
+            "type": "string"
+          },
+          "list_state": {
+            "enum": [
+              "provisional",
+              "final",
+              "retired",
+              "outside_final"
+            ],
+            "title": "List State",
             "type": "string"
           },
           "model_version": {
@@ -273,6 +287,15 @@
           },
           "scorer": {
             "title": "Scorer",
+            "type": "string"
+          },
+          "stage": {
+            "enum": [
+              "provisional",
+              "final",
+              "retired"
+            ],
+            "title": "Stage",
             "type": "string"
           },
           "status": {
@@ -337,6 +360,9 @@
           "template_code",
           "strength",
           "top_features",
+          "stage",
+          "list_state",
+          "day_final",
           "patient_id",
           "patient_name",
           "patient_mrn",
@@ -374,9 +400,23 @@
             "title": "Day",
             "type": "string"
           },
+          "day_final": {
+            "title": "Day Final",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
+            "type": "string"
+          },
+          "list_state": {
+            "enum": [
+              "provisional",
+              "final",
+              "retired",
+              "outside_final"
+            ],
+            "title": "List State",
             "type": "string"
           },
           "model_version": {
@@ -403,6 +443,15 @@
           },
           "scorer": {
             "title": "Scorer",
+            "type": "string"
+          },
+          "stage": {
+            "enum": [
+              "provisional",
+              "final",
+              "retired"
+            ],
+            "title": "Stage",
             "type": "string"
           },
           "status": {
@@ -459,7 +508,10 @@
           "action",
           "template_code",
           "strength",
-          "top_features"
+          "top_features",
+          "stage",
+          "list_state",
+          "day_final"
         ],
         "title": "AlertOut",
         "type": "object"
@@ -1761,6 +1813,79 @@
         "title": "DailyRevenue",
         "type": "object"
       },
+      "DayStatus": {
+        "description": "Whether a clinic day's alert list is final, and when it will be.",
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "final_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Count"
+          },
+          "finalised_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalised At"
+          },
+          "ready_after": {
+            "format": "date-time",
+            "title": "Ready After",
+            "type": "string"
+          },
+          "retired_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retired Count"
+          },
+          "state": {
+            "enum": [
+              "provisional",
+              "final",
+              "skipped"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day",
+          "state",
+          "timezone",
+          "ready_after",
+          "finalised_at",
+          "final_count",
+          "retired_count"
+        ],
+        "title": "DayStatus",
+        "type": "object"
+      },
       "DoctorChart": {
         "properties": {
           "allergies": {
@@ -3051,6 +3176,63 @@
           "items"
         ],
         "title": "Page[PatientSummary]",
+        "type": "object"
+      },
+      "PasswordResetConfirm": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 8,
+                "minLength": 6,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "email": {
+            "maxLength": 254,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 128,
+            "minLength": 10,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "token",
+          "password"
+        ],
+        "title": "PasswordResetConfirm",
+        "type": "object"
+      },
+      "PasswordResetRequest": {
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "PasswordResetRequest",
         "type": "object"
       },
       "PatientChart": {
@@ -4826,6 +5008,10 @@
             "title": "Name",
             "type": "string"
           },
+          "password_set": {
+            "title": "Password Set",
+            "type": "boolean"
+          },
           "role": {
             "$ref": "#/components/schemas/Role"
           },
@@ -4842,7 +5028,8 @@
           "email",
           "role",
           "is_active",
-          "mfa_enabled"
+          "mfa_enabled",
+          "password_set"
         ],
         "title": "StaffMemberOut",
         "type": "object"
@@ -5743,6 +5930,7 @@
     },
     "/api/v1/alerts": {
       "get": {
+        "description": "Retired alerts (provisional, not in the day's final list, never reviewed) are left out\nunless `include_retired` is true. They are never in `status=open`: they are not open for\nreview.",
         "operationId": "list_alerts_api_v1_alerts_get",
         "parameters": [
           {
@@ -5776,6 +5964,16 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_retired",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Retired",
+              "type": "boolean"
             }
           }
         ],
@@ -5811,6 +6009,55 @@
           }
         ],
         "summary": "List Alerts",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/v1/alerts/days/{day}": {
+      "get": {
+        "description": "Whether the day's alert list is final, and from when it can be.",
+        "operationId": "day_status_api_v1_alerts_days__day__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Day Status",
         "tags": [
           "alerts"
         ]
@@ -6472,6 +6719,86 @@
           }
         ],
         "summary": "Change Password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/password-reset/confirm": {
+      "post": {
+        "operationId": "password_reset_confirm_api_v1_auth_password_reset_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Password Reset Confirm",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/password-reset/request": {
+      "post": {
+        "description": "Always the same answer, straight after the per-IP limit. Looking up the email, the\nper-email limit, the new link, the audit event and the email all happen after the response\n(ADR 0010), so neither the answer nor its timing shows whether the email has an account.",
+        "operationId": "password_reset_request_api_v1_auth_password_reset_request_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Password Reset Request Api V1 Auth Password Reset Request Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Password Reset Request",
         "tags": [
           "auth"
         ]
@@ -10959,6 +11286,48 @@
           }
         ],
         "summary": "Update Membership",
+        "tags": [
+          "staff"
+        ]
+      }
+    },
+    "/api/v1/staff/members/{membership_id}/invite": {
+      "post": {
+        "description": "A new invite for a staff member without a password; earlier links stop working.",
+        "operationId": "invite_again_api_v1_staff_members__membership_id__invite_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Membership Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Invite Again",
         "tags": [
           "staff"
         ]

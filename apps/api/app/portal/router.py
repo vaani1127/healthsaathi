@@ -67,7 +67,9 @@ async def list_queries(principal: Admin, db: Db, open_only: bool = True) -> list
 async def update_query(
     principal: Admin, query_id: uuid.UUID, body: schemas.QueryUpdate, db: Db
 ) -> schemas.QueryOut:
-    return schemas.QueryOut.model_validate(await service.update_query(db, query_id, body))
+    return schemas.QueryOut.model_validate(
+        await service.update_query(db, principal, query_id, body)
+    )
 
 
 @router.get("/patients/{patient_id}/export", response_model=schemas.PatientExport)

@@ -16,7 +16,8 @@ export default defineConfig({
   testDir: ".",
   // Native mode talks to a remote database (Neon), so every screen waits on network round trips.
   timeout: process.env.E2E_NATIVE ? 900_000 : 90_000,
-  globalTimeout: (process.env.E2E_NATIVE ? 300 : 45) * 60_000,
+  // The audit walkthrough (`make demo-audit`) visits every screen several times: no overall limit.
+  globalTimeout: process.env.DEMO_AUDIT ? 0 : (process.env.E2E_NATIVE ? 300 : 45) * 60_000,
   expect: { timeout: process.env.E2E_NATIVE ? 180_000 : 15_000 },
   fullyParallel: false,
   workers: 1,
@@ -36,5 +37,9 @@ export default defineConfig({
     { name: "a11y", testMatch: "e2e-demo/a11y.spec.ts", use: { ...devices["Desktop Chrome"] } },
     // Rewrites an audit row and puts it back; runs last.
     { name: "tamper", testMatch: "e2e-demo/tamper.spec.ts", use: { ...devices["Desktop Chrome"] }, dependencies: ["flows-360", "crawl-desktop", "crawl-360", "crawl-hindi", "pwa", "a11y"] },
+    // `make demo-measure` only: requests per minute per user (ADR 0003). Absent from demo-e2e.
+    ...(process.env.DEMO_MEASURE ? [{ name: "measure", testMatch: "e2e-demo/measure/*.spec.ts", use: { ...devices["Desktop Chrome"] } }] : []),
+    // `make demo-audit` only: the full app audit walkthrough (docs/AUDIT_REPORT.md). Absent from demo-e2e.
+    ...(process.env.DEMO_AUDIT ? [{ name: "audit", testMatch: "e2e-demo/audit/*.spec.ts", use: { ...devices["Desktop Chrome"] } }] : []),
   ],
 });

@@ -30,7 +30,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-healthsaathi}:${POSTGRES_PASSWORD:-healthsaathi}@postgres:5432/${POSTGRES_DB:-healthsaathi}
       CORS_ORIGINS: '["http://localhost:5173"]'
     command: >
-      uv run --no-sync uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      uv run --no-sync uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-proxy-headers --reload
       --reload-dir /repo/apps/api/app --reload-dir /repo/packages/e2d-core/src
     working_dir: /repo/apps/api
     volumes:

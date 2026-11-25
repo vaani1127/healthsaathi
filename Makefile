@@ -5,7 +5,7 @@ UV := uv run
 PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests experiments/src experiments/tests \
 	infra/demo/src infra/demo/tests
 
-.PHONY: help env install demo demo-code demo-e2e demo-e2e-docker demo-e2e-native demo-videos \
+.PHONY: help env install demo demo-code demo-e2e demo-e2e-docker demo-e2e-native demo-measure demo-audit demo-videos \
 	demo-native demo-native-stop demo-reset-native demo-screenshots fhir-validate demo-logs demo-down demo-reset dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
 	test-sol migrate seed prod-init prod-azure prod-open-db prod-close-db prod-status prod-db \
 	prod-seed prod-chain prod-register prod-vm-env prod-cloudflare prod-github prod-activity prod-logins prod-code besu-up besu-bench besu-down bench-receipt-browser tamper-study load-bench-db load-run load-run-reversed load-clean \
@@ -19,6 +19,8 @@ help:
 	@echo "demo-native-stop / demo-reset-native  stop it / wipe the database and start fresh"
 	@echo "demo-code print the current authenticator code of a demo login, EMAIL=..."
 	@echo "demo-e2e  Playwright suite against the running demo (flows, crawler, PWA, tamper)"
+	@echo "demo-measure  API requests per minute per user on the running demo (rate limits on), JSON in apps/web/test-results"
+	@echo "demo-audit  full app audit walkthrough on the running demo (rate limits on), results in audit-artifacts/"
 	@echo "demo-videos  record a video of each of the 9 flows into demo-videos/"
 	@echo "demo-screenshots  desktop and phone screenshots of every screen into demo-screenshots/"
 	@echo "fhir-validate  export FHIR bundles of 10 demo patients and run the HAPI validator"
@@ -59,7 +61,7 @@ demo:
 	$(DEMO) exec -T api python -m hs_demo.logins
 
 demo-code:
-	@if [ -f .demo/pids/api.pid ]; then $(NATIVE) code $(EMAIL); 	else $(DEMO) exec -T api python -m hs_demo.logins $(EMAIL); fi
+	@if $(NATIVE) alive api; then $(NATIVE) code $(EMAIL); 	else $(DEMO) exec -T api python -m hs_demo.logins $(EMAIL); fi
 
 # Native demo (no Docker): api, worker, web and anvil as local processes, database on Neon.
 # Needs .env.local (see .env.local.example), Foundry, Node and pnpm.
@@ -79,7 +81,18 @@ demo-logs:
 # Browser tests against the running demo (make demo first). Many sign-ins from one address in a
 # minute, so the API runs without rate limits for the test and gets them back afterwards.
 demo-e2e:
-	@if [ -f .demo/pids/api.pid ]; then $(MAKE) --no-print-directory demo-e2e-native; 	else $(MAKE) --no-print-directory demo-e2e-docker; fi
+	@if $(NATIVE) alive api; then $(MAKE) --no-print-directory demo-e2e-native; 	else $(MAKE) --no-print-directory demo-e2e-docker; fi
+
+# Requests per minute per user for the default rate limit (ADR 0003). Needs the running demo with
+# rate limits on (as `make demo` leaves it). Not part of demo-e2e.
+demo-measure:
+	cd apps/web && DEMO_MEASURE=1 pnpm exec playwright test -c playwright.demo.config.ts --project=measure
+
+# Full app audit walkthrough (docs/AUDIT_REPORT.md): every screen of every role in English and
+# Hindi at desktop and 360 px, and every button in clinic B. Needs the running demo with rate
+# limits on. Not part of demo-e2e. Clicks change clinic B data; the report lists every change.
+demo-audit:
+	cd apps/web && DEMO_AUDIT=1 pnpm exec playwright test -c playwright.demo.config.ts --project=audit
 
 demo-e2e-docker:
 	DEMO_RATE_LIMIT=false $(DEMO) up --detach --wait --no-deps api
@@ -92,7 +105,7 @@ demo-e2e-native:
 # Backup videos of the 9 flows (SPEC 1.3) against the running demo, in demo-videos/ (gitignored).
 demo-videos:
 	rm -rf apps/web/test-results/demo demo-videos && mkdir -p demo-videos
-	@if [ -f .demo/pids/api.pid ]; then 		DEMO_RATE_LIMIT=false $(NATIVE) restart-api; native=1; 	else DEMO_RATE_LIMIT=false $(DEMO) up --detach --wait --no-deps api; native=; fi; 	cd apps/web && E2E_NATIVE=$$native E2E_VIDEO=1 		PLAYWRIGHT_JSON_OUTPUT_NAME=../../demo-videos/report.json pnpm exec playwright test 		-c playwright.demo.config.ts --project=flows-360 --reporter=list,json; status=$$?; 	cd ../..; if [ -n "$$native" ]; then $(NATIVE) restart-api; 	else $(DEMO) up --detach --wait --no-deps api; fi; 	$(UV) python infra/demo/collect_videos.py demo-videos/report.json demo-videos; exit $$status
+	@if $(NATIVE) alive api; then 		DEMO_RATE_LIMIT=false $(NATIVE) restart-api; native=1; 	else DEMO_RATE_LIMIT=false $(DEMO) up --detach --wait --no-deps api; native=; fi; 	cd apps/web && E2E_NATIVE=$$native E2E_VIDEO=1 		PLAYWRIGHT_JSON_OUTPUT_NAME=../../demo-videos/report.json pnpm exec playwright test 		-c playwright.demo.config.ts --project=flows-360 --reporter=list,json; status=$$?; 	cd ../..; if [ -n "$$native" ]; then $(NATIVE) restart-api; 	else $(DEMO) up --detach --wait --no-deps api; fi; 	$(UV) python infra/demo/collect_videos.py demo-videos/report.json demo-videos; exit $$status
 
 # Screenshots of every screen of the running demo, in demo-screenshots/ (gitignored), with an
 # index.html and screens.pdf. Rate limits are off while it signs in as every role.
@@ -111,8 +124,12 @@ fhir-validate:
 demo-down:
 	$(DEMO) down
 
+# Also empties .demo/witness: the local witness is a bind mount, not a volume, and the seeded
+# clinics get the same ids every time, so heads left from an earlier demo would be read as this
+# demo's newest published heads.
 demo-reset:
 	$(DEMO) down --volumes
+	rm -rf .demo/witness && mkdir -p .demo/witness
 
 # CI provides its own postgres service, so it sets SKIP_DB_UP=1.
 # Hosted public demo (docs/RUNBOOK.md, "Public demo set-up"). Settings live in .env.prod.

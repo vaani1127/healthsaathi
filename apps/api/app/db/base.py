@@ -62,6 +62,14 @@ class CreatedAtMixin:
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
+class EvidenceCreatedAtMixin:
+    """created_at of rows the explanation engine reads, stamped when the row is inserted
+    (clock_timestamp), not when the transaction began (now). A row created after an access in
+    the same request is then dated after it (docs/adr/0008-detection.md)."""
+
+    created_at: Mapped[datetime] = mapped_column(server_default=func.clock_timestamp())
+
+
 class ClinicScopedMixin(IdMixin):
     """Operational table: has clinic_id and an RLS policy. Use scoped_args() for __table_args__."""
 
@@ -73,7 +81,7 @@ def scoped_args(*args: Any) -> tuple[Any, ...]:
     return (UniqueConstraint("clinic_id", "id"), *args)
 
 
-class WorkflowMixin(CreatedAtMixin):
+class WorkflowMixin(EvidenceCreatedAtMixin):
     """Workflow rows are explanation evidence and record who made them and when."""
 
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
