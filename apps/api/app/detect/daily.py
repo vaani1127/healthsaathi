@@ -25,7 +25,9 @@ For day D the job:
 Safe to rerun: a session advisory lock lets one run go ahead at a time, and a day that already
 has its audit event is never computed again. A crash before the commit leaves the day not
 finalised, so the next run redoes it. Days older than the catch-up window
-(DETECT_CATCH_UP_DAYS, 7 by default) get a `skipped` audit event.
+(DETECT_CATCH_UP_DAYS, 7 by default) get a `skipped` audit event. Days before the clinic's first
+staff access are not due: they are neither finalised nor skipped, however wide the window is, and
+a clinic with no staff access has nothing due.
 
 The worker caps each run (`max_days`, `max_cache_days`) so that one tick finalises at most one
 clinic day with accesses and computes at most a few days of training features; the rest waits
@@ -694,6 +696,9 @@ DAYS_SQL = text(
     "SELECT DISTINCT (at AT TIME ZONE :tz)::date AS day FROM access_events"
     " WHERE clinic_id = :clinic AND at >= :after AND at < :before AND role <> 'patient'"
 )
+FIRST_STAFF_AT = text(
+    "SELECT min(at) FROM access_events WHERE clinic_id = :clinic AND role <> 'patient'"
+)
 # After a failed pass, a clinic is tried again after this long, not at every worker tick.
 RETRY_AFTER = timedelta(minutes=15)
 
@@ -705,13 +710,23 @@ class FailureState:
     retry_at: ClassVar[dict[uuid.UUID, datetime]] = {}
 
 
+async def first_staff_day(db: AsyncSession, clinic_id: uuid.UUID, timezone: str) -> date | None:
+    """The clinic's local day of its first staff access, or None if it has none."""
+    at: datetime | None = await db.scalar(FIRST_STAFF_AT, {"clinic": clinic_id})
+    return at.astimezone(ZoneInfo(timezone)).date() if at is not None else None
+
+
 async def run_clinic(clinic_id: uuid.UUID, now: datetime, run: Run) -> list[DayResult]:
-    """Finalise the clinic's due days, oldest first, and skip older unfinished days."""
+    """Finalise the clinic's due days, oldest first, and skip older unfinished days. No day
+    before the clinic's first staff access is due."""
     timezone = await run.timezone(clinic_id)
     tz = ZoneInfo(timezone)
     today = now.astimezone(tz).date()
     window = due_window(today, run.catch_up)
     async with tenant_session(_ctx(clinic_id)) as db:
+        first = await first_staff_day(db, clinic_id, timezone)
+        if first is None:
+            return []
         done = await entries(db, clinic_id)
         before, _ = day_bounds(window[0], tz)
         # Days are handled oldest first, so every day before the newest entry has one already.
@@ -726,7 +741,7 @@ async def run_clinic(clinic_id: uuid.UUID, now: datetime, run: Run) -> list[DayR
         if (r := await skip_day(clinic_id, day, skip_reason(run.catch_up))) is not None:
             results.append(r)
     for day in window:
-        if day in done:
+        if day < first or day in done:
             continue
         if run.days_left is not None and run.days_left <= 0:
             break

@@ -129,6 +129,15 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
     UTC). None on any alert: the 693 entries before the first access have 0 staff accesses and
     empty final, added, finalised and retired lists.
 
+### Daily list starts at the first staff access
+
+- `app/detect/daily.py`: a day before the clinic's first staff access (clinic time) is neither
+  finalised nor skipped, in the `--daily` command and in the worker tick, and a clinic with no
+  staff access has nothing due. Days without accesses after the first one still get their (empty)
+  final list. ADR 0008 amended. Not in v0.1.7; the empty lists it wrote stay (see Deviations).
+  Tests in `apps/api/tests/detect/test_daily.py`: a 400-day catch-up, the worker's capped call,
+  a clinic with no staff access, and the local day of the first access.
+
 ### Docs: v0.1.7 deploy
 
 - `docs/RUNBOOK.md`: v0.1.7 was deployed on 25 November 2026 at 10:48:59 UTC (16:18:59 IST);

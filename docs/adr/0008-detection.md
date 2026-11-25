@@ -72,7 +72,9 @@ finalised and retired alerts, accesses whose late flags stayed undecided, cache 
 the day done, so a crash before the commit leaves the day to be redone, and a finalised day is
 never computed again. The worker finalises missed days oldest first, up to
 `DETECT_CATCH_UP_DAYS` days back (7 by default); older unfinished days get a `detect_daily`
-event with outcome `skipped`. The first run on a database with history is done by hand with a
+event with outcome `skipped`. Days before the clinic's first staff access (clinic time) are not
+due, whatever the window, and a clinic with no staff access has nothing due (added 25 November
+2026, after v0.1.7 wrote empty lists for such days). The first run on a database with history is done by hand with a
 wider window (`python -m app.detect.job --daily --catch-up N`, docs/RUNBOOK.md), and the demo
 seed finalises every loaded day that is due.
 

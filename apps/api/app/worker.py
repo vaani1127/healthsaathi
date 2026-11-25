@@ -279,7 +279,7 @@ async def detect_tick(now: datetime | None = None) -> dict[str, int]:
         store.root.mkdir(parents=True, exist_ok=True)
         (store.root / FIT_MARKER).write_text(now.isoformat(), encoding="utf-8")
     scored = await detect.score_all()
-    # Final lists of due days, a little per tick. Cheap when nothing is due: two small
+    # Final lists of due days, a little per tick. Cheap when nothing is due: three small
     # queries per clinic.
     await daily.run_due(
         store=store, max_days=DAILY_DAYS_PER_TICK, max_cache_days=DAILY_CACHE_DAYS_PER_TICK
