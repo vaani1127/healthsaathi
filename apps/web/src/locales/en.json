@@ -180,7 +180,8 @@
     "invite-email-failed": "The invite email could not be sent. Try again.",
     "query-closed": "This report is closed and cannot be reopened.",
     "invalid-reset-link": "This reset link or code is not valid. Ask for a new link.",
-    "authenticator-code-required": "Type the current code from your authenticator app."
+    "authenticator-code-required": "Type the current code from your authenticator app.",
+    "log-changed": "The audit log no longer matches its signed checkpoint. Please tell the clinic."
   },
   "sex": {
     "female": "Female",
