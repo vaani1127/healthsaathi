@@ -129,6 +129,60 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
     UTC). None on any alert: the 693 entries before the first access have 0 staff accesses and
     empty final, added, finalised and retired lists.
 
+- **27 November 2026: clinical record versions in the audit log (migrations 0008 and 0009,
+  ADR 0011).** Reason: the ledger covered accesses, not record contents
+  (`docs/record-integrity-audit.md`). What changes against SPEC:
+  - SPEC 3.1: new table `record_versions`; unique `parent_id` on `clinical_notes` and
+    `prescriptions`. SPEC 3.2: `app_rw` has SELECT and INSERT only on `record_versions`, no
+    UPDATE on `vitals` and `documents`, and UPDATE of `released_at` only on `lab_results`.
+  - SPEC 6: a second leaf type, `record_version`, in the same per-clinic log. Leaf hashing,
+    the hash chain, signed tree heads and every witness are unchanged.
+  - SPEC 10: "tamper-evident" is the wording for the record claim.
+  - SPEC is edited in the local copy only (SPEC.md is not in the repository).
+  - Effect on the registered results: none. `sim/`, `packages/e2d-core`, `experiments/` and the
+    pre-registration are not touched; `e2d_core.ledger.jcs.canonicalize` is imported only.
+  - Effect on anchoring snapshot B (24 November 2026): none. Its committed files in
+    `experiments/results/anchoring/live` and everything derived from them are read as they are.
+    Any later snapshot must go to a new folder, not `live/`, and must report `record_version`
+    leaves separately: the study's events query counts every audit event kind, so record leaves
+    would change its event counts and rewrite windows.
+  - Effect on the tamper study: none. Its call to the audit status function is unchanged and does
+    not compute the new records line (`experiments/results/anchoring/tamper` stays as it is).
+  - Effect on the load test: a load-test copy skips version writes like it skips access logging,
+    but a new run "with recording" also writes version leaves, so it is not comparable with the
+    committed `experiments/results/load` run.
+
+### Clinical record versions (blockchain-anchored medical record integrity, backend)
+
+- Every write that changes the clinical record now commits the new version in the same
+  transaction: a `record_versions` row (random 32-byte salt and
+  commitment = SHA-256(salt || JCS(content))) and a `record_version` audit leaf with ids and the
+  commitment only (`apps/api/app/ledger/records.py`). Signed notes and prescriptions on sign;
+  vitals, documents and lab orders on insert; lab results on insert and release; allergies and
+  conditions on insert and on each status change. Content schemas `<type>/v1`. ADR 0011.
+- Migration 0008: `record_versions` (append-only trigger, app role SELECT and INSERT only, RLS,
+  clinic-scoped keys) and a partial index on `audit_events (payload ->> 'record_id')` for
+  `record_version` leaves.
+- Migration 0009: vitals and documents append-only; lab_results allows only setting
+  `released_at` once; unique `parent_id` for notes and prescriptions, behind a guard that stops
+  the migration if duplicates already exist. A concurrent second version answers 409.
+- `GET /api/v1/records/{record_type}/{record_id}/integrity`: verdict `match`, `pending`,
+  `mismatch`, `missing_version` or `missing_row`, and per version the content, salt, leaf,
+  inclusion proof, signed tree head and anchors. Recorded through `record_and_explain()`.
+- `GET /api/v1/audit/status` gains `records` (counts per verdict and backfilled versions).
+- The choice of checkpoint for a proof moved to `app/anchor/proofs.py`, shared by receipts and
+  the integrity check. Receipt behaviour is unchanged.
+- Lab result values that canonical JSON cannot encode (NaN, Infinity, integers past 2^53) are
+  refused with 422 `bad-values`.
+- `make backfill-record-versions` (dry run unless `ARGS="--apply"`): version 1 for rows written
+  before this change, marked backfilled in the row and the leaf; idempotent. Not run against the
+  live database; see `docs/RUNBOOK.md`, "Record integrity".
+- Tests: `apps/api/tests/records/test_record_integrity.py`,
+  `apps/api/tests/ledger/test_record_leaves.py` (including a fixed log whose root, computed with
+  the code at main 61692ec, is unchanged), `apps/api/tests/db/test_record_hardening.py`; the RLS
+  suite covers the new table.
+- `apps/web/src/lib/api/openapi.json` and `schema.d.ts` regenerated. No web screen yet.
+
 ### Daily list starts at the first staff access
 
 - `app/detect/daily.py`: a day before the clinic's first staff access (clinic time) is neither
