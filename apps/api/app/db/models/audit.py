@@ -167,6 +167,11 @@ class AuditEvent(Base):
             text("(payload ->> 'access_event_id')"),
             postgresql_where=text("kind = 'access'"),
         ),
+        Index(
+            "ix_audit_events_record_id",
+            text("(payload ->> 'record_id')"),
+            postgresql_where=text("kind = 'record_version'"),
+        ),
         CheckConstraint("octet_length(payload_hash) = 32", name="payload_hash_len"),
         CheckConstraint("octet_length(chain_hash) = 32", name="chain_hash_len"),
         {"postgresql_partition_by": "RANGE (at)"},

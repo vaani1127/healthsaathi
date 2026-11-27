@@ -15,7 +15,9 @@ from tests.factories import ClinicGraph, build_clinic_graph
 
 CLINIC_TABLES = sorted(t.name for t in Base.metadata.sorted_tables if "clinic_id" in t.c)
 NO_UPDATE_FOR_APP = {"audit_events", "access_events", "access_explanations", "merkle_checkpoints"}
-NO_UPDATE_FOR_APP |= {"anchor_receipts", "status_events"}
+NO_UPDATE_FOR_APP |= {"anchor_receipts", "status_events", "record_versions"}
+# Migration 0009: vitals and documents are append-only; lab_results allows only released_at.
+NO_UPDATE_FOR_APP |= {"vitals", "documents", "lab_results"}
 INSUFFICIENT_PRIVILEGE = "42501"
 
 
@@ -47,7 +49,7 @@ async def owner_rows(engine: AsyncEngine, name: str, clinic: ClinicGraph) -> lis
 
 def test_every_clinic_table_is_covered() -> None:
     # Guards against a new table being added without this suite noticing it.
-    assert len(CLINIC_TABLES) == 35
+    assert len(CLINIC_TABLES) == 36
 
 
 @pytest.mark.parametrize("name", CLINIC_TABLES)

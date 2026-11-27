@@ -25,6 +25,7 @@ from app.db.models.clinical import (
     Vital,
 )
 from app.db.models.consent import Consent, ConsentEvent, ConsentNotice
+from app.db.models.records import RecordVersion
 from app.db.models.system import Job, PushSubscription, RateCounter
 from app.db.models.tenancy import (
     Clinic,
@@ -86,6 +87,7 @@ __all__ = [
     "PushSubscription",
     "QueueToken",
     "RateCounter",
+    "RecordVersion",
     "Referral",
     "Schedule",
     "Service",

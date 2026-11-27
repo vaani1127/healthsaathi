@@ -186,3 +186,16 @@ class StatusEntity(StrEnum):
     LAB_ORDER = "lab_order"
     REFERRAL = "referral"
     INVOICE = "invoice"
+
+
+class RecordType(StrEnum):
+    """Clinical records whose saved versions are committed to the audit log (ADR 0011)."""
+
+    NOTE = "note"
+    PRESCRIPTION = "prescription"
+    VITAL = "vital"
+    ALLERGY = "allergy"
+    CONDITION = "condition"
+    LAB_ORDER = "lab_order"
+    LAB_RESULT = "lab_result"
+    DOCUMENT = "document"

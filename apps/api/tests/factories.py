@@ -18,6 +18,7 @@ from app.db.enums import (
     ConsentChannel,
     ConsentEventKind,
     PaymentMethod,
+    RecordType,
     ResourceType,
     ReviewOutcome,
     Role,
@@ -301,6 +302,20 @@ async def build_clinic_graph(engine: AsyncEngine, label: str) -> ClinicGraph:
             ]
         )
         await s.flush()
+        s.add(
+            m.RecordVersion(
+                clinic_id=cid,
+                patient_id=pid,
+                record_type=RecordType.ALLERGY,
+                record_id=uuid.uuid4(),
+                version=1,
+                content_schema="allergy/v1",
+                salt=digest,
+                commitment=digest,
+                audit_seq=1,
+                created_by=doctor.id,
+            )
+        )
         checkpoint = m.MerkleCheckpoint(
             clinic_id=cid, tree_size=1, root=digest, signature=b"sig", key_id="k"
         )
