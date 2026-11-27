@@ -9,6 +9,7 @@ import { Alert, Badge, Field, Input, Select, Textarea } from "@/components/ui/fo
 import { Empty, QueryStatus } from "@/components/ui/state";
 import { useStaffNames } from "@/features/common/queries";
 import { PrescriptionBuilder } from "@/features/doctor/PrescriptionBuilder";
+import { RecordCheckButton } from "@/features/verify/RecordCheckButton";
 import { api, call, type Schemas } from "@/lib/api/client";
 import { errorMessage, formatDate, formatDateTime } from "@/lib/format";
 import { useAuth } from "@/stores/auth";
@@ -64,14 +65,17 @@ export function ConditionsCard({ chart, onChanged }: { chart: Chart; onChanged: 
         {active.length === 0 && <Empty>{t("conditions.none")}</Empty>}
         <ul className="flex flex-col gap-1">
           {active.map((c) => (
-            <li key={c.id} className="flex items-center justify-between gap-2">
-              <span>
-                {c.text}
-                {c.onset && <span className="text-xs text-muted-foreground"> · {formatDate(c.onset)}</span>}
-              </span>
-              <Button size="sm" variant="ghost" onClick={() => resolve.mutate(c.id)} disabled={resolve.isPending}>
-                {t("conditions.resolve")}
-              </Button>
+            <li key={c.id} className="flex flex-col gap-1">
+              <div className="flex items-center justify-between gap-2">
+                <span>
+                  {c.text}
+                  {c.onset && <span className="text-xs text-muted-foreground"> · {formatDate(c.onset)}</span>}
+                </span>
+                <Button size="sm" variant="ghost" onClick={() => resolve.mutate(c.id)} disabled={resolve.isPending}>
+                  {t("conditions.resolve")}
+                </Button>
+              </div>
+              <RecordCheckButton type="condition" id={c.id} />
             </li>
           ))}
         </ul>
@@ -317,6 +321,7 @@ function NoteRow({ note, latest, onChanged }: { note: Note; latest: boolean; onC
         )}
       </div>
       {showVersions && <NoteVersions noteId={note.id} />}
+      {note.signed_at && <RecordCheckButton type="note" id={note.id} />}
     </article>
   );
 }
@@ -377,6 +382,7 @@ function RxRow({ rx, patientId, latest, onChanged }: { rx: Rx; patientId: string
           </Button>
         )}
       </div>
+      {rx.signed_at && <RecordCheckButton type="prescription" id={rx.id} />}
     </article>
   );
 }

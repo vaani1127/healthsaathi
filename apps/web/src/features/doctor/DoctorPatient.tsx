@@ -11,7 +11,8 @@ import { useChart } from "@/features/common/queries";
 import { BreakGlass } from "@/features/doctor/BreakGlass";
 import { CareTeamCard, ConditionsCard, ReferralsCard } from "@/features/doctor/ChartCards";
 import { Consultation } from "@/features/doctor/Consultation";
-import { DocumentLink, ResultValues } from "@/features/common/LabResult";
+import { DocumentLink, LabChecks, ResultValues } from "@/features/common/LabResult";
+import { RecordCheckButton } from "@/features/verify/RecordCheckButton";
 import { testLabel } from "@/features/common/labTests";
 import { api, ApiError, call, type Schemas } from "@/lib/api/client";
 import { errorMessage, formatDate } from "@/lib/format";
@@ -64,8 +65,9 @@ export function DoctorPatient() {
           <CardContent>
             <ul className="flex flex-wrap gap-2">
               {data.allergies.filter((a) => a.is_active).map((a) => (
-                <li key={a.id}>
+                <li key={a.id} className="flex flex-col gap-1">
                   <Badge tone="danger">{a.substance}</Badge>
+                  <RecordCheckButton type="allergy" id={a.id} />
                 </li>
               ))}
               {data.allergies.every((a) => !a.is_active) && (
@@ -105,6 +107,7 @@ export function DoctorPatient() {
                     </Link>
                   )}
                 </div>
+                <LabChecks order={o} />
               </article>
             ))}
           </CardContent>

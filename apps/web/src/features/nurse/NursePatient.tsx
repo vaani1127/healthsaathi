@@ -10,6 +10,7 @@ import { Empty, Loading, LoadError } from "@/components/ui/state";
 import { useChart } from "@/features/common/queries";
 import { VitalsForm } from "@/features/nurse/VitalsForm";
 import { VitalsList } from "@/features/common/VitalsList";
+import { RecordCheckButton } from "@/features/verify/RecordCheckButton";
 import { api, call, type Schemas } from "@/lib/api/client";
 import { errorMessage } from "@/lib/format";
 
@@ -114,6 +115,9 @@ function AllergyList({ patientId, allergies }: { patientId: string; allergies: S
             <Button size="sm" variant="ghost" disabled={toggle.isPending} onClick={() => toggle.mutate(a)}>
               {a.is_active ? t("allergy.deactivate") : t("allergy.reactivate")}
             </Button>
+            <div className="basis-full">
+              <RecordCheckButton type="allergy" id={a.id} />
+            </div>
           </li>
         ))}
       </ul>
