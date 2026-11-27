@@ -7,7 +7,8 @@ import type { Receipt } from "@healthsaathi/receipt-verify";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, Badge, Textarea } from "@/components/ui/form";
-import { DocumentLink, ResultValues } from "@/features/common/LabResult";
+import { DocumentLink, LabChecks, ResultValues } from "@/features/common/LabResult";
+import { RecordCheckButton } from "@/features/verify/RecordCheckButton";
 import { testLabel } from "@/features/common/labTests";
 import { VitalsList } from "@/features/common/VitalsList";
 import { accessSentence } from "@/features/patient/explain";
@@ -101,6 +102,7 @@ function MyRecord({ patientId }: { patientId: string }) {
               </ul>
               {rx.advice_hi && <p lang="hi">{rx.advice_hi}</p>}
               {rx.advice_en && <p>{rx.advice_en}</p>}
+              {rx.signed_at && <RecordCheckButton type="prescription" id={rx.id} />}
             </article>
           ))}
         </CardContent>
@@ -125,6 +127,7 @@ function MyRecord({ patientId }: { patientId: string }) {
                   </Link>
                 )}
               </div>
+              <LabChecks order={o} />
             </article>
           ))}
         </CardContent>
@@ -151,9 +154,10 @@ function MyRecord({ patientId }: { patientId: string }) {
         <CardContent className="flex flex-col gap-2">
           <div className="flex flex-wrap gap-2">
             {data.allergies.filter((a) => a.is_active).map((a) => (
-              <Badge key={a.id} tone="danger">
-                {a.substance}
-              </Badge>
+              <span key={a.id} className="flex flex-col gap-1">
+                <Badge tone="danger">{a.substance}</Badge>
+                <RecordCheckButton type="allergy" id={a.id} />
+              </span>
             ))}
             {data.allergies.every((a) => !a.is_active) && (
               <span className="text-sm text-muted-foreground">{t("allergy.none")}</span>

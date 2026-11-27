@@ -23,6 +23,7 @@ from app.db.enums import (
     LabOrderStatus,
     ReferralStatus,
 )
+from e2d_core.ledger.jcs import CanonicalizationError, canonicalize
 
 __all__ = [
     "AllergyOut",
@@ -189,4 +190,10 @@ def result_values(raw: str) -> dict[str, Any]:
         raise ValueError("values must be a JSON object") from exc
     if not isinstance(values, dict):
         raise ValueError("values must be a JSON object")
+    try:
+        # The result's committed version hashes these values (ADR 0011), so they must be JSON
+        # that canonical JSON can encode: no NaN or Infinity, no integer past 2^53.
+        canonicalize(values)
+    except CanonicalizationError as exc:
+        raise ValueError(f"values cannot be stored: {exc}") from exc
     return values

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, Badge } from "@/components/ui/form";
 import { QueryStatus } from "@/components/ui/state";
 import { api, call, type Schemas } from "@/lib/api/client";
-import { formatDateTime } from "@/lib/format";
+import { errorMessage, formatDateTime } from "@/lib/format";
 
 type Backend = Schemas["BackendState"];
 
@@ -75,6 +75,56 @@ function BackendRow({ backend }: { backend: Backend }) {
   );
 }
 
+/** Clinical records against their committed versions (ADR 0011). Not part of the 30 second
+ * refresh: the check reads every committed record, so it runs only when asked, and the API reuses
+ * the result until the next checkpoint. */
+function RecordsCheck() {
+  const { t } = useTranslation();
+  const records = useQuery({
+    queryKey: ["audit-records"],
+    enabled: false,
+    queryFn: () => call(() => api.GET("/api/v1/audit/records-status")),
+  });
+  const data = records.data;
+  const bad = data ? data.mismatch + data.missing_row : 0;
+  return (
+    <section className="flex flex-col gap-2 rounded-md border p-2" data-testid="records-check">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-semibold">{t("admin.audit.records.title")}</h3>
+        <Button size="sm" variant="outline" onClick={() => void records.refetch()} disabled={records.isFetching}>
+          {records.isFetching ? t("record.checking") : t("admin.audit.records.run")}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">{t("admin.audit.records.explain")}</p>
+      {records.isError && <Alert tone="error">{errorMessage(records.error)}</Alert>}
+      {data && (
+        <>
+          {bad > 0 && (
+            <Alert tone="error" data-testid="records-problem">
+              {t("admin.audit.records.problem", { count: bad })}
+            </Alert>
+          )}
+          <dl className="grid grid-cols-[1fr_auto] gap-1 sm:grid-cols-2">
+            {(["records", "match", "pending", "mismatch", "missing_version", "missing_row", "backfilled"] as const).map(
+              (key) => (
+                <div key={key} className="contents">
+                  <dt>{t(`admin.audit.records.${key}`)}</dt>
+                  <dd data-testid={`records-${key}`}>{data[key]}</dd>
+                </div>
+              ),
+            )}
+          </dl>
+          <p className="text-xs text-muted-foreground">
+            {t(data.cached ? "admin.audit.records.lastResultCached" : "admin.audit.records.lastResult", {
+              at: formatDateTime(data.computed_at),
+            })}
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
 /** SPEC 9 audit page: latest signed checkpoint, hash chain and consistency checks, the log against
  * the newest head on the public witness (catches a rewrite whose stored checkpoints were deleted),
  * and the real state of every witness, including the ones that are not configured here. */
@@ -137,6 +187,7 @@ export function AuditStatus() {
                 {t("admin.audit.root")}: {String(data.sth.root_hex)}
               </p>
             )}
+            <RecordsCheck />
             <h3 className="font-semibold">{t("admin.audit.witnesses")}</h3>
             <ul className="flex flex-col gap-2">
               {data.backends.map((b) => (

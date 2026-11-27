@@ -124,6 +124,33 @@ API, worker, a local blockchain (anvil) and a local git witness.
    instead of looking for the right row; the same steps are automated in
    `apps/web/e2e-demo/tamper.spec.ts`.
 
+## 8. Record tamper (1 minute, optional)
+
+The access log is not the only thing that is tamper-evident: every saved clinical record is too.
+
+1. As the nurse (`nurse1.a`), open a patient, enter a pulse of 81 and "Save vitals".
+2. Anchor now instead of waiting up to 15 minutes:
+   `docker compose -f infra/docker-compose.demo.yml exec -T api demo-entrypoint python -m app.anchor.job`
+   (native: `uv run python -m hs_demo.native run app.anchor.job`).
+3. Under the new reading, "Check this record": "Verified", every line Pass, and "View on the
+   chain explorer". Say: the browser checked this itself, not the server.
+4. In a terminal, change the reading as the database owner:
+
+   ```sh
+   docker compose -f infra/docker-compose.demo.yml exec postgres psql -U healthsaathi -c \
+     "BEGIN; ALTER TABLE vitals DISABLE TRIGGER vitals_append_only;
+      UPDATE vitals SET pulse = 140 WHERE id = (SELECT id FROM vitals ORDER BY created_at DESC LIMIT 1);
+      ALTER TABLE vitals ENABLE TRIGGER vitals_append_only; COMMIT;"
+   ```
+
+   Native mode: the same statement through `uv run python -m hs_demo.native sql "..."`.
+5. "Check again": "Not verified", and "Record matches the saved fingerprint: Fail".
+6. Undo it with the same command and `pulse = 81`; "Check again" says "Verified".
+
+Say the limit in one line: a change made in the few minutes before the next anchor would not be
+caught (`make record-tamper-demo`, case 5). The same steps are automated in
+`apps/web/e2e-demo/record-tamper.spec.ts`.
+
 ## Closing line
 
 Every access is explained or reviewed, every review is logged, and the log itself can be checked

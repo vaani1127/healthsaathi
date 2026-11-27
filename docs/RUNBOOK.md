@@ -283,6 +283,70 @@ Remove that fallback in a later release, **7 days after that deploy** (invites l
   longer matches what was anchored. Stop and investigate; do not try to re-anchor.
 - Keep the poster wallet funded with test POL from the faucets.
 
+## Record integrity
+
+Clinical record versions are committed to the audit log (ADR 0011). Check one record with
+`GET /api/v1/records/{record_type}/{record_id}/integrity` ("Check this record" in the app). The
+admin "Audit log" tab has "Run records check" (`GET /api/v1/audit/records-status`), with counts
+per verdict; it is not part of the 30 second refresh, and its result is reused until the next
+checkpoint is signed or anchored. A non-zero `mismatch` or `missing_row` means a clinical row no
+longer matches what was committed: stop and investigate, like a broken hash chain.
+`missing_version` means rows with no version yet, which is expected for rows written before this
+release until the backfill below has run.
+
+Deploy order, in short: duplicate `parent_id` check (step 3), deploy (step 4), backfill dry run
+(step 6), backfill apply (step 7), dry run again (step 8).
+
+### First deploy of record versions (migrations 0008 and 0009) on a database with history
+
+Nothing here has been run against the live database. Steps 1 to 3 are before the tag.
+
+1. Try it locally first: `make migrate`, then `make backfill-record-versions` (dry run, prints
+   counts per clinic and record type), then `make backfill-record-versions ARGS="--apply"`, then
+   the dry run again, which must print only zeros.
+2. Anchoring study: snapshot B is taken (24 November 2026) and its files are committed, so a
+   deploy does not change it. If a new snapshot is ever planned, take it before this deploy or
+   write it to a new folder and report `record_version` leaves separately (CHANGELOG Deviations,
+   27 November 2026). Deploy outside OPD hours (09:30-13:30 and 17:00-20:00 IST), as usual.
+3. Look for duplicate `parent_id` values, read-only, through the SSH tunnel with the admin login
+   (the same query is the guard inside migration 0009):
+
+   ```sql
+   BEGIN READ ONLY;
+   SELECT 'clinical_notes' AS table_name, parent_id, count(*) AS children
+   FROM clinical_notes WHERE parent_id IS NOT NULL GROUP BY parent_id HAVING count(*) > 1
+   UNION ALL
+   SELECT 'prescriptions' AS table_name, parent_id, count(*) AS children
+   FROM prescriptions WHERE parent_id IS NOT NULL GROUP BY parent_id HAVING count(*) > 1
+   ORDER BY table_name, parent_id;
+   ROLLBACK;
+   ```
+
+   No rows: go on. Any row: stop. The migration would refuse to run and the deploy would stop
+   before switching over (all migrations of a deploy run in one transaction, so 0008 is not
+   applied either). Which version is the real one is a decision; ask before changing anything.
+4. Tag and deploy as usual. `deploy.sh` runs the migrations. Rollback still works: the previous
+   version runs against the migrated schema (it never updates vitals or documents, and only sets
+   `released_at` on lab results), but rows it writes get no version until the backfill runs again.
+5. After the deploy, on the admin "Audit log" tab press "Run records check": "Not in the log
+   yet" is about the number of older rows; new writes show as "Waiting for the public chain" and
+   then "Match" after the next anchor.
+6. Backfill, dry run, on the VM in `/opt/healthsaathi` (it uses the VM's `.env`, so `DATA_KEYS`
+   never leaves the VM):
+   `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml run --rm worker python -m app.scripts.backfill_record_versions`
+   Note the counts: each one becomes one audit event, for good.
+7. Apply, outside OPD hours (it can run while the app is up; it works in batches of 500 under
+   each clinic's audit-chain lock):
+   `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml run --rm worker python -m app.scripts.backfill_record_versions --apply`
+   It is safe to stop and run again: rows that already have a version are skipped.
+8. Run the dry run of step 6 again: every count must be 0.
+9. After the next checkpoint, "Run records check" again: "Not in the log yet" 0, "Versions
+   added later" equal to the total of step 7. After the next anchor, "Waiting for the public
+   chain" goes to 0.
+10. Add a dated line to the CHANGELOG Deviations with the time the backfill ran and its counts
+    (from the script output). Backfilled records are covered only from that time, and the
+    integrity check says so (`backfilled`, `covered_since`).
+
 ## Detection
 
 - The worker scores every clinic's accesses each `DETECT_INTERVAL_SECONDS` and raises

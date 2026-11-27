@@ -1,3 +1,4 @@
+export { commitment } from "./commitment";
 export { bytesToHex, hexToBytes } from "./hex";
 export { canonicalBytes, canonicalize, type Json } from "./jcs";
 export { equalBytes, leafHash, nodeHash, verifyConsistency, verifyInclusion } from "./merkle";
@@ -19,3 +20,14 @@ export {
   sthDigestHex,
   verifyReceipt,
 } from "./full";
+export {
+  type BrowserVerdict,
+  checkRecordAnchor,
+  isRecordCheckResponse,
+  type RecordCheck,
+  type RecordCheckResponse,
+  type RecordVersionProof,
+  type VersionCheck,
+  verifyRecordCheck,
+  versionAsReceipt,
+} from "./record";

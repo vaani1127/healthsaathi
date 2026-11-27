@@ -127,6 +127,7 @@
     "not-your-appointment": "Only the appointment's doctor can start it.",
     "not-your-referral": "Only the referring or receiving doctor can change this referral.",
     "note-not-found": "That note was not found.",
+    "record-not-found": "That record was not found.",
     "note-not-signed": "This note is still a draft. Edit the draft instead.",
     "notice-not-found": "That consent notice was not found.",
     "overpayment": "The payment is more than the amount due.",
@@ -677,7 +678,23 @@
       "problemChain": "FAIL: the audit log hash chain is broken. A stored event was changed or removed.",
       "problemConsistency": "FAIL: the audit log no longer matches its signed checkpoint.",
       "problemWitness": "FAIL: the audit log no longer matches a checkpoint published on the public witness. Events were changed, and the stored checkpoints may have been deleted to hide it.",
-      "technical": "Technical detail"
+      "technical": "Technical detail",
+      "records": {
+        "title": "Clinical records",
+        "run": "Run records check",
+        "explain": "Checks every saved clinical record against its fingerprint in the tamper-evident log. It reads every record, so it runs only when you ask. The result is reused until the next log checkpoint.",
+        "records": "Records checked",
+        "match": "Match",
+        "pending": "Waiting for the public chain",
+        "mismatch": "Changed since saved",
+        "missing_version": "Not in the log yet",
+        "missing_row": "Missing from the database",
+        "backfilled": "Versions added later",
+        "problem_one": "{{count}} record no longer matches what was saved. Investigate before anything else.",
+        "problem_other": "{{count}} records no longer match what was saved. Investigate before anything else.",
+        "lastResult": "Result from {{at}}.",
+        "lastResultCached": "Result from {{at}}, reused: no new log checkpoint since then."
+      }
     },
     "alerts": {
       "title": "Alerts to review",
@@ -784,7 +801,8 @@
     "notReady": "This access is not in a signed log yet. Try again in a few minutes.",
     "viewTx": "View on the chain explorer",
     "download": "Download receipt",
-    "pending": "Signed by the clinic. The public chain does not have this log fingerprint yet; check again in a few minutes."
+    "pending": "Signed by the clinic. The public chain does not have this log fingerprint yet; check again in a few minutes.",
+    "explainRecord": "You can also check a record check file downloaded from a record."
   },
   "features": {
     "accesses_1h": "Records opened in the last hour",
@@ -937,5 +955,35 @@
     "title": "Page not found",
     "text": "There is no page at this address. It may have moved, or the link may be wrong.",
     "home": "Go to the home page"
+  },
+  "record": {
+    "checkThis": "Check this record",
+    "checkOrder": "Check this order",
+    "checkResult": "Check this result",
+    "checkFile": "Check this file",
+    "checking": "Checking...",
+    "again": "Check again",
+    "download": "Download check file",
+    "browserOnly": "This verdict comes from checks run in your browser, not from the clinic's server.",
+    "verdict": {
+      "verified": "Verified. This record matches what was saved in the clinic's tamper-evident log.",
+      "pending": "Not final yet. Nothing failed, but the newest version is not on the public chain yet.",
+      "failed": "Not verified. This record does not match what was saved. Please report this to the clinic.",
+      "not_committed": "No saved version yet. This record is not in the tamper-evident log, so it cannot be checked."
+    },
+    "pendingExplain": "The clinic publishes its log fingerprint every few minutes. Until the newest change is in a published fingerprint, a change to it would not show here. Check again in about 15 minutes.",
+    "notCommittedExplain": "Records written before this check existed are added in one go later. Drafts are not checked until they are signed.",
+    "backfilled": "Added to the log later, on {{at}}. The check shows this record has not changed since then. It says nothing about changes before that time.",
+    "coveredSince": "In the tamper-evident log since {{at}}.",
+    "unknownTime": "an unknown time",
+    "version": "Version {{version}}",
+    "committedAt": "saved {{at}}",
+    "current": "Newest",
+    "older": "Older",
+    "backfilledBadge": "Added later",
+    "checkLeaf": "Log entry matches its fingerprint",
+    "checkInclusion": "Entry is in the signed log",
+    "checkSignature": "Log is signed by the clinic key",
+    "checkContent": "Record matches the saved fingerprint"
   }
 }

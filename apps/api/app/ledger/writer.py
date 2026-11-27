@@ -73,12 +73,19 @@ async def append_audit_events(
 ) -> list[bytes]:
     """Append several events in order with one insert: the same rows and links as calling
     append_audit_event for each payload in turn. Returns their chain hashes."""
+    return [link for _, link in await append_audit_events_with_seqs(db, clinic_id, kind, payloads)]
+
+
+async def append_audit_events_with_seqs(
+    db: AsyncSession, clinic_id: uuid.UUID, kind: str, payloads: Sequence[dict[str, Any]]
+) -> list[tuple[int, bytes]]:
+    """append_audit_events, returning each event's (seq, chain hash) in order."""
     if not payloads:
         return []
     await lock_clinic(db, "audit-chain", clinic_id)
     prev_hash, seqs = await _reserve(db, clinic_id, len(payloads))
     rows: list[dict[str, Any]] = []
-    links: list[bytes] = []
+    links: list[tuple[int, bytes]] = []
     for seq, payload in zip(seqs, payloads, strict=True):
         digest = payload_hash(payload)
         link = chain_hash(prev_hash, digest, seq, clinic_id)
@@ -93,7 +100,7 @@ async def append_audit_events(
                 "chain_hash": link,
             }
         )
-        links.append(link)
+        links.append((seq, link))
         prev_hash = link
     await db.execute(insert(AuditEvent), rows)
     return links

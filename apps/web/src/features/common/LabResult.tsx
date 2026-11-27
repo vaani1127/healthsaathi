@@ -2,7 +2,8 @@ import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api/client";
+import { RecordCheckButton } from "@/features/verify/RecordCheckButton";
+import { api, type Schemas } from "@/lib/api/client";
 
 export function ResultValues({ values }: { values: Record<string, unknown> }) {
   const entries = Object.entries(values);
@@ -62,3 +63,17 @@ export function DocumentLink({ id, label }: { id: string; label: string }) {
   );
 }
 
+
+/** Integrity checks for one lab order, its result and the attached report file (ADR 0011). */
+export function LabChecks({ order }: { order: Schemas["LabOrderOut"] }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-wrap gap-x-4">
+      <RecordCheckButton type="lab_order" id={order.id} label={t("record.checkOrder")} />
+      {order.result && <RecordCheckButton type="lab_result" id={order.result.id} label={t("record.checkResult")} />}
+      {order.result?.document_id && (
+        <RecordCheckButton type="document" id={order.result.document_id} label={t("record.checkFile")} />
+      )}
+    </div>
+  );
+}

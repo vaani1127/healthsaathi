@@ -4386,6 +4386,103 @@
         "title": "ReceptionChart",
         "type": "object"
       },
+      "RecordIntegrity": {
+        "properties": {
+          "backfilled": {
+            "description": "At least one version was backfilled; see covered_since and each version.",
+            "title": "Backfilled",
+            "type": "boolean"
+          },
+          "clinic_id": {
+            "format": "uuid",
+            "title": "Clinic Id",
+            "type": "string"
+          },
+          "clinic_id_bytes32": {
+            "title": "Clinic Id Bytes32",
+            "type": "string"
+          },
+          "covered_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the first version of this record was committed. Nothing before this time is covered.",
+            "title": "Covered Since"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "public_key": {
+            "title": "Public Key",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "record_id": {
+            "format": "uuid",
+            "title": "Record Id",
+            "type": "string"
+          },
+          "record_type": {
+            "$ref": "#/components/schemas/RecordType"
+          },
+          "verdict": {
+            "enum": [
+              "match",
+              "pending",
+              "mismatch",
+              "missing_version",
+              "missing_row"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          },
+          "version": {
+            "default": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/VersionProof"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "record_type",
+          "record_id",
+          "patient_id",
+          "verdict",
+          "reason",
+          "covered_since",
+          "backfilled",
+          "clinic_id",
+          "clinic_id_bytes32",
+          "public_key",
+          "versions"
+        ],
+        "title": "RecordIntegrity",
+        "type": "object"
+      },
       "RecordStatus": {
         "enum": [
           "active",
@@ -4393,6 +4490,91 @@
         ],
         "title": "RecordStatus",
         "type": "string"
+      },
+      "RecordType": {
+        "description": "Clinical records whose saved versions are committed to the audit log (ADR 0011).",
+        "enum": [
+          "note",
+          "prescription",
+          "vital",
+          "allergy",
+          "condition",
+          "lab_order",
+          "lab_result",
+          "document"
+        ],
+        "title": "RecordType",
+        "type": "string"
+      },
+      "RecordsStatus": {
+        "description": "Every clinical record of the clinic against its committed versions (ADR 0011). One record\nper row; drafts are not counted.",
+        "properties": {
+          "anchored_size": {
+            "description": "Size of the largest chain-confirmed checkpoint.",
+            "title": "Anchored Size",
+            "type": "integer"
+          },
+          "backfilled": {
+            "description": "Versions added for rows written before record versions. They show no change since the backfill, not before it.",
+            "title": "Backfilled",
+            "type": "integer"
+          },
+          "cached": {
+            "description": "True when this result was computed by an earlier request.",
+            "title": "Cached",
+            "type": "boolean"
+          },
+          "computed_at": {
+            "format": "date-time",
+            "title": "Computed At",
+            "type": "string"
+          },
+          "match": {
+            "title": "Match",
+            "type": "integer"
+          },
+          "mismatch": {
+            "title": "Mismatch",
+            "type": "integer"
+          },
+          "missing_row": {
+            "title": "Missing Row",
+            "type": "integer"
+          },
+          "missing_version": {
+            "title": "Missing Version",
+            "type": "integer"
+          },
+          "pending": {
+            "description": "Matches, but its newest leaf is not under a chain-confirmed tree head yet.",
+            "title": "Pending",
+            "type": "integer"
+          },
+          "records": {
+            "title": "Records",
+            "type": "integer"
+          },
+          "tree_size": {
+            "description": "Size of the latest signed checkpoint when computed.",
+            "title": "Tree Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "records",
+          "match",
+          "pending",
+          "mismatch",
+          "missing_version",
+          "missing_row",
+          "backfilled",
+          "computed_at",
+          "tree_size",
+          "anchored_size",
+          "cached"
+        ],
+        "title": "RecordsStatus",
+        "type": "object"
       },
       "ReferralIn": {
         "properties": {
@@ -5379,6 +5561,233 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VersionProof": {
+        "description": "One committed version and everything needed to check it without trusting the server:\nrecompute SHA-256(salt || JCS(content)), compare it with the leaf's commitment, hash the leaf\n(SHA-256(0x00 || SHA-256(JCS(payload)))), check the inclusion proof to the signed tree head,\nthe head's signature, and the anchors.",
+        "properties": {
+          "anchored": {
+            "description": "The tree head is confirmed on a chain.",
+            "title": "Anchored",
+            "type": "boolean"
+          },
+          "anchors": {
+            "items": {
+              "$ref": "#/components/schemas/AnchorRef"
+            },
+            "title": "Anchors",
+            "type": "array"
+          },
+          "audit_seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audit Seq"
+          },
+          "backfilled": {
+            "description": "Added for a record that existed before record versions. It shows the record has not changed since committed_at, not before.",
+            "title": "Backfilled",
+            "type": "boolean"
+          },
+          "commitment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commitment"
+          },
+          "committed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Committed At"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The record as it is now, in the content schema. Only for the newest version of a record whose row still exists.",
+            "title": "Content"
+          },
+          "content_schema": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Schema"
+          },
+          "leaf_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leaf Hash"
+          },
+          "leaf_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leaf Index"
+          },
+          "payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload"
+          },
+          "payload_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload Hash"
+          },
+          "proof": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proof"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "record_id": {
+            "format": "uuid",
+            "title": "Record Id",
+            "type": "string"
+          },
+          "salt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salt"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signature"
+          },
+          "status": {
+            "enum": [
+              "match",
+              "superseded",
+              "mismatch",
+              "missing_row"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "sth": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sth"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "record_id",
+          "version",
+          "status",
+          "reason",
+          "backfilled",
+          "committed_at",
+          "content_schema",
+          "content",
+          "salt",
+          "commitment",
+          "audit_seq",
+          "payload",
+          "payload_hash",
+          "leaf_hash",
+          "leaf_index",
+          "proof",
+          "sth",
+          "signature",
+          "anchored",
+          "anchors"
+        ],
+        "title": "VersionProof",
         "type": "object"
       },
       "VitalOut": {
@@ -6450,6 +6859,34 @@
         "summary": "Start Encounter",
         "tags": [
           "clinical"
+        ]
+      }
+    },
+    "/api/v1/audit/records-status": {
+      "get": {
+        "description": "Counts per verdict. Computed on demand and reused until the next checkpoint is signed or\nanchored, because it reads every committed record. Returns counts only, no patient data.",
+        "operationId": "records_status_api_v1_audit_records_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordsStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Check every clinical record of the clinic against its committed versions",
+        "tags": [
+          "records",
+          "audit"
         ]
       }
     },
@@ -10525,6 +10962,63 @@
         "summary": "Ready",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/api/v1/records/{record_type}/{record_id}/integrity": {
+      "get": {
+        "description": "Tamper-evident check of one clinical record: recomputes the salted commitment of its\nnewest version from the record as it is now, and returns, for every version, the audit leaf,\nits inclusion proof to a signed tree head and where that head was anchored.",
+        "operationId": "record_integrity_api_v1_records__record_type___record_id__integrity_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_type",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/RecordType"
+            }
+          },
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordIntegrity"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Check a clinical record against its committed versions",
+        "tags": [
+          "records"
         ]
       }
     },

@@ -59,6 +59,10 @@ referral, care team, front desk work, break-glass). The patient can see this and
   you are back online. Unsent vitals are deleted when you sign out.
 - **Allergies.** Add a substance and its severity. "Mark inactive" when an allergy no longer
   applies; it stays in the history.
+- **Check this record.** Under a saved record (a vital, an allergy, and for doctors also signed
+  notes and prescriptions, conditions and lab orders, results and report files) "Check this
+  record" checks, in your browser, that the record is still what was saved in the clinic's
+  tamper-evident log. See "Checking a record" below.
 
 ## Doctor
 
@@ -84,6 +88,10 @@ referral, care team, front desk work, break-glass). The patient can see this and
   a bilingual lab report.
 - **Referrals and care team.** The referral list shows open referrals ("Mark completed",
   "Cancel referral"). The care team card adds or ends staff on the patient's care team.
+- **Check this record.** Under a saved record (a vital, an allergy, and for doctors also signed
+  notes and prescriptions, conditions and lab orders, results and report files) "Check this
+  record" checks, in your browser, that the record is still what was saved in the clinic's
+  tamper-evident log. See "Checking a record" below.
 
 ## Lab technician
 
@@ -140,13 +148,21 @@ The admin screen has tabs:
   state of each witness the log is published to: the chain, the witness repository and
   OpenTimestamps, each "Confirmed", "Pending", "Failed" or "Not configured". If anyone changes a
   stored event, this page shows FAIL.
+  - **Clinical records.** "Run records check" checks every saved clinical record of the clinic
+    against its fingerprint in the log and counts them: "Match", "Waiting for the public chain",
+    "Changed since saved", "Not in the log yet", "Missing from the database" and "Versions added
+    later". It reads every record, so it runs only when you press the button, and the page says
+    when the result is from. The result is reused until the next log checkpoint (every few
+    minutes), so press it again after that to see a change. Anything under "Changed since saved"
+    or "Missing from the database" is a red alert: investigate before anything else.
 
 ## Patient
 
 - **Sign in** at "Patient? Sign in with a code sent by email": type your email and the 6 digit
   code sent to it. No password.
 - **My record:** prescriptions, lab results (with "Print report"), vitals, appointments and
-  bills.
+  bills. "Check this record" under a prescription, a lab result, a vital or an allergy checks it
+  in your browser (see "Checking a record").
 - **Who opened my record:** every access by clinic staff, grouped by day, with who, what and
   why, for example "Dr X (Doctor) opened your notes because of appointment token 23 at 12:05".
   - "I do not recognise this" sends a note to the clinic admin.
@@ -158,6 +174,30 @@ The admin screen has tabs:
 - **Download:** your record and access log as a file, the same record as FHIR for other health
   apps, or "Print my record".
 - **Check a receipt someone sent you:** open `/verify`, paste the receipt or choose the file.
+  A record check file (from "Download check file") works there too.
+
+## Checking a record
+
+Every saved version of a clinical record is written to the clinic's tamper-evident log as a
+fingerprint, and the log's fingerprint is published on a public chain. "Check this record" asks
+the clinic for the record and its proofs and checks them in your own browser, so the answer does
+not depend on trusting the clinic's server.
+
+- **Verified.** The record is exactly what was saved, and the log entry is on the public chain.
+- **Not final yet.** Nothing failed, but the newest change is not on the public chain yet. The
+  clinic publishes every few minutes; check again in about 15 minutes. Until then a change to
+  that version would not show.
+- **Not verified.** The record no longer matches what was saved, or a proof is wrong. Tell the
+  clinic (a patient can use "I do not recognise this" on the access log).
+- **No saved version yet.** The record is not in the log, so it cannot be checked (for example a
+  draft note before it is signed).
+- **Added to the log later.** Records written before this check existed were added in one go on
+  the date shown. For them the check shows that nothing changed since that date, not before it.
+
+Each version is listed with its checks. "View on the chain explorer" opens the chain transaction,
+and "Download check file" saves everything so anyone can check it again at `/verify`. The check
+shows a record has not changed since it was saved; it does not show that what was saved was
+right.
 
 FHIR R4 export follows NRCeS ABDM profiles, validated offline. Not ABDM certified. Designed to
 support obligations under the DPDP Act 2023 and DPDP Rules 2025. Not legally reviewed or

@@ -88,6 +88,8 @@ class ClinicalNote(ClinicScopedMixin, EvidenceCreatedAtMixin, Base):
         clinic_fk(["parent_id"], "clinical_notes"),
         CheckConstraint("version >= 1", name="version"),
         Index("ix_clinical_notes_patient", "clinic_id", "patient_id"),
+        # One newer version per note at most (migration 0009).
+        Index("uq_clinical_notes_parent_id", "parent_id", unique=True),
     )
 
     patient_id: Mapped[uuid.UUID]
@@ -107,6 +109,7 @@ class Prescription(ClinicScopedMixin, EvidenceCreatedAtMixin, Base):
         clinic_fk(["parent_id"], "prescriptions"),
         CheckConstraint("version >= 1", name="version"),
         Index("ix_prescriptions_patient", "clinic_id", "patient_id"),
+        Index("uq_prescriptions_parent_id", "parent_id", unique=True),
     )
 
     patient_id: Mapped[uuid.UUID]

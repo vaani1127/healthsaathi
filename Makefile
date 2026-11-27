@@ -6,7 +6,7 @@ PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests experiments/src exp
 	infra/demo/src infra/demo/tests
 
 .PHONY: help env install demo demo-code demo-e2e demo-e2e-docker demo-e2e-native demo-measure demo-audit demo-videos \
-	demo-native demo-native-stop demo-reset-native demo-screenshots fhir-validate demo-logs demo-down demo-reset dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
+	demo-native demo-native-stop demo-reset-native demo-screenshots fhir-validate demo-logs demo-down demo-reset dev vectors record-vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo record-tamper-demo backfill-record-versions dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
 	test-sol migrate seed prod-init prod-azure prod-open-db prod-close-db prod-status prod-db \
 	prod-seed prod-chain prod-register prod-vm-env prod-cloudflare prod-github prod-activity prod-logins prod-code besu-up besu-bench besu-down bench-receipt-browser tamper-study load-bench-db load-run load-run-reversed load-clean \
 	sim sim-coverage sim-audit sim-splits exp prereg-audit prereg-stamp audit
@@ -32,6 +32,8 @@ help:
 	@echo "migrate   alembic upgrade head"
 	@echo "seed      load the synthetic demo clinics"
 	@echo "tamper-demo  show a rewritten audit log failing verification (local)"
+	@echo "record-tamper-demo  five record tamper cases and which check catches each (local)"
+	@echo "backfill-record-versions  versions for older clinical rows (dry run; ARGS=\"--apply\")"
 	@echo "sim       run the simulator, CONFIG=path/to/config.yaml (default sim/configs/v1.yaml)"
 	@echo "sim-coverage  explanation coverage per role of a run, RUN=sim/output/<name>"
 	@echo "sim-audit     separability audit of a run (must pass before experiments)"
@@ -242,15 +244,29 @@ contracts-deploy:
 tamper-demo: contracts-local
 	cd apps/api && $(UV) python -m app.scripts.tamper_demo
 
+# Local only: which check catches a changed clinical record (ADR 0011). Writes
+# experiments/results/record-integrity/tamper.json.
+record-tamper-demo: contracts-local
+	cd apps/api && $(UV) python -m app.scripts.record_tamper_demo
+
 # Local only: which check catches a rewritten audit log (P16). Writes
 # experiments/results/anchoring/tamper/detection.json.
 tamper-study: contracts-local
 	cd apps/api && $(UV) python -m app.scripts.tamper_study
 
+# Record versions for clinical rows written before them (ADR 0011). Dry run unless ARGS="--apply".
+# Local only; see docs/RUNBOOK.md, "Record integrity", before any other database.
+backfill-record-versions:
+	cd apps/api && $(UV) python -m app.scripts.backfill_record_versions $(ARGS)
+
 # Regenerate the web app's typed API client from the API's OpenAPI document.
 api-types:
 	cd apps/api && $(UV) python -m app.scripts.export_openapi ../web/src/lib/api/openapi.json
 	cd apps/web && pnpm exec openapi-typescript src/lib/api/openapi.json --default-non-nullable false -o src/lib/api/schema.d.ts
+
+# Regenerate the record integrity vectors shared by the API and receipt-verify (ADR 0011).
+record-vectors:
+	cd apps/api && $(UV) python -m app.scripts.record_vectors ../../packages/receipt-verify/test/record-vectors.json
 
 # Regenerate the ledger test vectors shared by e2d-core and receipt-verify.
 vectors:

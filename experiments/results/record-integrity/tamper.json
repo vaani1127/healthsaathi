@@ -1,0 +1,82 @@
+{
+  "run_at": "2026-11-27T15:17:00.098940+00:00",
+  "setup": "local anvil chain and a local git witness; per case a fresh synthetic clinic with a signed note, a released lab result and an allergy written through the API, anchored and published once before the change",
+  "browser_check": "app.scripts.record_tamper_demo.browser_check, the same steps as packages/receipt-verify verifyRecordCheck and checkRecordAnchor",
+  "cases": [
+    {
+      "case": 1,
+      "name": "control",
+      "action": "nothing changed",
+      "record": "lab_result",
+      "expected_caught": false,
+      "server_verdict": "match",
+      "server_reason": null,
+      "browser": "PASS",
+      "browser_detail": "all checks pass and the root is on chain",
+      "next_anchor": "anchored (confirmed)",
+      "witness": "all 2 published heads match",
+      "caught": false,
+      "as_expected": true
+    },
+    {
+      "case": 2,
+      "name": "row changed",
+      "action": "one lab value changed in place by the database owner",
+      "record": "lab_result",
+      "expected_caught": true,
+      "server_verdict": "mismatch",
+      "server_reason": "the record differs from its last committed version",
+      "browser": "FAIL",
+      "browser_detail": "record differs from its committed version",
+      "next_anchor": "anchored (confirmed)",
+      "witness": "all 2 published heads match",
+      "caught": true,
+      "as_expected": true
+    },
+    {
+      "case": 3,
+      "name": "row, commitment and log rewritten",
+      "action": "lab value changed, commitment, audit leaf and every later hash recomputed",
+      "record": "lab_result",
+      "expected_caught": true,
+      "server_verdict": "mismatch",
+      "server_reason": "the audit log no longer matches its signed checkpoint",
+      "browser": "FAIL",
+      "browser_detail": "inclusion proof does not reach the signed root",
+      "next_anchor": "refused: audit log changed since the last checkpoint",
+      "witness": "1 of 1 published heads no longer match",
+      "caught": true,
+      "as_expected": true
+    },
+    {
+      "case": 4,
+      "name": "row deleted",
+      "action": "the lab result row deleted by the database owner",
+      "record": "lab_result",
+      "expected_caught": true,
+      "server_verdict": "missing_row",
+      "server_reason": "the record row is gone",
+      "browser": "FAIL",
+      "browser_detail": "the record row is gone",
+      "next_anchor": "anchored (confirmed)",
+      "witness": "all 2 published heads match",
+      "caught": true,
+      "as_expected": true
+    },
+    {
+      "case": 5,
+      "name": "rewritten before its first anchor",
+      "action": "a new vital changed like case 3, before any anchor covered it",
+      "record": "vital",
+      "expected_caught": false,
+      "server_verdict": "match",
+      "server_reason": null,
+      "browser": "PASS",
+      "browser_detail": "all checks pass and the root is on chain",
+      "next_anchor": "anchored (confirmed)",
+      "witness": "all 3 published heads match",
+      "caught": false,
+      "as_expected": true
+    }
+  ]
+}

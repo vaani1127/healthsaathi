@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 
+import { RecordCheckButton } from "@/features/verify/RecordCheckButton";
 import type { Schemas } from "@/lib/api/client";
 import { formatDateTime } from "@/lib/format";
 
@@ -19,6 +20,7 @@ export function VitalsList({ vitals }: { vitals: Schemas["VitalOut"][] }) {
             {v.temp_c !== null && `${t("vitals.temp_c")} ${v.temp_c} · `}
             {v.spo2 !== null && `SpO2 ${v.spo2}%`}
           </p>
+          <RecordCheckButton type="vital" id={v.id} />
         </li>
       ))}
     </ul>

@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.access.service import RequestInfo, record_and_explain
 from app.anchor.evm import clinic_bytes32
 from app.anchor.job import chain_backend
+from app.anchor.proofs import AnchorRef, anchors_of, checkpoint_for_leaf
 from app.anchor.witness_check import WitnessResult, check_newest
 from app.core.config import get_settings
 from app.core.errors import ProblemError
@@ -26,19 +27,12 @@ from app.identity.deps import ClinicPrincipal
 from app.ledger.checkpoint import (
     LedgerIntegrityError,
     clinic_signing_key,
-    latest_checkpoint,
     load_tree,
     tree_head,
 )
 from e2d_core.ledger import leaf_hash, public_key_bytes, verify_consistency
 
-
-class AnchorRef(BaseModel):
-    backend: str
-    status: str
-    tx_ref: str | None
-    block_ref: str | None
-    link: str | None
+__all__ = ["AnchorRef", "AuditStatus", "BackendState", "Receipt", "audit_status"]
 
 
 class Receipt(BaseModel):
@@ -55,67 +49,6 @@ class Receipt(BaseModel):
     sth: dict[str, Any]
     signature: str
     anchors: list[AnchorRef]
-
-
-def _link(backend: str, tx_ref: str | None) -> str | None:
-    settings = get_settings()
-    if tx_ref is None:
-        return None
-    if backend in ("amoy", "besu") and settings.anchor_explorer_url:
-        return f"{settings.anchor_explorer_url.rstrip('/')}/tx/{tx_ref}"
-    if backend == "github" and settings.witness_repo and not settings.witness_dir:
-        return f"https://github.com/{settings.witness_repo}/commit/{tx_ref}"
-    return None
-
-
-async def _anchors(db: AsyncSession, checkpoint_id: uuid.UUID) -> list[AnchorRef]:
-    rows = (
-        await db.scalars(
-            select(AnchorReceipt)
-            .where(AnchorReceipt.checkpoint_id == checkpoint_id)
-            .order_by(AnchorReceipt.backend)
-        )
-    ).all()
-    return [
-        AnchorRef(
-            backend=r.backend.value,
-            status=r.status.value,
-            tx_ref=r.tx_ref,
-            block_ref=r.block_ref,
-            link=_link(r.backend.value, r.tx_ref),
-        )
-        for r in rows
-    ]
-
-
-CHAIN_BACKENDS = (AnchorBackend.AMOY, AnchorBackend.BESU)
-
-
-async def _anchored_checkpoint(
-    db: AsyncSession, clinic_id: uuid.UUID, index: int
-) -> MerkleCheckpoint | None:
-    """The newest checkpoint that contains this leaf and is confirmed on a chain. The latest
-    checkpoint may still be waiting for its transaction, and a receipt the patient cannot check
-    on chain yet is less useful than one for a slightly older, anchored head."""
-    confirmed = (
-        select(AnchorReceipt.id)
-        .where(
-            AnchorReceipt.checkpoint_id == MerkleCheckpoint.id,
-            AnchorReceipt.backend.in_(CHAIN_BACKENDS),
-            AnchorReceipt.status == AnchorStatus.CONFIRMED,
-        )
-        .exists()
-    )
-    return await db.scalar(
-        select(MerkleCheckpoint)
-        .where(
-            MerkleCheckpoint.clinic_id == clinic_id,
-            MerkleCheckpoint.tree_size > index,
-            confirmed,
-        )
-        .order_by(MerkleCheckpoint.tree_size.desc())
-        .limit(1)
-    )
 
 
 async def receipt_for(
@@ -143,10 +76,8 @@ async def receipt_for(
         raise ProblemError(404, "audit-not-found")
     tree, seqs = await load_tree(db, principal.clinic_id)
     index = seqs.index(audit.seq)
-    checkpoint = await _anchored_checkpoint(db, principal.clinic_id, index)
+    checkpoint, _ = await checkpoint_for_leaf(db, principal.clinic_id, index)
     if checkpoint is None:
-        checkpoint = await latest_checkpoint(db, principal.clinic_id)
-    if checkpoint is None or index >= checkpoint.tree_size:
         raise ProblemError(
             409, "receipt-not-ready", "This access is not in a signed checkpoint yet. Try later."
         )
@@ -162,7 +93,7 @@ async def receipt_for(
         proof=[p.hex() for p in tree.inclusion_proof(index, checkpoint.tree_size)],
         sth=tree_head(principal.clinic_id, checkpoint).to_json(),
         signature=checkpoint.signature.hex(),
-        anchors=await _anchors(db, checkpoint.id),
+        anchors=await anchors_of(db, checkpoint.id),
     )
 
 
@@ -305,7 +236,7 @@ async def audit_status(
             f"the log no longer matches the head published on the witness at size "
             f"{witness.tree_size}: {witness.reason}"
         )
-    anchors = await _anchors(db, latest.id) if latest else []
+    anchors = await anchors_of(db, latest.id) if latest else []
     return AuditStatus(
         sth=tree_head(clinic_id, latest).to_json() if latest else None,
         signature=latest.signature.hex() if latest else None,
