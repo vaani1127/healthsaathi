@@ -286,11 +286,16 @@ Remove that fallback in a later release, **7 days after that deploy** (invites l
 ## Record integrity
 
 Clinical record versions are committed to the audit log (ADR 0011). Check one record with
-`GET /api/v1/records/{record_type}/{record_id}/integrity`; the admin "Audit log" status
-(`GET /api/v1/audit/status`) has a `records` line with counts per verdict. A non-zero `mismatch`
-or `missing_row` means a clinical row no longer matches what was committed: stop and investigate,
-like a broken hash chain. `missing_version` means rows with no version yet, which is expected for
-rows written before this release until the backfill below has run.
+`GET /api/v1/records/{record_type}/{record_id}/integrity` ("Check this record" in the app). The
+admin "Audit log" tab has "Run records check" (`GET /api/v1/audit/records-status`), with counts
+per verdict; it is not part of the 30 second refresh, and its result is reused until the next
+checkpoint is signed or anchored. A non-zero `mismatch` or `missing_row` means a clinical row no
+longer matches what was committed: stop and investigate, like a broken hash chain.
+`missing_version` means rows with no version yet, which is expected for rows written before this
+release until the backfill below has run.
+
+Deploy order, in short: duplicate `parent_id` check (step 3), deploy (step 4), backfill dry run
+(step 6), backfill apply (step 7), dry run again (step 8).
 
 ### First deploy of record versions (migrations 0008 and 0009) on a database with history
 
@@ -323,8 +328,9 @@ Nothing here has been run against the live database. Steps 1 to 3 are before the
 4. Tag and deploy as usual. `deploy.sh` runs the migrations. Rollback still works: the previous
    version runs against the migrated schema (it never updates vitals or documents, and only sets
    `released_at` on lab results), but rows it writes get no version until the backfill runs again.
-5. After the deploy, open the admin "Audit log" status: `records.missing_version` is about the
-   number of older rows; new writes show as `pending` and then `match` after the next anchor.
+5. After the deploy, on the admin "Audit log" tab press "Run records check": "Not in the log
+   yet" is about the number of older rows; new writes show as "Waiting for the public chain" and
+   then "Match" after the next anchor.
 6. Backfill, dry run, on the VM in `/opt/healthsaathi` (it uses the VM's `.env`, so `DATA_KEYS`
    never leaves the VM):
    `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml run --rm worker python -m app.scripts.backfill_record_versions`
@@ -334,8 +340,9 @@ Nothing here has been run against the live database. Steps 1 to 3 are before the
    `sudo HS_TAG=$(cat current_tag) docker compose -f docker-compose.prod.yml run --rm worker python -m app.scripts.backfill_record_versions --apply`
    It is safe to stop and run again: rows that already have a version are skipped.
 8. Run the dry run of step 6 again: every count must be 0.
-9. Check the status page: `missing_version` 0, `backfilled` equal to the total of step 7. After
-   the next anchor, `pending` goes to 0.
+9. After the next checkpoint, "Run records check" again: "Not in the log yet" 0, "Versions
+   added later" equal to the total of step 7. After the next anchor, "Waiting for the public
+   chain" goes to 0.
 10. Add a dated line to the CHANGELOG Deviations with the time the backfill ran and its counts
     (from the script output). Backfilled records are covered only from that time, and the
     integrity check says so (`backfilled`, `covered_since`).

@@ -146,11 +146,44 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
     Any later snapshot must go to a new folder, not `live/`, and must report `record_version`
     leaves separately: the study's events query counts every audit event kind, so record leaves
     would change its event counts and rewrite windows.
-  - Effect on the tamper study: none. Its call to the audit status function is unchanged and does
-    not compute the new records line (`experiments/results/anchoring/tamper` stays as it is).
+  - Effect on the tamper study: none. `GET /api/v1/audit/status` and the function it calls are
+    unchanged in behaviour (`experiments/results/anchoring/tamper` stays as it is).
+  - New results folder `experiments/results/record-integrity/` for the record tamper demo
+    (`make record-tamper-demo`). No existing result or config under `experiments/` is changed.
   - Effect on the load test: a load-test copy skips version writes like it skips access logging,
     but a new run "with recording" also writes version leaves, so it is not comparable with the
     committed `experiments/results/load` run.
+
+### Clinical record versions, part 2: on-demand records check, browser check, web, tamper demo
+
+- `GET /api/v1/audit/records-status` (clinic admin): record counts per verdict, computed when
+  asked and reused per (clinic, latest checkpoint size, chain-anchored size). `GET
+  /api/v1/audit/status` no longer reads clinical tables, so the 30 second refresh and the tamper
+  study behave as before. The admin "Audit log" tab has "Run records check" and shows when the
+  result is from.
+- The integrity check also fails (`mismatch`) when the log's root at a proof's checkpoint size is
+  no longer that checkpoint's signed root: a version, its leaf and the hash chain rewritten after
+  an anchor. Found with the record tamper demo (case 3), where only the browser check caught it.
+- `packages/receipt-verify`: `commitment()`, `verifyRecordCheck()` (each version's leaf, inclusion
+  proof and signed head; the newest commitment against its content), `checkRecordAnchor()`.
+  Vectors from `app.scripts.record_vectors` (`make record-vectors`) in
+  `packages/receipt-verify/test/record-vectors.json`; a Python test checks the file and pins the
+  unchanged e2d-core ledger vectors.
+- Web: "Check this record" on chart and portal record views, only for roles `policy.yaml` lets
+  view the record; the browser's own verdict per version, backfilled and covered-since shown,
+  pending explained, chain transaction link, download for `/verify` (which now accepts record
+  check files). English and Hindi strings; "tamper-evident" wording (a web test checks the banned
+  words are absent).
+- `make record-tamper-demo` (`app/scripts/record_tamper_demo.py`): five cases on local anvil and
+  a local witness, results in `experiments/results/record-integrity/tamper.json`. In the run
+  committed with this change: the control passed every check; a row changed in place and a
+  deleted row were caught by the API and the browser check; a row rewritten with its commitment,
+  leaf and later hashes was caught by the API, the browser check, the next anchor (refused) and
+  the witness; a row rewritten the same way before its first anchor was caught by nothing, as
+  ADR 0011 states.
+- Demo e2e: `apps/web/e2e-demo/record-tamper.spec.ts` (project `record-tamper`, after `tamper`).
+- Docs: ADR 0011 (part 2), `docs/USER_GUIDE.md` ("Checking a record"), `docs/DEMO_SCRIPT.md`
+  (section 8), `docs/RUNBOOK.md` (records check and deploy order).
 
 ### Clinical record versions (blockchain-anchored medical record integrity, backend)
 
@@ -169,7 +202,7 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
 - `GET /api/v1/records/{record_type}/{record_id}/integrity`: verdict `match`, `pending`,
   `mismatch`, `missing_version` or `missing_row`, and per version the content, salt, leaf,
   inclusion proof, signed tree head and anchors. Recorded through `record_and_explain()`.
-- `GET /api/v1/audit/status` gains `records` (counts per verdict and backfilled versions).
+- Admin record counts: see part 2 below (`GET /api/v1/audit/records-status`).
 - The choice of checkpoint for a proof moved to `app/anchor/proofs.py`, shared by receipts and
   the integrity check. Receipt behaviour is unchanged.
 - Lab result values that canonical JSON cannot encode (NaN, Infinity, integers past 2^53) are

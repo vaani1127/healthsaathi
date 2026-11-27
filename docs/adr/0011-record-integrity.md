@@ -1,7 +1,7 @@
 # ADR 0011: Blockchain-anchored medical record integrity
 
-Status: accepted (27 November 2026). Backend only; the web view, the TypeScript verifier and the
-tamper demo follow in a later change.
+Status: accepted (27 November 2026). Part 1: backend. Part 2 (same day): records check on demand,
+browser verification, web view and the record tamper demo.
 
 ## Context
 
@@ -85,18 +85,52 @@ audit leaves are the reference. Verdicts:
   now, and its leaf is under a tree head confirmed on a chain (Amoy or Besu, as for receipts);
 - `pending`: as match, but not yet under a chain-confirmed head;
 - `mismatch`: the row differs from its newest commitment, a stored version differs from its leaf,
-  a stored version has no leaf, or the log itself fails its hash checks;
+  a stored version has no leaf, the log itself fails its hash checks, or the log's root at a
+  proof's checkpoint size is no longer that checkpoint's signed root (the log was rewritten and
+  its chain recomputed after the checkpoint; added in part 2, after the record tamper demo showed
+  the API alone missed it while the browser check caught it);
 - `missing_version`: a committable row has no version (written outside the app);
 - `missing_row`: a committed record's row is gone (the patient is found from its version row).
 
 For a note or prescription the check covers the whole version chain. Each version comes with its
 leaf payload, leaf hash, inclusion proof to the signed tree head the receipts would use (the
 selection is now one helper, `app/anchor/proofs.py`), the head's signature and its anchors, and
-for the newest version the content and salt, so a browser can recompute everything. The admin
-audit status gains a `records` line with counts per verdict and the number of backfilled versions;
-mismatch or missing rows set its `problem`. The tamper study calls the same status function as the
-anchor job role, which cannot read clinical tables, so the records line is computed only for the
-admin page.
+for the newest version the content and salt, so a browser can recompute everything.
+
+**Records check for the admin (part 2).** `GET /api/v1/audit/records-status` (clinic admin)
+checks every clinical record of the clinic and returns counts per verdict, the number of
+backfilled versions, and when the result was computed. It reads and decrypts every committed row,
+so it is not part of the 30 second `GET /api/v1/audit/status` refresh, which no longer reads
+clinical tables and behaves exactly as before (also for the tamper study). The result is cached
+per API process under (clinic, latest checkpoint size, largest chain-confirmed checkpoint size),
+so repeat requests reuse it until a new checkpoint is signed or anchored. It needs only the
+position of each leaf, not a re-hash of the log. Returns counts only, no patient data. The admin
+page has a "Run records check" button and shows the time of the result.
+
+**Browser verification (part 2).** `packages/receipt-verify`: `commitment(saltHex, content)`
+recomputes SHA-256(salt || JCS(content)); `verifyRecordCheck(response)` checks, for each version,
+that the leaf payload hashes to its leaf hash and names this record, version and commitment, the
+inclusion proof and the tree head signature (reusing `verifyReceiptProof`), and for the newest
+version of each record the commitment from the returned content and salt. It never reads the
+server's verdict. `checkRecordAnchor` reuses `checkAnchor` for every distinct tree head. Shared
+vectors come from `app.scripts.record_vectors` in the API (`make record-vectors`), written to
+`packages/receipt-verify/test/record-vectors.json` and checked by a Python test; the e2d-core
+ledger vectors are unchanged (a test pins their SHA-256 at main 61692ec).
+
+**Web (part 2).** "Check this record" on chart and portal record views: vitals, allergies,
+conditions, signed notes and prescriptions, lab orders, results and report files. The button is
+shown only to roles that `policy.yaml` lets view that record without break-glass (a web test reads
+policy.yaml and compares); the API still decides and records every check. The result is the
+browser's verdict (verified, pending, failed, not committed) per version, says clearly when
+versions were added later and from when the record is covered, explains pending in plain words,
+links to the chain transaction, and downloads the response as a file the `/verify` page accepts.
+
+**Record tamper demo (part 2).** `make record-tamper-demo` (`app/scripts/record_tamper_demo.py`,
+local anvil and a local witness folder, synthetic records written through the API) runs five
+cases and writes `experiments/results/record-integrity/tamper.json`: no change (control), a row
+changed in place, a row changed with its commitment, leaf and later hashes recomputed, a row
+deleted, and a row rewritten the careful way before the version's first anchor. Its own output is
+the record of which check caught which case; case 5 is not caught, by design of the limit below.
 
 **Backfill.** Rows written before this change have no version. `make backfill-record-versions`
 (`app/scripts/backfill_record_versions.py`, dry run unless `--apply`) writes version 1 and its
@@ -121,8 +155,13 @@ claim earlier coverage.
   the log); backfilled records are covered only from the backfill time.
 - Each clinical write adds one more audit event. Leaves per clinic grow, so `load_tree`, which
   re-hashes the whole clinic log for every receipt, every integrity check and every admin status
-  refresh, gets slower. Not measured. The admin records line also reads and decrypts every
-  committed row of the clinic on each refresh. Not measured either.
+  refresh, gets slower. Not measured. The records check reads and decrypts every committed row of
+  the clinic when it is not cached. Not measured either.
+- The records check cache can be stale between checkpoints: a row changed after the cached result
+  shows up only after the next checkpoint (normally within 15 minutes). The single-record check
+  is never cached.
+- The web button's role rules mirror `policy.yaml` by hand; if the policy changes, the web test
+  that compares them fails until the mirror is updated.
 - A load-test copy skips version writes, as it skips access logging. A load run against this code
   "with recording" also writes version leaves, so it is not comparable with the committed
   `experiments/results/load` run, which predates this change.
