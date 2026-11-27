@@ -31,7 +31,7 @@ function runAnchorJob(): void {
     execFileSync("uv", ["run", "python", "-m", "hs_demo.native", "run", "app.anchor.job"], { cwd: ROOT });
     return;
   }
-  execFileSync("docker", [...COMPOSE, "exec", "-T", "api", "python", "-m", "app.anchor.job"], {
+  execFileSync("docker", [...COMPOSE, "exec", "-T", "api", "demo-entrypoint", "python", "-m", "app.anchor.job"], {
     env: { ...process.env, MSYS_NO_PATHCONV: "1" },
   });
 }
@@ -53,7 +53,7 @@ test("a record checks out, fails after a database edit, and checks out again", a
   expect(patientId).toMatch(/^[0-9a-f-]{36}$/);
 
   await signIn(page, "nurse");
-  await page.goto(`/app/nurse/patients/${patientId}`);
+  await page.goto(`/nurse/patients/${patientId}`);
   await page.getByLabel(tx("vitals.pulse")).fill("81");
   await page.getByRole("button", { name: tx("vitals.save") }).click();
   await expect(page.getByText(tx("vitals.saved"))).toBeVisible();
