@@ -6,7 +6,7 @@ PY_TYPED := packages/e2d-core/src apps/api sim/src sim/tests experiments/src exp
 	infra/demo/src infra/demo/tests
 
 .PHONY: help env install demo demo-code demo-e2e demo-e2e-docker demo-e2e-native demo-measure demo-audit demo-videos \
-	demo-native demo-native-stop demo-reset-native demo-screenshots fhir-validate demo-logs demo-down demo-reset dev vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo backfill-record-versions dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
+	demo-native demo-native-stop demo-reset-native demo-screenshots fhir-validate demo-logs demo-down demo-reset dev vectors record-vectors api-types e2e contracts-local contracts-local-stop contracts-amoy 	contracts-deploy tamper-demo backfill-record-versions dev-down db-up lint lint-py lint-js lint-sol format test test-py test-js \
 	test-sol migrate seed prod-init prod-azure prod-open-db prod-close-db prod-status prod-db \
 	prod-seed prod-chain prod-register prod-vm-env prod-cloudflare prod-github prod-activity prod-logins prod-code besu-up besu-bench besu-down bench-receipt-browser tamper-study load-bench-db load-run load-run-reversed load-clean \
 	sim sim-coverage sim-audit sim-splits exp prereg-audit prereg-stamp audit
@@ -257,6 +257,10 @@ backfill-record-versions:
 api-types:
 	cd apps/api && $(UV) python -m app.scripts.export_openapi ../web/src/lib/api/openapi.json
 	cd apps/web && pnpm exec openapi-typescript src/lib/api/openapi.json --default-non-nullable false -o src/lib/api/schema.d.ts
+
+# Regenerate the record integrity vectors shared by the API and receipt-verify (ADR 0011).
+record-vectors:
+	cd apps/api && $(UV) python -m app.scripts.record_vectors ../../packages/receipt-verify/test/record-vectors.json
 
 # Regenerate the ledger test vectors shared by e2d-core and receipt-verify.
 vectors:
