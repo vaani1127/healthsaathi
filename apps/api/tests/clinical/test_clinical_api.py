@@ -55,16 +55,12 @@ async def visit(
     }
 
 
-async def audit_count(engine: AsyncEngine, clinic: uuid.UUID) -> int:
+async def audit_count(engine: AsyncEngine, clinic: uuid.UUID, kind: str | None = None) -> int:
+    query = select(func.count()).select_from(m.AuditEvent).where(m.AuditEvent.clinic_id == clinic)
+    if kind is not None:
+        query = query.where(m.AuditEvent.kind == kind)
     async with AsyncSession(engine) as s:
-        return int(
-            await s.scalar(
-                select(func.count())
-                .select_from(m.AuditEvent)
-                .where(m.AuditEvent.clinic_id == clinic)
-            )
-            or 0
-        )
+        return int(await s.scalar(query) or 0)
 
 
 # Notes -------------------------------------------------------------------------------------------
@@ -735,39 +731,52 @@ async def test_every_write_adds_an_audit_event(
     staff: dict[Role, Actor],
     visit: dict[str, str],
 ) -> None:
+    """One access leaf per write, plus one record_version leaf when the write changes the
+    clinical record (ADR 0011). A draft note is not part of the record yet."""
     doctor = staff[Role.DOCTOR]
-    calls: list[tuple[str, str, dict[str, Any] | None]] = [
-        ("post", f"/api/v1/patients/{visit['patient']}/vitals", {"pulse": 80}),
+    calls: list[tuple[str, str, dict[str, Any] | None, int]] = [
+        ("post", f"/api/v1/patients/{visit['patient']}/vitals", {"pulse": 80}, 1),
         (
             "post",
             f"/api/v1/patients/{visit['patient']}/allergies",
             {"substance": "Latex", "severity": "mild"},
+            1,
         ),
         (
             "post",
             f"/api/v1/patients/{visit['patient']}/notes",
             {"encounter_id": visit["encounter"], "body": "x"},
+            0,
         ),
     ]
-    for method, url, body in calls:
-        before = await audit_count(admin_engine, clinic)
+    for method, url, body, versions in calls:
+        before = await audit_count(admin_engine, clinic, "access")
+        before_versions = await audit_count(admin_engine, clinic, "record_version")
         resp = await getattr(client, method)(url, json=body, headers=doctor.headers)
         assert resp.status_code < 300, resp.text
-        assert await audit_count(admin_engine, clinic) == before + 1, url
+        assert await audit_count(admin_engine, clinic, "access") == before + 1, url
+        assert (
+            await audit_count(admin_engine, clinic, "record_version") == before_versions + versions
+        ), url
 
     note_id = resp.json()["id"]
     before = await audit_count(admin_engine, clinic)
     await client.post(f"/api/v1/notes/{note_id}/sign", headers=doctor.headers)
-    assert await audit_count(admin_engine, clinic) == before + 1
+    assert await audit_count(admin_engine, clinic) == before + 2
     async with AsyncSession(admin_engine) as s:
-        last = await s.scalar(
-            select(m.AuditEvent.payload)
-            .where(m.AuditEvent.clinic_id == clinic)
-            .order_by(m.AuditEvent.seq.desc())
-            .limit(1)
-        )
-    assert last is not None
-    assert last["detail"] == {"op": "note.sign", "note_id": note_id}
+        kinds = (
+            await s.execute(
+                select(m.AuditEvent.kind, m.AuditEvent.payload)
+                .where(m.AuditEvent.clinic_id == clinic)
+                .order_by(m.AuditEvent.seq.desc())
+                .limit(2)
+            )
+        ).all()
+    (last_kind, last), (access_kind, access) = kinds
+    assert access_kind == "access"
+    assert access["detail"] == {"op": "note.sign", "note_id": note_id}
+    assert last_kind == "record_version"
+    assert last["record_id"] == note_id and last["record_type"] == "note"
 
     events = await access_events(admin_engine, clinic)
     assert all(x is not None for _, x in events)

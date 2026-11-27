@@ -4,6 +4,9 @@ results, referrals and follow-ups.
 Every operation records the access first (same transaction), so a refused access never writes.
 Signed notes and prescriptions are never changed: edits create a new version, and a database
 trigger rejects any update to a signed row (migration 0002).
+
+Every write that changes the clinical record also commits the new version (salted commitment plus
+a `record_version` audit leaf) in the same transaction (app.ledger.records, ADR 0011).
 """
 
 import uuid
@@ -12,9 +15,16 @@ from datetime import timedelta
 from typing import Any
 
 from sqlalchemy import and_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.access.service import RequestInfo, db_now, record_and_explain, record_many
+from app.access.service import (
+    RequestInfo,
+    db_now,
+    record_and_explain,
+    record_many,
+    skip_recording,
+)
 from app.chart.schemas import LabOrderOut, LabResultOut, NoteOut
 from app.clinic import schemas as clinic_schemas
 from app.clinic import service as clinic_service
@@ -29,6 +39,7 @@ from app.db.enums import (
     AppointmentStatus,
     EncounterStatus,
     LabOrderStatus,
+    RecordType,
     ReferralStatus,
     ResourceType,
     Role,
@@ -49,6 +60,7 @@ from app.db.models import (
     Vital,
 )
 from app.identity.deps import ClinicPrincipal
+from app.ledger.records import write_version
 from app.realtime.hub import notify
 from app.storage import get_storage, sha256_hex
 from e2d_core.ids import uuid7
@@ -83,6 +95,19 @@ async def _record(
         req,
         detail={k: str(v) for k, v in detail.items()},
     )
+
+
+async def _commit(
+    db: AsyncSession, principal: ClinicPrincipal, record_type: RecordType, row: Any
+) -> None:
+    """Commit the row's new version. Skipped only in a load-test copy, like the access log."""
+    if skip_recording():
+        return
+    await write_version(db, principal.clinic_id, record_type, row, principal.user_id)
+
+
+def _unique_violation(exc: IntegrityError, index: str) -> bool:
+    return index in str(exc.orig)
 
 
 async def _encounter_for(
@@ -181,6 +206,7 @@ async def add_vitals(
     db.add(vital)
     await db.flush()
     await db.refresh(vital)
+    await _commit(db, principal, RecordType.VITAL, vital)
     return vital
 
 
@@ -201,6 +227,7 @@ async def add_allergy(
     db.add(allergy)
     await db.flush()
     await db.refresh(allergy)
+    await _commit(db, principal, RecordType.ALLERGY, allergy)
     return allergy
 
 
@@ -217,8 +244,11 @@ async def update_allergy(
     await _record(
         db, principal, allergy.patient_id, R.ALLERGIES, A.EDIT, req, allergy_id=allergy.id
     )
+    changed = allergy.is_active != body.is_active
     allergy.is_active = body.is_active
     await db.flush()
+    if changed:
+        await _commit(db, principal, RecordType.ALLERGY, allergy)
     return allergy
 
 
@@ -240,6 +270,7 @@ async def add_condition(
     db.add(condition)
     await db.flush()
     await db.refresh(condition)
+    await _commit(db, principal, RecordType.CONDITION, condition)
     return condition
 
 
@@ -256,8 +287,11 @@ async def update_condition(
     await _record(
         db, principal, condition.patient_id, R.NOTES, A.EDIT, req, condition_id=condition.id
     )
+    changed = condition.status != body.status
     condition.status = body.status
     await db.flush()
+    if changed:
+        await _commit(db, principal, RecordType.CONDITION, condition)
     return condition
 
 
@@ -342,6 +376,7 @@ async def sign_note(
         raise ProblemError(403, "not-the-author", "Only the author can sign a note.")
     note.signed_at = await db_now(db)
     await db.flush()
+    await _commit(db, principal, RecordType.NOTE, note)
     return note
 
 
@@ -373,7 +408,15 @@ async def new_note_version(
         body_enc=encrypt_body(new_id, body.body),
     )
     db.add(note)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        # Another request added a version to the same parent at the same time (migration 0009).
+        if _unique_violation(exc, "uq_clinical_notes_parent_id"):
+            raise ProblemError(
+                409, "not-latest-version", "Add the new version to the latest one."
+            ) from exc
+        raise
     await db.refresh(note)
     return note
 
@@ -451,6 +494,7 @@ async def sign_prescription(
         raise ProblemError(403, "not-the-author")
     rx.signed_at = await db_now(db)
     await db.flush()
+    await _commit(db, principal, RecordType.PRESCRIPTION, rx)
     return rx
 
 
@@ -489,7 +533,12 @@ async def new_prescription_version(
         parent_id=parent.id,
     )
     db.add(rx)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        if _unique_violation(exc, "uq_prescriptions_parent_id"):
+            raise ProblemError(409, "not-latest-version") from exc
+        raise
     await db.refresh(rx)
     return rx
 
@@ -563,6 +612,7 @@ async def order_lab(
     db.add(order)
     await db.flush()
     await db.refresh(order)
+    await _commit(db, principal, RecordType.LAB_ORDER, order)
     await notify(db, principal.clinic_id, "lab.changed", lab_order_id=order.id)
     return order
 
@@ -657,18 +707,18 @@ async def record_result(
         extension = ALLOWED_UPLOADS[content_type]
         path = f"{principal.clinic_id}/{order.patient_id}/{document_id}.{extension}"
         await get_storage().put(path, data, content_type)
-        db.add(
-            Document(
-                id=document_id,
-                clinic_id=principal.clinic_id,
-                patient_id=order.patient_id,
-                kind="lab_report",
-                blob_path=path,
-                sha256=digest,
-                uploaded_by=principal.user_id,
-            )
+        document = Document(
+            id=document_id,
+            clinic_id=principal.clinic_id,
+            patient_id=order.patient_id,
+            kind="lab_report",
+            blob_path=path,
+            sha256=digest,
+            uploaded_by=principal.user_id,
         )
+        db.add(document)
         await db.flush()
+        await _commit(db, principal, RecordType.DOCUMENT, document)
 
     result = LabResult(
         clinic_id=principal.clinic_id,
@@ -683,6 +733,7 @@ async def record_result(
     order.status = LabOrderStatus.RESULTED
     await db.flush()
     await db.refresh(result)
+    await _commit(db, principal, RecordType.LAB_RESULT, result)
     await notify(db, principal.clinic_id, "lab.changed", lab_order_id=order.id)
     return order, result
 
@@ -702,6 +753,7 @@ async def release_result(
     if result.released_at is None:
         result.released_at = await db_now(db)
         await db.flush()
+        await _commit(db, principal, RecordType.LAB_RESULT, result)
     return order, result
 
 
