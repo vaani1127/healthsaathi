@@ -127,6 +127,7 @@
     "not-your-appointment": "Only the appointment's doctor can start it.",
     "not-your-referral": "Only the referring or receiving doctor can change this referral.",
     "note-not-found": "That note was not found.",
+    "record-not-found": "That record was not found.",
     "note-not-signed": "This note is still a draft. Edit the draft instead.",
     "notice-not-found": "That consent notice was not found.",
     "overpayment": "The payment is more than the amount due.",

@@ -34,6 +34,7 @@ from app.notify.router import router as dev_mail_router
 from app.portal.router import router as portal_router
 from app.realtime.hub import hub
 from app.realtime.router import router as realtime_router
+from app.records.router import router as records_router
 from app.startup import maintenance_loop, run_startup_tasks
 
 logger = logging.getLogger(__name__)
@@ -116,6 +117,7 @@ def create_app() -> FastAPI:
     app.include_router(portal_router, prefix=API_PREFIX)
     app.include_router(realtime_router, prefix=API_PREFIX)
     app.include_router(anchor_router, prefix=API_PREFIX)
+    app.include_router(records_router, prefix=API_PREFIX)
     app.include_router(detect_router, prefix=API_PREFIX)
     app.include_router(dev_mail_router, prefix=API_PREFIX)
     app.include_router(push_router, prefix=API_PREFIX)

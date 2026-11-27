@@ -1563,6 +1563,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/records/{record_type}/{record_id}/integrity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check a clinical record against its committed versions
+         * @description Tamper-evident check of one clinical record: recomputes the salted commitment of its
+         *     newest version from the record as it is now, and returns, for every version, the audit leaf,
+         *     its inclusion proof to a signed tree head and where that head was anchored.
+         */
+        get: operations["record_integrity_api_v1_records__record_type___record_id__integrity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/referrals/{referral_id}": {
         parameters: {
             query?: never;
@@ -2221,6 +2243,7 @@ export interface components {
             problem: string | null;
             /** Public Key */
             public_key: string;
+            records?: components["schemas"]["RecordsLine"] | null;
             /** Signature */
             signature: string | null;
             /** Sth */
@@ -3499,11 +3522,87 @@ export interface components {
              */
             view: "reception";
         };
+        /** RecordIntegrity */
+        RecordIntegrity: {
+            /**
+             * Backfilled
+             * @description At least one version was backfilled; see covered_since and each version.
+             */
+            backfilled: boolean;
+            /**
+             * Clinic Id
+             * Format: uuid
+             */
+            clinic_id: string;
+            /** Clinic Id Bytes32 */
+            clinic_id_bytes32: string;
+            /**
+             * Covered Since
+             * @description When the first version of this record was committed. Nothing before this time is covered.
+             */
+            covered_since: string | null;
+            /**
+             * Patient Id
+             * Format: uuid
+             */
+            patient_id: string;
+            /** Public Key */
+            public_key: string;
+            /** Reason */
+            reason: string | null;
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            record_type: components["schemas"]["RecordType"];
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "match" | "pending" | "mismatch" | "missing_version" | "missing_row";
+            /**
+             * Version
+             * @default 1
+             */
+            version?: number;
+            /** Versions */
+            versions: components["schemas"]["VersionProof"][];
+        };
         /**
          * RecordStatus
          * @enum {string}
          */
         RecordStatus: "active" | "inactive";
+        /**
+         * RecordType
+         * @description Clinical records whose saved versions are committed to the audit log (ADR 0011).
+         * @enum {string}
+         */
+        RecordType: "note" | "prescription" | "vital" | "allergy" | "condition" | "lab_order" | "lab_result" | "document";
+        /**
+         * RecordsLine
+         * @description Clinical records against their committed versions (ADR 0011). One record per row; drafts
+         *     are not counted. pending: matches, but its newest leaf is not under a chain-anchored root yet.
+         *     backfilled: versions added for rows that existed before record versions (they show no change
+         *     since the backfill, not before it).
+         */
+        RecordsLine: {
+            /** Backfilled */
+            backfilled: number;
+            /** Match */
+            match: number;
+            /** Mismatch */
+            mismatch: number;
+            /** Missing Row */
+            missing_row: number;
+            /** Missing Version */
+            missing_version: number;
+            /** Pending */
+            pending: number;
+            /** Records */
+            records: number;
+        };
         /** ReferralIn */
         ReferralIn: {
             /** Reason */
@@ -3948,6 +4047,76 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * VersionProof
+         * @description One committed version and everything needed to check it without trusting the server:
+         *     recompute SHA-256(salt || JCS(content)), compare it with the leaf's commitment, hash the leaf
+         *     (SHA-256(0x00 || SHA-256(JCS(payload)))), check the inclusion proof to the signed tree head,
+         *     the head's signature, and the anchors.
+         */
+        VersionProof: {
+            /**
+             * Anchored
+             * @description The tree head is confirmed on a chain.
+             */
+            anchored: boolean;
+            /** Anchors */
+            anchors: components["schemas"]["AnchorRef"][];
+            /** Audit Seq */
+            audit_seq: number | null;
+            /**
+             * Backfilled
+             * @description Added for a record that existed before record versions. It shows the record has not changed since committed_at, not before.
+             */
+            backfilled: boolean;
+            /** Commitment */
+            commitment: string | null;
+            /** Committed At */
+            committed_at: string | null;
+            /**
+             * Content
+             * @description The record as it is now, in the content schema. Only for the newest version of a record whose row still exists.
+             */
+            content: {
+                [key: string]: unknown;
+            } | null;
+            /** Content Schema */
+            content_schema: string | null;
+            /** Leaf Hash */
+            leaf_hash: string | null;
+            /** Leaf Index */
+            leaf_index: number | null;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            } | null;
+            /** Payload Hash */
+            payload_hash: string | null;
+            /** Proof */
+            proof: string[] | null;
+            /** Reason */
+            reason: string | null;
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /** Salt */
+            salt: string | null;
+            /** Signature */
+            signature: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "match" | "superseded" | "mismatch" | "missing_row";
+            /** Sth */
+            sth: {
+                [key: string]: unknown;
+            } | null;
+            /** Version */
+            version: number;
         };
         /** VitalOut */
         VitalOut: {
@@ -7081,6 +7250,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReadyResponse"];
+                };
+            };
+        };
+    };
+    record_integrity_api_v1_records__record_type___record_id__integrity_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                record_type: components["schemas"]["RecordType"];
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordIntegrity"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -27,7 +27,7 @@ async def receipt(
 
 @router.get("/audit/status", response_model=receipts.AuditStatus)
 async def audit_status(principal: Admin, db: Db) -> receipts.AuditStatus:
-    return await receipts.audit_status(db, principal.clinic_id)
+    return await receipts.audit_status(db, principal.clinic_id, records=True)
 
 
 @router.post("/internal/anchor/run")
