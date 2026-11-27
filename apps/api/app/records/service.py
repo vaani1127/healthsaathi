@@ -103,6 +103,16 @@ class _Proofs:
     def anchored(self, seq: int) -> bool:
         return self.found.get(seq, (None, False))[1]
 
+    def rewritten(self) -> bool:
+        """True when a checkpoint used for a proof no longer has the log's root at its size: the
+        log was rewritten and its hash chain recomputed after that checkpoint was signed."""
+        if self.tree is None:
+            return False
+        return any(
+            cp is not None and self.tree.root(cp.tree_size) != cp.root
+            for cp, _ in self.found.values()
+        )
+
     async def out(self, check: VersionCheck) -> VersionProof:
         leaf, stored = check.leaf, check.stored
         backfilled = bool(
@@ -234,6 +244,8 @@ async def integrity(
     await proofs.load([v.leaf.seq for c in checks for v in c.versions if v.leaf is not None])
     result = verdict(checks, proofs.anchored)
     reason = _reason(result, checks)
+    if problem is None and proofs.rewritten():
+        problem = "the audit log no longer matches its signed checkpoint"
     if problem is not None:
         result, reason = Verdict.MISMATCH, problem
 

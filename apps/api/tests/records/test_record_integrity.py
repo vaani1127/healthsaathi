@@ -844,3 +844,55 @@ async def test_versions_written_after_a_backfill_are_not_marked(
     body = (await check(client, staff[Role.DOCTOR], "allergy", str(ids["allergy"]))).json()
     assert [(v["version"], v["backfilled"]) for v in body["versions"]] == [(1, True), (2, False)]
     assert body["backfilled"] is True
+
+
+# Careful rewrites (the record tamper demo's helpers) ---------------------------------------------
+
+
+async def test_a_rewritten_log_is_a_mismatch_once_anchored(
+    client: AsyncClient,
+    admin_engine: AsyncEngine,
+    clinic: uuid.UUID,
+    staff: dict[Role, Actor],
+    visit: dict[str, str],
+) -> None:
+    from app.scripts.record_tamper_demo import forge_version
+
+    vital = await add_vitals(client, staff, visit["patient"])
+    await anchor(admin_engine, clinic)
+    await forge_version(
+        clinic, RecordType.VITAL, uuid.UUID(vital), "UPDATE vitals SET pulse = 140 WHERE id = :id"
+    )
+    body = (await check(client, staff[Role.DOCTOR], "vital", vital)).json()
+    assert body["verdict"] == "mismatch"
+    assert body["reason"] == "the audit log no longer matches its signed checkpoint"
+    version = body["versions"][0]
+    head = TreeHead.from_json(version["sth"])
+    assert not verify_inclusion(
+        bytes.fromhex(version["leaf_hash"]),
+        version["leaf_index"],
+        head.tree_size,
+        [bytes.fromhex(p) for p in version["proof"]],
+        bytes.fromhex(head.root_hex),
+    )
+
+
+async def test_a_rewrite_before_the_first_anchor_is_not_caught(
+    client: AsyncClient,
+    admin_engine: AsyncEngine,
+    clinic: uuid.UUID,
+    staff: dict[Role, Actor],
+    visit: dict[str, str],
+) -> None:
+    """The stated limit (ADR 0011): nothing tells a change apart from the real record if it was
+    made before any anchor covered the version."""
+    from app.scripts.record_tamper_demo import forge_version
+
+    vital = await add_vitals(client, staff, visit["patient"])
+    await forge_version(
+        clinic, RecordType.VITAL, uuid.UUID(vital), "UPDATE vitals SET pulse = 140 WHERE id = :id"
+    )
+    await anchor(admin_engine, clinic)
+    body = (await check(client, staff[Role.DOCTOR], "vital", vital)).json()
+    assert body["verdict"] == "match"
+    assert body["versions"][0]["content"]["pulse"] == 140
