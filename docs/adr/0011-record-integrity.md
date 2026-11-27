@@ -153,10 +153,31 @@ claim earlier coverage.
   access and the app can still add a new version, which is then visible in the history; drafts
   are not covered; a lab order's status is not covered (status_events is append-only but not in
   the log); backfilled records are covered only from the backfill time.
-- Each clinical write adds one more audit event. Leaves per clinic grow, so `load_tree`, which
-  re-hashes the whole clinic log for every receipt, every integrity check and every admin status
-  refresh, gets slower. Not measured. The records check reads and decrypts every committed row of
-  the clinic when it is not cached. Not measured either.
+- Each clinical write adds one more audit event, so each clinic's log grows faster.
+- **Proofs and full verification are separate (27 November 2026, after the v0.1.8 deploy).**
+  The integrity check and patient receipts build inclusion proofs from the stored `payload_hash`
+  column (`app/ledger/tree_cache.py`), not by re-hashing every payload: the browser recomputes the
+  leaf from the returned payload and checks the proof against the signed, anchored root, and the
+  integrity check also verifies each record proof against its checkpoint's root and re-hashes the
+  record's own leaves. The full check (every payload re-hashed, every chain link recomputed) stays
+  in the anchor job, checkpoint signing and the admin audit page; `load_tree` fetches payloads as
+  text and runs the hashing in a worker thread, and the admin page reuses its result while the
+  log's fingerprint (rows, highest seq, highest xmin) is unchanged, so an edit by the database
+  owner is checked again on the next refresh. The records check scan also runs in a thread.
+  Why: on v0.1.8 one integrity request re-hashed about 84,700 events inside the event loop, and
+  uvicorn killed the worker when it missed its 5 s health ping (a 502). The prod API also runs
+  with `--timeout-worker-healthcheck 30` as a safety margin, not as the fix.
+- **Memory of the proof cache.** One tree per clinic per API process (only the newest), extended
+  incrementally for a newer checkpoint. Measured: 14.8 MiB for 100,000 leaves
+  (`apps/api/tests/ledger/test_tree_cache.py::test_memory_of_a_cached_tree_of_100000_leaves`).
+  With two clinics and two API workers that is about four such trees.
+- **Timings on a 100,004 event log** (`apps/api/tests/anchor/test_large_log.py`, run with `-s`
+  on the development laptop, local Postgres; one run, not a benchmark): the old request path's
+  full re-hash took 3.41 s inside the event loop; now the integrity check took 0.56 s with a cold
+  cache, a receipt 0.14 s, the admin audit page's full check 4.22 s in a worker thread and 0.04 s
+  when the log was unchanged; the slowest health answer while these ran was 0.233 s.
+- The records check reads and decrypts every committed row of the clinic when it is not cached.
+  Not measured.
 - The records check cache can be stale between checkpoints: a row changed after the cached result
   shows up only after the next checkpoint (normally within 15 minutes). The single-record check
   is never cached.

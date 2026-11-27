@@ -6,6 +6,7 @@ clinic's public key, and where that tree head was anchored.
 """
 
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -24,13 +25,15 @@ from app.core.errors import ProblemError
 from app.db.enums import AccessAction, AnchorBackend, AnchorStatus, ResourceType
 from app.db.models import AccessEvent, AnchorReceipt, AuditEvent, MerkleCheckpoint
 from app.identity.deps import ClinicPrincipal
+from app.ledger import tree_cache
 from app.ledger.checkpoint import (
     LedgerIntegrityError,
     clinic_signing_key,
+    leaf_index,
     load_tree,
     tree_head,
 )
-from e2d_core.ledger import leaf_hash, public_key_bytes, verify_consistency
+from e2d_core.ledger import MerkleTree, leaf_hash, public_key_bytes, verify_consistency
 
 __all__ = ["AnchorRef", "AuditStatus", "BackendState", "Receipt", "audit_status"]
 
@@ -74,13 +77,18 @@ async def receipt_for(
     )
     if audit is None:
         raise ProblemError(404, "audit-not-found")
-    tree, seqs = await load_tree(db, principal.clinic_id)
-    index = seqs.index(audit.seq)
+    index = await leaf_index(db, principal.clinic_id, audit.seq)
     checkpoint, _ = await checkpoint_for_leaf(db, principal.clinic_id, index)
     if checkpoint is None:
         raise ProblemError(
             409, "receipt-not-ready", "This access is not in a signed checkpoint yet. Try later."
         )
+    # The proof comes from the stored leaf hashes (cached), not a re-hash of every payload: the
+    # browser recomputes this leaf from the payload and checks the proof against the signed root.
+    entry = await tree_cache.tree_for(db, principal.clinic_id, checkpoint.tree_size)
+    if entry.size < checkpoint.tree_size:
+        raise ProblemError(409, "log-changed", "The audit log is shorter than its checkpoint.")
+    tree = entry.tree
     return Receipt(
         clinic_id=str(principal.clinic_id),
         clinic_id_bytes32="0x" + clinic_bytes32(principal.clinic_id).hex(),
@@ -185,6 +193,60 @@ class AuditStatus(BaseModel):
     backends: list[BackendState]
 
 
+@dataclass(frozen=True)
+class _Verified:
+    key: tuple[int, int, int]
+    chain_ok: bool
+    problem: str | None
+    size: int
+
+
+# Full verification result per clinic (only the newest), reused while the log is unchanged. The
+# key is (rows, highest seq, highest xmin): a new event changes the first two, and an UPDATE or
+# DELETE by the database owner gives the touched rows a new xmin or lowers the count, so an edit
+# is checked again on the next refresh instead of hiding behind the cache.
+_verified: dict[uuid.UUID, _Verified] = {}
+
+
+async def log_fingerprint(db: AsyncSession, clinic_id: uuid.UUID) -> tuple[int, int, int]:
+    row = (
+        await db.execute(
+            text(
+                "SELECT count(*), coalesce(max(seq), 0), coalesce(max(xmin::text::bigint), 0)"
+                " FROM audit_events WHERE clinic_id = :c"
+            ),
+            {"c": clinic_id},
+        )
+    ).one()
+    return int(row[0]), int(row[1]), int(row[2])
+
+
+async def verified_tree(
+    db: AsyncSession, clinic_id: uuid.UUID
+) -> tuple[MerkleTree | None, str | None, int]:
+    """(tree or None if the log fails its own hashes, problem, event count). Runs the full check
+    (in a worker thread, see load_tree) only when the log changed since the last one."""
+    key = await log_fingerprint(db, clinic_id)
+    cached = _verified.get(clinic_id)
+    if cached is not None and cached.key == key:
+        if not cached.chain_ok:
+            return None, cached.problem, 0
+        entry = await tree_cache.tree_for(db, clinic_id, cached.size)
+        return entry.tree, None, cached.size
+    try:
+        tree, seqs = await load_tree(db, clinic_id)
+    except LedgerIntegrityError as exc:
+        _verified[clinic_id] = _Verified(key, False, str(exc), 0)
+        return None, str(exc), 0
+    tree_cache.install(clinic_id, seqs, tree)
+    _verified[clinic_id] = _Verified(key, True, None, tree.size)
+    return tree, None, tree.size
+
+
+def clear_verified() -> None:
+    _verified.clear()
+
+
 async def audit_status(
     db: AsyncSession, clinic_id: uuid.UUID, *, witness_folder: Path | None = None
 ) -> AuditStatus:
@@ -194,15 +256,9 @@ async def audit_status(
     with the rows; the witness check still catches that rewrite. `witness_folder` overrides the
     configured witness (the tamper study uses its own folder).
     """
-    problem = None
-    events = 0
-    chain_ok = True
     consistency_ok: bool | None = None
-    try:
-        tree, _ = await load_tree(db, clinic_id)
-        events = tree.size
-    except LedgerIntegrityError as exc:
-        chain_ok, problem, tree = False, str(exc), None
+    tree, problem, events = await verified_tree(db, clinic_id)
+    chain_ok = tree is not None
     checkpoints = (
         await db.scalars(
             select(MerkleCheckpoint)
