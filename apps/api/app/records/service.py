@@ -11,22 +11,24 @@ read of patient data.
 
 import uuid
 from collections.abc import Sequence
+from dataclasses import asdict
 from datetime import datetime
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.access.service import RequestInfo, record_and_explain
+from app.access.service import RequestInfo, db_now, record_and_explain
 from app.anchor.evm import clinic_bytes32
 from app.anchor.proofs import anchors_of, checkpoint_for_leaf
 from app.core.errors import ProblemError
 from app.db.enums import AccessAction, RecordType
-from app.db.models import MerkleCheckpoint, RecordVersion
+from app.db.models import AuditEvent, MerkleCheckpoint, RecordVersion
 from app.identity.deps import ClinicPrincipal
 from app.ledger.checkpoint import (
     LedgerIntegrityError,
     clinic_signing_key,
+    latest_checkpoint,
     load_tree,
     tree_head,
 )
@@ -39,12 +41,14 @@ from app.ledger.records import (
     Verdict,
     VersionCheck,
     VersionStatus,
+    anchored_size,
+    check_clinic,
     check_record,
     leaves_for,
     stored_for,
     verdict,
 )
-from app.records.schemas import RecordIntegrity, VersionProof
+from app.records.schemas import RecordIntegrity, RecordsStatus, VersionProof
 from e2d_core.ledger import MerkleTree, leaf_hash, payload_hash, public_key_bytes
 
 MAX_CHAIN = 1000  # far above any real note history; stops a cycle written into the database
@@ -247,3 +251,47 @@ async def integrity(
         public_key=public_key_bytes(clinic_signing_key(clinic_id)).hex(),
         versions=[await proofs.out(v) for c in checks for v in c.versions],
     )
+
+
+# Records status for the admin page ---------------------------------------------------------------
+
+# (clinic, latest checkpoint size, chain-anchored size) -> result. The check reads and decrypts
+# every committed row of the clinic, so a repeat request reuses the result until a new checkpoint is
+# signed or anchored. Per API process; a restart or another worker computes it again.
+_STATUS_CACHE: dict[tuple[uuid.UUID, int, int], RecordsStatus] = {}
+_STATUS_CACHE_LIMIT = 256
+
+
+async def _leaf_positions(db: AsyncSession, clinic_id: uuid.UUID) -> dict[int, int]:
+    """seq -> position in the clinic's log, without re-hashing it (the audit page checks that)."""
+    seqs = await db.scalars(
+        select(AuditEvent.seq).where(AuditEvent.clinic_id == clinic_id).order_by(AuditEvent.seq)
+    )
+    return {int(seq): i for i, seq in enumerate(seqs.all())}
+
+
+async def records_status(db: AsyncSession, clinic_id: uuid.UUID) -> RecordsStatus:
+    latest = await latest_checkpoint(db, clinic_id)
+    tree_size = latest.tree_size if latest is not None else 0
+    size = await anchored_size(db, clinic_id)
+    key = (clinic_id, tree_size, size)
+    cached = _STATUS_CACHE.get(key)
+    if cached is not None:
+        return cached.model_copy(update={"cached": True})
+    positions = await _leaf_positions(db, clinic_id)
+    found = await check_clinic(db, clinic_id, lambda seq: positions.get(seq, size) < size)
+    result = RecordsStatus(
+        **asdict(found),
+        computed_at=await db_now(db),
+        tree_size=tree_size,
+        anchored_size=size,
+        cached=False,
+    )
+    if len(_STATUS_CACHE) >= _STATUS_CACHE_LIMIT:
+        _STATUS_CACHE.clear()
+    _STATUS_CACHE[key] = result
+    return result
+
+
+def clear_status_cache() -> None:
+    _STATUS_CACHE.clear()

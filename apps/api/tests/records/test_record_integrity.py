@@ -102,6 +102,16 @@ async def audit_total(engine: AsyncEngine, clinic: uuid.UUID) -> int:
         )
 
 
+COUNT_KEYS = ("records", "match", "pending", "mismatch", "missing_version", "missing_row")
+COUNT_KEYS += ("backfilled",)
+
+
+async def records_status(client: AsyncClient, admin: Actor) -> Any:
+    resp = await client.get("/api/v1/audit/records-status", headers=admin.headers)
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
 async def check(client: AsyncClient, actor: Actor, record_type: str, record_id: str) -> Any:
     return await client.get(
         f"/api/v1/records/{record_type}/{record_id}/integrity", headers=actor.headers
@@ -395,11 +405,8 @@ async def test_mismatch_when_a_row_is_changed_in_the_database(
     recomputed = commitment(bytes.fromhex(version["salt"]), version["content"])
     assert recomputed.hex() != version["commitment"]
 
-    status = (
-        await client.get("/api/v1/audit/status", headers=staff[Role.CLINIC_ADMIN].headers)
-    ).json()
-    assert status["records"]["mismatch"] == 1
-    assert "no longer match" in status["problem"]
+    status = await records_status(client, staff[Role.CLINIC_ADMIN])
+    assert status["mismatch"] == 1
 
 
 async def test_mismatch_when_an_append_only_row_is_changed_by_the_owner(
@@ -483,10 +490,8 @@ async def test_missing_row_when_a_committed_row_is_deleted(
     assert body["versions"][0]["status"] == "missing_row"
     assert body["versions"][0]["content"] is None
 
-    status = (
-        await client.get("/api/v1/audit/status", headers=staff[Role.CLINIC_ADMIN].headers)
-    ).json()
-    assert status["records"]["missing_row"] == 1
+    status = await records_status(client, staff[Role.CLINIC_ADMIN])
+    assert status["missing_row"] == 1
 
 
 async def test_lab_result_release_is_a_second_version(
@@ -618,7 +623,7 @@ async def test_unknown_record_is_404(client: AsyncClient, staff: dict[Role, Acto
 # Audit status and receipts -----------------------------------------------------------------------
 
 
-async def test_audit_status_counts_records(
+async def test_records_status_counts_and_reuses_results(
     client: AsyncClient,
     admin_engine: AsyncEngine,
     clinic: uuid.UUID,
@@ -633,8 +638,9 @@ async def test_audit_status_counts_records(
         headers=staff[Role.DOCTOR].headers,
     )
     admin = staff[Role.CLINIC_ADMIN]
-    status = (await client.get("/api/v1/audit/status", headers=admin.headers)).json()
-    assert status["records"] == {
+    status = await records_status(client, admin)
+    counts = {k: status[k] for k in COUNT_KEYS}
+    assert counts == {
         "records": 2,
         "match": 0,
         "pending": 2,
@@ -643,10 +649,31 @@ async def test_audit_status_counts_records(
         "missing_row": 0,
         "backfilled": 0,
     }
+    assert status["cached"] is False and status["tree_size"] == 0
+    again = await records_status(client, admin)
+    assert again["cached"] is True and again["computed_at"] == status["computed_at"]
+
     await anchor(admin_engine, clinic)
-    status = (await client.get("/api/v1/audit/status", headers=admin.headers)).json()
-    assert status["records"]["match"] == 2 and status["records"]["pending"] == 0
-    assert status["problem"] is None
+    status = await records_status(client, admin)
+    assert status["cached"] is False and status["anchored_size"] == status["tree_size"] > 0
+    assert status["match"] == 2 and status["pending"] == 0
+
+
+async def test_records_status_is_for_clinic_admins_only(
+    client: AsyncClient, staff: dict[Role, Actor]
+) -> None:
+    for role in (Role.DOCTOR, Role.NURSE, Role.RECEPTION, Role.PATIENT):
+        resp = await client.get("/api/v1/audit/records-status", headers=staff[role].headers)
+        assert resp.status_code == 403, role
+
+
+async def test_audit_status_no_longer_scans_records(
+    client: AsyncClient, staff: dict[Role, Actor], visit: dict[str, str]
+) -> None:
+    await add_vitals(client, staff, visit["patient"])
+    status = await client.get("/api/v1/audit/status", headers=staff[Role.CLINIC_ADMIN].headers)
+    assert status.status_code == 200
+    assert "records" not in status.json()
 
 
 async def test_access_receipts_work_with_record_leaves_in_between(
@@ -793,11 +820,9 @@ async def test_backfill_marks_versions_and_running_it_again_adds_nothing(
     committed = datetime.fromisoformat(body["covered_since"])
     assert committed >= min(datetime.fromisoformat(v["committed_at"]) for v in body["versions"])
 
-    status = (
-        await client.get("/api/v1/audit/status", headers=staff[Role.CLINIC_ADMIN].headers)
-    ).json()
-    assert status["records"]["backfilled"] == 5
-    assert status["records"]["missing_version"] == 0
+    status = await records_status(client, staff[Role.CLINIC_ADMIN])
+    assert status["backfilled"] == 5
+    assert status["missing_version"] == 0
 
 
 async def test_versions_written_after_a_backfill_are_not_marked(

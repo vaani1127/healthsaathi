@@ -38,3 +38,18 @@ async def record_integrity(
     newest version from the record as it is now, and returns, for every version, the audit leaf,
     its inclusion proof to a signed tree head and where that head was anchored."""
     return await service.integrity(db, principal, record_type, record_id, req)
+
+
+Admin = Annotated[ClinicPrincipal, _only(Role.CLINIC_ADMIN)]
+
+
+@router.get(
+    "/audit/records-status",
+    response_model=schemas.RecordsStatus,
+    tags=["audit"],
+    summary="Check every clinical record of the clinic against its committed versions",
+)
+async def records_status(principal: Admin, db: Db) -> schemas.RecordsStatus:
+    """Counts per verdict. Computed on demand and reused until the next checkpoint is signed or
+    anchored, because it reads every committed record. Returns counts only, no patient data."""
+    return await service.records_status(db, principal.clinic_id)

@@ -6,7 +6,6 @@ clinic's public key, and where that tree head was anchored.
 """
 
 import uuid
-from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -31,10 +30,9 @@ from app.ledger.checkpoint import (
     load_tree,
     tree_head,
 )
-from app.ledger.records import anchored_size, check_clinic
 from e2d_core.ledger import leaf_hash, public_key_bytes, verify_consistency
 
-__all__ = ["AnchorRef", "AuditStatus", "BackendState", "Receipt", "RecordsLine", "audit_status"]
+__all__ = ["AnchorRef", "AuditStatus", "BackendState", "Receipt", "audit_status"]
 
 
 class Receipt(BaseModel):
@@ -172,21 +170,6 @@ async def _backend_states(
     return states
 
 
-class RecordsLine(BaseModel):
-    """Clinical records against their committed versions (ADR 0011). One record per row; drafts
-    are not counted. pending: matches, but its newest leaf is not under a chain-anchored root yet.
-    backfilled: versions added for rows that existed before record versions (they show no change
-    since the backfill, not before it)."""
-
-    records: int
-    match: int
-    pending: int
-    mismatch: int
-    missing_version: int
-    missing_row: int
-    backfilled: int
-
-
 class AuditStatus(BaseModel):
     sth: dict[str, Any] | None
     signature: str | None
@@ -200,34 +183,23 @@ class AuditStatus(BaseModel):
     anchors: list[AnchorRef]
     confirmed_backends: list[str]
     backends: list[BackendState]
-    # Only on the admin page (see audit_status).
-    records: RecordsLine | None = None
 
 
 async def audit_status(
-    db: AsyncSession,
-    clinic_id: uuid.UUID,
-    *,
-    witness_folder: Path | None = None,
-    records: bool = False,
+    db: AsyncSession, clinic_id: uuid.UUID, *, witness_folder: Path | None = None
 ) -> AuditStatus:
     """The log against its hash chain, the stored checkpoints and the newest head on the witness.
 
     The stored checkpoints are in the same database as the log, so their owner can delete them
     with the rows; the witness check still catches that rewrite. `witness_folder` overrides the
     configured witness (the tamper study uses its own folder).
-
-    With `records`, clinical records are also checked against their committed versions (ADR
-    0011). That reads the clinical tables, so only the admin page (app_rw) asks for it; the anchor
-    job role, used by the tamper study, cannot read them.
     """
     problem = None
     events = 0
     chain_ok = True
     consistency_ok: bool | None = None
-    seqs: list[int] = []
     try:
-        tree, seqs = await load_tree(db, clinic_id)
+        tree, _ = await load_tree(db, clinic_id)
         events = tree.size
     except LedgerIntegrityError as exc:
         chain_ok, problem, tree = False, str(exc), None
@@ -265,17 +237,6 @@ async def audit_status(
             f"{witness.tree_size}: {witness.reason}"
         )
     anchors = await anchors_of(db, latest.id) if latest else []
-    records_line = None
-    if records:
-        size = await anchored_size(db, clinic_id)
-        index = {seq: i for i, seq in enumerate(seqs)}
-        found = await check_clinic(db, clinic_id, lambda seq: index.get(seq, size) < size)
-        records_line = RecordsLine(**asdict(found))
-        if problem is None and (found.mismatch or found.missing_row):
-            problem = (
-                f"{found.mismatch + found.missing_row} clinical record(s) no longer match "
-                "their committed versions"
-            )
     return AuditStatus(
         sth=tree_head(clinic_id, latest).to_json() if latest else None,
         signature=latest.signature.hex() if latest else None,
@@ -289,5 +250,4 @@ async def audit_status(
         anchors=anchors,
         confirmed_backends=[a.backend for a in anchors if a.status == AnchorStatus.CONFIRMED.value],
         backends=await _backend_states(db, clinic_id, anchors),
-        records=records_line,
     )

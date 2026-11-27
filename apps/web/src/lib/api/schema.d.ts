@@ -217,6 +217,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/audit/records-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check every clinical record of the clinic against its committed versions
+         * @description Counts per verdict. Computed on demand and reused until the next checkpoint is signed or
+         *     anchored, because it reads every committed record. Returns counts only, no patient data.
+         */
+        get: operations["records_status_api_v1_audit_records_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit/status": {
         parameters: {
             query?: never;
@@ -2243,7 +2264,6 @@ export interface components {
             problem: string | null;
             /** Public Key */
             public_key: string;
-            records?: components["schemas"]["RecordsLine"] | null;
             /** Signature */
             signature: string | null;
             /** Sth */
@@ -3581,15 +3601,31 @@ export interface components {
          */
         RecordType: "note" | "prescription" | "vital" | "allergy" | "condition" | "lab_order" | "lab_result" | "document";
         /**
-         * RecordsLine
-         * @description Clinical records against their committed versions (ADR 0011). One record per row; drafts
-         *     are not counted. pending: matches, but its newest leaf is not under a chain-anchored root yet.
-         *     backfilled: versions added for rows that existed before record versions (they show no change
-         *     since the backfill, not before it).
+         * RecordsStatus
+         * @description Every clinical record of the clinic against its committed versions (ADR 0011). One record
+         *     per row; drafts are not counted.
          */
-        RecordsLine: {
-            /** Backfilled */
+        RecordsStatus: {
+            /**
+             * Anchored Size
+             * @description Size of the largest chain-confirmed checkpoint.
+             */
+            anchored_size: number;
+            /**
+             * Backfilled
+             * @description Versions added for rows written before record versions. They show no change since the backfill, not before it.
+             */
             backfilled: number;
+            /**
+             * Cached
+             * @description True when this result was computed by an earlier request.
+             */
+            cached: boolean;
+            /**
+             * Computed At
+             * Format: date-time
+             */
+            computed_at: string;
             /** Match */
             match: number;
             /** Mismatch */
@@ -3598,10 +3634,18 @@ export interface components {
             missing_row: number;
             /** Missing Version */
             missing_version: number;
-            /** Pending */
+            /**
+             * Pending
+             * @description Matches, but its newest leaf is not under a chain-confirmed tree head yet.
+             */
             pending: number;
             /** Records */
             records: number;
+            /**
+             * Tree Size
+             * @description Size of the latest signed checkpoint when computed.
+             */
+            tree_size: number;
         };
         /** ReferralIn */
         ReferralIn: {
@@ -4632,6 +4676,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    records_status_api_v1_audit_records_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordsStatus"];
                 };
             };
         };

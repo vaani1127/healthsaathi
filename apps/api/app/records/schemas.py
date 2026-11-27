@@ -63,3 +63,25 @@ class RecordIntegrity(BaseModel):
     clinic_id_bytes32: str
     public_key: str
     versions: list[VersionProof]
+
+
+class RecordsStatus(BaseModel):
+    """Every clinical record of the clinic against its committed versions (ADR 0011). One record
+    per row; drafts are not counted."""
+
+    records: int
+    match: int
+    pending: int = Field(
+        description="Matches, but its newest leaf is not under a chain-confirmed tree head yet."
+    )
+    mismatch: int
+    missing_version: int
+    missing_row: int
+    backfilled: int = Field(
+        description="Versions added for rows written before record versions. They show no change "
+        "since the backfill, not before it."
+    )
+    computed_at: datetime
+    tree_size: int = Field(description="Size of the latest signed checkpoint when computed.")
+    anchored_size: int = Field(description="Size of the largest chain-confirmed checkpoint.")
+    cached: bool = Field(description="True when this result was computed by an earlier request.")

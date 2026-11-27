@@ -930,16 +930,6 @@
             "title": "Public Key",
             "type": "string"
           },
-          "records": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RecordsLine"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "signature": {
             "anyOf": [
               {
@@ -4516,12 +4506,28 @@
         "title": "RecordType",
         "type": "string"
       },
-      "RecordsLine": {
-        "description": "Clinical records against their committed versions (ADR 0011). One record per row; drafts\nare not counted. pending: matches, but its newest leaf is not under a chain-anchored root yet.\nbackfilled: versions added for rows that existed before record versions (they show no change\nsince the backfill, not before it).",
+      "RecordsStatus": {
+        "description": "Every clinical record of the clinic against its committed versions (ADR 0011). One record\nper row; drafts are not counted.",
         "properties": {
+          "anchored_size": {
+            "description": "Size of the largest chain-confirmed checkpoint.",
+            "title": "Anchored Size",
+            "type": "integer"
+          },
           "backfilled": {
+            "description": "Versions added for rows written before record versions. They show no change since the backfill, not before it.",
             "title": "Backfilled",
             "type": "integer"
+          },
+          "cached": {
+            "description": "True when this result was computed by an earlier request.",
+            "title": "Cached",
+            "type": "boolean"
+          },
+          "computed_at": {
+            "format": "date-time",
+            "title": "Computed At",
+            "type": "string"
           },
           "match": {
             "title": "Match",
@@ -4540,11 +4546,17 @@
             "type": "integer"
           },
           "pending": {
+            "description": "Matches, but its newest leaf is not under a chain-confirmed tree head yet.",
             "title": "Pending",
             "type": "integer"
           },
           "records": {
             "title": "Records",
+            "type": "integer"
+          },
+          "tree_size": {
+            "description": "Size of the latest signed checkpoint when computed.",
+            "title": "Tree Size",
             "type": "integer"
           }
         },
@@ -4555,9 +4567,13 @@
           "mismatch",
           "missing_version",
           "missing_row",
-          "backfilled"
+          "backfilled",
+          "computed_at",
+          "tree_size",
+          "anchored_size",
+          "cached"
         ],
-        "title": "RecordsLine",
+        "title": "RecordsStatus",
         "type": "object"
       },
       "ReferralIn": {
@@ -6843,6 +6859,34 @@
         "summary": "Start Encounter",
         "tags": [
           "clinical"
+        ]
+      }
+    },
+    "/api/v1/audit/records-status": {
+      "get": {
+        "description": "Counts per verdict. Computed on demand and reused until the next checkpoint is signed or\nanchored, because it reads every committed record. Returns counts only, no patient data.",
+        "operationId": "records_status_api_v1_audit_records_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordsStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Check every clinical record of the clinic against its committed versions",
+        "tags": [
+          "records",
+          "audit"
         ]
       }
     },
