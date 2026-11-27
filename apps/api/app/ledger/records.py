@@ -26,6 +26,7 @@ The check here is the shared core of the integrity endpoint and the admin audit 
 grants access: it only labels what it finds.
 """
 
+import asyncio
 import hashlib
 import secrets
 import uuid
@@ -460,6 +461,7 @@ class Verdict(StrEnum):
 class Leaf:
     seq: int
     payload: dict[str, Any]
+    payload_hash: bytes | None = None
 
     @property
     def version(self) -> int:
@@ -594,7 +596,7 @@ async def leaves_for(
     db: AsyncSession, clinic_id: uuid.UUID, record_ids: Iterable[uuid.UUID] | None = None
 ) -> list[Leaf]:
     """record_version leaves of the clinic, or of the given records only."""
-    query = select(AuditEvent.seq, AuditEvent.payload).where(
+    query = select(AuditEvent.seq, AuditEvent.payload, AuditEvent.payload_hash).where(
         AuditEvent.clinic_id == clinic_id, AuditEvent.kind == LEAF_KIND
     )
     if record_ids is not None:
@@ -603,7 +605,7 @@ async def leaves_for(
             return []
         query = query.where(AuditEvent.payload["record_id"].astext.in_(ids))
     rows = (await db.execute(query.order_by(AuditEvent.seq))).all()
-    return [Leaf(int(r.seq), dict(r.payload)) for r in rows]
+    return [Leaf(int(r.seq), dict(r.payload), bytes(r.payload_hash)) for r in rows]
 
 
 async def stored_for(
@@ -633,6 +635,26 @@ class ClinicRecordsCheck:
     backfilled: int
 
 
+def _count(
+    rows: dict[tuple[RecordType, uuid.UUID], Any],
+    leaves_by: dict[tuple[RecordType, uuid.UUID], list[Leaf]],
+    stored_by: dict[tuple[RecordType, uuid.UUID], list[RecordVersion]],
+    anchored: Callable[[int], bool],
+) -> tuple[dict[Verdict, int], int]:
+    counts = dict.fromkeys(Verdict, 0)
+    total = 0
+    for key in set(rows) | set(leaves_by) | set(stored_by):
+        record_type, record_id = key
+        check = check_record(
+            record_type, record_id, rows.get(key), stored_by.get(key, []), leaves_by.get(key, [])
+        )
+        if not check.versions and not check.needs_version:
+            continue  # a draft note or prescription: not part of the record yet
+        total += 1
+        counts[verdict([check], anchored)] += 1
+    return counts, total
+
+
 async def check_clinic(
     db: AsyncSession, clinic_id: uuid.UUID, anchored: Callable[[int], bool]
 ) -> ClinicRecordsCheck:
@@ -654,17 +676,9 @@ async def check_clinic(
         stored_by.setdefault((RecordType(version.record_type), version.record_id), []).append(
             version
         )
-    counts = dict.fromkeys(Verdict, 0)
-    total = 0
-    for key in set(rows) | set(leaves_by) | set(stored_by):
-        record_type, record_id = key
-        check = check_record(
-            record_type, record_id, rows.get(key), stored_by.get(key, []), leaves_by.get(key, [])
-        )
-        if not check.versions and not check.needs_version:
-            continue  # a draft note or prescription: not part of the record yet
-        total += 1
-        counts[verdict([check], anchored)] += 1
+    # Decrypting and hashing every row is CPU work: a worker thread keeps the event loop free.
+    # The rows are already loaded, so the thread does no database access.
+    counts, total = await asyncio.to_thread(_count, rows, leaves_by, stored_by, anchored)
     return ClinicRecordsCheck(
         records=total,
         match=counts[Verdict.MATCH],

@@ -24,6 +24,22 @@ x-api: &api
 services:
   api:
     <<: *api
+    # Same as the image's CMD, plus a longer worker health check. uvicorn kills a worker whose event
+    # loop does not answer its ping in time (5 s by default); on 27 November 2026 a long synchronous
+    # log re-hash on a request did exactly that and the request got a 502 (docs/CHANGELOG.md).
+    # That work now runs in threads; 30 s is only a safety margin, not the fix.
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --workers
+      - "2"
+      - --no-proxy-headers
+      - --timeout-worker-healthcheck
+      - "30"
     expose:
       - "8000"
 

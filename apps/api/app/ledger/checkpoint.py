@@ -5,13 +5,15 @@ checks that the previous checkpoint's root is still the root of the first `tree_
 history was changed in the database, no new checkpoint is signed.
 """
 
+import asyncio
+import json
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import lru_cache
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from sqlalchemy import select
+from sqlalchemy import Text, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -56,13 +58,32 @@ def tree_head(clinic_id: uuid.UUID, checkpoint: MerkleCheckpoint) -> TreeHead:
     )
 
 
+def _verify_rows(
+    clinic_id: uuid.UUID, rows: list[tuple[int, str, bytes, bytes, bytes]]
+) -> tuple[MerkleTree, list[int]]:
+    """CPU part of load_tree, run in a worker thread so it never blocks the event loop."""
+    for seq, payload_text, digest, _, _ in rows:
+        if payload_hash(json.loads(payload_text)) != digest:
+            raise LedgerIntegrityError(f"payload of audit event {seq} was changed")
+    check = verify_chain(ChainLink(r[0], clinic_id, r[2], r[3], r[4]) for r in rows)
+    if not check.ok:
+        raise LedgerIntegrityError(
+            f"hash chain broken at seq {check.first_bad_seq}: {check.reason}"
+        )
+    return MerkleTree([leaf_hash(r[2]) for r in rows]), [r[0] for r in rows]
+
+
 async def load_tree(db: AsyncSession, clinic_id: uuid.UUID) -> tuple[MerkleTree, list[int]]:
-    """Verify the clinic's chain and return its Merkle tree plus the seq of each leaf."""
+    """Verify the clinic's chain and return its Merkle tree plus the seq of each leaf.
+
+    The full check: every payload re-hashed, every chain link recomputed. Payloads are fetched
+    as text (JSONB's own output) and decoded, hashed and checked in a worker thread, so a large
+    log does not stop the API answering other requests (ADR 0011)."""
     rows = (
         await db.execute(
             select(
                 AuditEvent.seq,
-                AuditEvent.payload,
+                cast(AuditEvent.payload, Text),
                 AuditEvent.payload_hash,
                 AuditEvent.prev_hash,
                 AuditEvent.chain_hash,
@@ -71,17 +92,19 @@ async def load_tree(db: AsyncSession, clinic_id: uuid.UUID) -> tuple[MerkleTree,
             .order_by(AuditEvent.seq)
         )
     ).all()
-    for row in rows:
-        if payload_hash(row.payload) != row.payload_hash:
-            raise LedgerIntegrityError(f"payload of audit event {row.seq} was changed")
-    check = verify_chain(
-        ChainLink(r.seq, clinic_id, r.payload_hash, r.prev_hash, r.chain_hash) for r in rows
+    plain = [(int(r[0]), str(r[1]), bytes(r[2]), bytes(r[3]), bytes(r[4])) for r in rows]
+    return await asyncio.to_thread(_verify_rows, clinic_id, plain)
+
+
+async def leaf_index(db: AsyncSession, clinic_id: uuid.UUID, seq: int) -> int:
+    """Position of audit event `seq` in the clinic's log (its leaf index), from the index on
+    (clinic_id, seq), without loading the log."""
+    count = await db.scalar(
+        select(func.count())
+        .select_from(AuditEvent)
+        .where(AuditEvent.clinic_id == clinic_id, AuditEvent.seq < seq)
     )
-    if not check.ok:
-        raise LedgerIntegrityError(
-            f"hash chain broken at seq {check.first_bad_seq}: {check.reason}"
-        )
-    return MerkleTree([leaf_hash(r.payload_hash) for r in rows]), [r.seq for r in rows]
+    return int(count or 0)
 
 
 async def latest_checkpoint(db: AsyncSession, clinic_id: uuid.UUID) -> MerkleCheckpoint | None:

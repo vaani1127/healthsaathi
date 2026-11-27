@@ -154,6 +154,29 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
     but a new run "with recording" also writes version leaves, so it is not comparable with the
     committed `experiments/results/load` run.
 
+### Proofs without re-hashing the log (fix for the 502 after v0.1.8)
+
+- After the v0.1.8 deploy, `GET /api/v1/records/{record_type}/{record_id}/integrity` answered 502
+  on the live demo: it re-hashed the clinic's whole log (about 84,700 events) inside the event
+  loop, and uvicorn killed the worker when it missed its 5 s health ping. Patient receipts and
+  the admin audit page did the same full re-hash on every request.
+- Integrity check and receipts: inclusion proofs come from the stored `payload_hash` column,
+  only up to the checkpoint's size, through a per-process cache of the newest tree per clinic
+  that is extended for a newer checkpoint (`app/ledger/tree_cache.py`). The integrity check also
+  checks each record proof against its checkpoint's signed root and re-hashes the record's own
+  leaves, so a rewritten log is still a `mismatch`.
+- Full verification stays in the anchor job, checkpoint signing and the admin audit page:
+  `load_tree` now decodes and hashes in a worker thread, and the audit page reuses its result
+  while the log is unchanged (rows, highest seq, highest xmin), so a database edit is checked on
+  the next refresh. The records check scan also runs in a worker thread.
+- Other request paths checked and left as they are: FHIR export, portal export, the chart and the
+  alert lists work on one patient or one day.
+- Prod API: `--timeout-worker-healthcheck 30` (`infra/docker-compose.prod.yml`), a safety margin.
+- Tests: `apps/api/tests/anchor/test_large_log.py` (100,000 events; integrity, receipt and audit
+  status correct, health answered within 1 s while they ran; timings in ADR 0011),
+  `apps/api/tests/ledger/test_tree_cache.py` (proofs equal the full re-hash, cache reuse and
+  extension, tampered `payload_hash` fails the browser check, memory of a 100,000 leaf tree).
+
 ### Clinical record versions, part 2: on-demand records check, browser check, web, tamper demo
 
 - `GET /api/v1/audit/records-status` (clinic admin): record counts per verdict, computed when

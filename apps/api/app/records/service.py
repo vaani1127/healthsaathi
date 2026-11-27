@@ -25,11 +25,10 @@ from app.core.errors import ProblemError
 from app.db.enums import AccessAction, RecordType
 from app.db.models import AuditEvent, MerkleCheckpoint, RecordVersion
 from app.identity.deps import ClinicPrincipal
+from app.ledger import tree_cache
 from app.ledger.checkpoint import (
-    LedgerIntegrityError,
     clinic_signing_key,
     latest_checkpoint,
-    load_tree,
     tree_head,
 )
 from app.ledger.records import (
@@ -49,7 +48,7 @@ from app.ledger.records import (
     verdict,
 )
 from app.records.schemas import RecordIntegrity, RecordsStatus, VersionProof
-from e2d_core.ledger import MerkleTree, leaf_hash, payload_hash, public_key_bytes
+from e2d_core.ledger import leaf_hash, payload_hash, public_key_bytes, verify_inclusion
 
 MAX_CHAIN = 1000  # far above any real note history; stops a cycle written into the database
 
@@ -81,37 +80,48 @@ async def _chain(db: AsyncSession, model: Any, row: Any) -> list[Any]:
 
 
 class _Proofs:
-    """Inclusion proofs for leaves, each against the checkpoint receipts would use."""
+    """Inclusion proofs for leaves, each against the checkpoint receipts would use, from the cached
+    tree of stored leaf hashes (app.ledger.tree_cache), never a re-hash of the whole log."""
 
-    def __init__(
-        self, db: AsyncSession, clinic_id: uuid.UUID, tree: MerkleTree | None, seqs: list[int]
-    ):
+    def __init__(self, db: AsyncSession, clinic_id: uuid.UUID, entry: tree_cache.Entry | None):
         self.db = db
         self.clinic_id = clinic_id
-        self.tree = tree
-        self.index = {seq: i for i, seq in enumerate(seqs)}
+        self.entry = entry
         self.found: dict[int, tuple[MerkleCheckpoint | None, bool]] = {}
+        self.leaves: dict[int, Leaf] = {}
 
-    async def load(self, seqs: Sequence[int]) -> None:
-        for seq in seqs:
-            index = self.index.get(seq)
-            if index is None or self.tree is None:
-                self.found[seq] = (None, False)
+    def index(self, seq: int) -> int | None:
+        return self.entry.index_of(seq) if self.entry is not None else None
+
+    async def load(self, leaves: Sequence[Leaf]) -> None:
+        for leaf in leaves:
+            self.leaves[leaf.seq] = leaf
+            index = self.index(leaf.seq)
+            if index is None:
+                self.found[leaf.seq] = (None, False)
             else:
-                self.found[seq] = await checkpoint_for_leaf(self.db, self.clinic_id, index)
+                self.found[leaf.seq] = await checkpoint_for_leaf(self.db, self.clinic_id, index)
 
     def anchored(self, seq: int) -> bool:
         return self.found.get(seq, (None, False))[1]
 
     def rewritten(self) -> bool:
-        """True when a checkpoint used for a proof no longer has the log's root at its size: the
-        log was rewritten and its hash chain recomputed after that checkpoint was signed."""
-        if self.tree is None:
-            return False
-        return any(
-            cp is not None and self.tree.root(cp.tree_size) != cp.root
-            for cp, _ in self.found.values()
-        )
+        """True when a record leaf no longer hashes to its stored payload_hash, or its proof no
+        longer reaches its checkpoint's signed root: the log was changed after that checkpoint,
+        even if its hash chain was recomputed."""
+        for seq, (cp, _) in self.found.items():
+            leaf = self.leaves[seq]
+            if leaf.payload_hash is None or payload_hash(leaf.payload) != leaf.payload_hash:
+                return True
+            index = self.index(seq)
+            if cp is None or index is None or self.entry is None:
+                continue
+            proof = self.entry.tree.inclusion_proof(index, cp.tree_size)
+            if not verify_inclusion(
+                leaf_hash(leaf.payload_hash), index, cp.tree_size, proof, cp.root
+            ):
+                return True
+        return False
 
     async def out(self, check: VersionCheck) -> VersionProof:
         leaf, stored = check.leaf, check.stored
@@ -143,15 +153,16 @@ class _Proofs:
         }
         if leaf is None:
             return VersionProof(**base)
-        digest = payload_hash(leaf.payload)
+        # The stored hash, as in receipts: the browser recomputes it from the payload.
+        digest = leaf.payload_hash if leaf.payload_hash is not None else payload_hash(leaf.payload)
         base["payload_hash"] = digest.hex()
         base["leaf_hash"] = leaf_hash(digest).hex()
-        index = self.index.get(leaf.seq)
+        index = self.index(leaf.seq)
         base["leaf_index"] = index
         checkpoint, anchored = self.found.get(leaf.seq, (None, False))
-        if checkpoint is not None and index is not None and self.tree is not None:
+        if checkpoint is not None and index is not None and self.entry is not None:
             base["proof"] = [
-                p.hex() for p in self.tree.inclusion_proof(index, checkpoint.tree_size)
+                p.hex() for p in self.entry.tree.inclusion_proof(index, checkpoint.tree_size)
             ]
             base["sth"] = tree_head(self.clinic_id, checkpoint).to_json()
             base["signature"] = checkpoint.signature.hex()
@@ -235,13 +246,14 @@ async def integrity(
     ]
 
     problem = None
-    try:
-        tree: MerkleTree | None
-        tree, seqs = await load_tree(db, clinic_id)
-    except LedgerIntegrityError as exc:
-        tree, seqs, problem = None, [], f"the audit log does not match its own hashes: {exc}"
-    proofs = _Proofs(db, clinic_id, tree, seqs)
-    await proofs.load([v.leaf.seq for c in checks for v in c.versions if v.leaf is not None])
+    latest = await latest_checkpoint(db, clinic_id)
+    entry = None
+    if latest is not None:
+        entry = await tree_cache.tree_for(db, clinic_id, latest.tree_size)
+        if entry.size < latest.tree_size:
+            entry, problem = None, "the audit log is shorter than its signed checkpoint"
+    proofs = _Proofs(db, clinic_id, entry)
+    await proofs.load([v.leaf for c in checks for v in c.versions if v.leaf is not None])
     result = verdict(checks, proofs.anchored)
     reason = _reason(result, checks)
     if problem is None and proofs.rewritten():
