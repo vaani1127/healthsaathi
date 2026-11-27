@@ -102,8 +102,15 @@ async def audit_total(engine: AsyncEngine, clinic: uuid.UUID) -> int:
         )
 
 
-COUNT_KEYS = ("records", "match", "pending", "mismatch", "missing_version", "missing_row")
-COUNT_KEYS += ("backfilled",)
+COUNT_KEYS = (
+    "records",
+    "match",
+    "pending",
+    "mismatch",
+    "missing_version",
+    "missing_row",
+    "backfilled",
+)
 
 
 async def records_status(client: AsyncClient, admin: Actor) -> Any:
