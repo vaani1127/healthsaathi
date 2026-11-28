@@ -14,6 +14,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app import __version__, health
 from app.anchor.router import router as anchor_router
+from app.anchor.warmup import start_warmup
 from app.billing.router import router as billing_router
 from app.chart.router import router as chart_router
 from app.clinic.router import router as clinic_router
@@ -65,8 +66,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         logger.exception("database not reachable at startup; /ready reports it")
     await run_startup_tasks()
     maintenance = asyncio.create_task(maintenance_loop())
+    # In the background: startup and /ready do not wait for it (app/anchor/warmup.py).
+    warm = start_warmup()
     yield
     maintenance.cancel()
+    if warm is not None:
+        warm.cancel()
     await hub.close()
 
 

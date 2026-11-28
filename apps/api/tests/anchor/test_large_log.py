@@ -1,7 +1,8 @@
 """A large log (ADR 0011): with 100,000 audit events in one clinic, the integrity endpoint, a
 patient receipt and the admin audit status answer correctly, and the API keeps answering health
 checks within a second while they run (the full re-hash runs in a worker thread, proofs come from
-stored leaf hashes). Timings are printed (run with -s); the CHANGELOG cites them."""
+stored leaf hashes), also during the startup warm-up and when only appended rows are checked.
+Timings are printed (run with -s); ADR 0011 cites them."""
 
 import asyncio
 import time
@@ -13,7 +14,8 @@ from httpx import AsyncClient
 from sqlalchemy import Text, cast, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from app.anchor.receipts import clear_verified
+from app.anchor.receipts import check_stats, clear_verified
+from app.anchor.warmup import warm_caches
 from app.core.db import TenantContext, tenant_session
 from app.db import models as m
 from app.db.enums import AnchorBackend, AnchorStatus, Role
@@ -161,6 +163,26 @@ async def test_a_100000_event_log_does_not_block_the_api(
     )
     assert r.status_code == 200 and r.json()["chain_ok"] is True
     results["audit status (unchanged log, cached)"] = (took, slowest)
+
+    # A record check appends access events; the next status checks only those rows.
+    await client.get(f"/api/v1/records/vital/{vital.json()['id']}/integrity", headers=nurse.headers)
+    r, took, slowest = await timed_while_probing(
+        client, lambda: client.get("/api/v1/audit/status", headers=admin.headers)
+    )
+    assert r.status_code == 200 and r.json()["chain_ok"] is True
+    assert check_stats["appended"] >= 1
+    results["audit status (rows appended since)"] = (took, slowest)
+
+    # Startup warm-up of this clinic from empty caches (app/anchor/warmup.py).
+    tree_cache.clear()
+    clear_verified()
+
+    async def warm() -> dict[str, float | None]:
+        return await warm_caches([clinic])
+
+    seconds, took, slowest = await timed_while_probing(client, warm)
+    assert seconds[str(clinic)] is not None and check_stats["full"] == 1
+    results["startup warm-up (empty caches)"] = (took, slowest)
 
     print(
         f"\n{cp.head.tree_size} events; full re-hash of the log (old request path): {rehash:.2f} s"

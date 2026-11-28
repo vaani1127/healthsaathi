@@ -8,6 +8,7 @@ history was changed in the database, no new checkpoint is signed.
 import asyncio
 import json
 import uuid
+from array import array
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import lru_cache
@@ -19,8 +20,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.db import TenantContext, tenant_session
 from app.db.models import AuditEvent, Clinic, MerkleCheckpoint
+from app.ledger import tree_cache
 from app.ledger.writer import lock_clinic
 from e2d_core.ledger import (
+    GENESIS,
     ChainLink,
     MerkleTree,
     TreeHead,
@@ -58,19 +61,54 @@ def tree_head(clinic_id: uuid.UUID, checkpoint: MerkleCheckpoint) -> TreeHead:
     )
 
 
-def _verify_rows(
-    clinic_id: uuid.UUID, rows: list[tuple[int, str, bytes, bytes, bytes]]
-) -> tuple[MerkleTree, list[int]]:
-    """CPU part of load_tree, run in a worker thread so it never blocks the event loop."""
+Row = tuple[int, str, bytes, bytes, bytes]  # seq, payload as text, payload_hash, prev, chain
+
+
+def _check_rows(clinic_id: uuid.UUID, rows: list[Row], start_prev: bytes = GENESIS) -> None:
+    """Every payload re-hashed and every chain link recomputed, from `start_prev`."""
     for seq, payload_text, digest, _, _ in rows:
         if payload_hash(json.loads(payload_text)) != digest:
             raise LedgerIntegrityError(f"payload of audit event {seq} was changed")
-    check = verify_chain(ChainLink(r[0], clinic_id, r[2], r[3], r[4]) for r in rows)
+    check = verify_chain((ChainLink(r[0], clinic_id, r[2], r[3], r[4]) for r in rows), start_prev)
     if not check.ok:
         raise LedgerIntegrityError(
             f"hash chain broken at seq {check.first_bad_seq}: {check.reason}"
         )
+
+
+def _verify_rows(clinic_id: uuid.UUID, rows: list[Row]) -> tuple[MerkleTree, list[int]]:
+    """CPU part of load_tree, run in a worker thread so it never blocks the event loop."""
+    _check_rows(clinic_id, rows)
     return MerkleTree([leaf_hash(r[2]) for r in rows]), [r[0] for r in rows]
+
+
+def _verify_appended(
+    clinic_id: uuid.UUID, old: tree_cache.Entry, start_prev: bytes, rows: list[Row]
+) -> tree_cache.Entry:
+    _check_rows(clinic_id, rows, start_prev)
+    return tree_cache._build(old, [(r[0], r[2]) for r in rows])
+
+
+async def _rows(
+    db: AsyncSession, clinic_id: uuid.UUID, after_seq: int = -1, up_to_seq: int | None = None
+) -> list[Row]:
+    query = select(
+        AuditEvent.seq,
+        cast(AuditEvent.payload, Text),
+        AuditEvent.payload_hash,
+        AuditEvent.prev_hash,
+        AuditEvent.chain_hash,
+    ).where(AuditEvent.clinic_id == clinic_id, AuditEvent.seq > after_seq)
+    if up_to_seq is not None:
+        query = query.where(AuditEvent.seq <= up_to_seq)
+    rows = (await db.execute(query.order_by(AuditEvent.seq))).all()
+    return [(int(r[0]), str(r[1]), bytes(r[2]), bytes(r[3]), bytes(r[4])) for r in rows]
+
+
+@dataclass(frozen=True)
+class VerifiedLog:
+    entry: tree_cache.Entry  # seqs and Merkle tree of the verified rows
+    last_chain: bytes  # chain_hash of the last verified row (GENESIS if none)
 
 
 async def load_tree(db: AsyncSession, clinic_id: uuid.UUID) -> tuple[MerkleTree, list[int]]:
@@ -79,21 +117,30 @@ async def load_tree(db: AsyncSession, clinic_id: uuid.UUID) -> tuple[MerkleTree,
     The full check: every payload re-hashed, every chain link recomputed. Payloads are fetched
     as text (JSONB's own output) and decoded, hashed and checked in a worker thread, so a large
     log does not stop the API answering other requests (ADR 0011)."""
-    rows = (
-        await db.execute(
-            select(
-                AuditEvent.seq,
-                cast(AuditEvent.payload, Text),
-                AuditEvent.payload_hash,
-                AuditEvent.prev_hash,
-                AuditEvent.chain_hash,
-            )
-            .where(AuditEvent.clinic_id == clinic_id)
-            .order_by(AuditEvent.seq)
-        )
-    ).all()
-    plain = [(int(r[0]), str(r[1]), bytes(r[2]), bytes(r[3]), bytes(r[4])) for r in rows]
+    plain = await _rows(db, clinic_id)
     return await asyncio.to_thread(_verify_rows, clinic_id, plain)
+
+
+async def verify_log(db: AsyncSession, clinic_id: uuid.UUID, up_to_seq: int) -> VerifiedLog:
+    """The full check (as load_tree) of the rows with seq <= up_to_seq."""
+    plain = await _rows(db, clinic_id, up_to_seq=up_to_seq)
+    tree, seqs = await asyncio.to_thread(_verify_rows, clinic_id, plain)
+    entry = tree_cache.Entry(array("q", seqs), tree)
+    return VerifiedLog(entry, plain[-1][4] if plain else GENESIS)
+
+
+async def verify_appended(
+    db: AsyncSession, clinic_id: uuid.UUID, done: VerifiedLog, up_to_seq: int
+) -> VerifiedLog:
+    """Extend a verified log with the rows appended after it (seq above its last, up to
+    `up_to_seq`): each new payload re-hashed and each new chain link recomputed from the last
+    verified chain hash. The caller must already know the verified rows are unchanged."""
+    after = done.entry.seqs[-1] if len(done.entry.seqs) else -1
+    plain = await _rows(db, clinic_id, after_seq=after, up_to_seq=up_to_seq)
+    if not plain:
+        return done
+    entry = await asyncio.to_thread(_verify_appended, clinic_id, done.entry, done.last_chain, plain)
+    return VerifiedLog(entry, plain[-1][4])
 
 
 async def leaf_index(db: AsyncSession, clinic_id: uuid.UUID, seq: int) -> int:
