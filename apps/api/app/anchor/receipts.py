@@ -28,10 +28,12 @@ from app.identity.deps import ClinicPrincipal
 from app.ledger import tree_cache
 from app.ledger.checkpoint import (
     LedgerIntegrityError,
+    VerifiedLog,
     clinic_signing_key,
     leaf_index,
-    load_tree,
     tree_head,
+    verify_appended,
+    verify_log,
 )
 from e2d_core.ledger import MerkleTree, leaf_hash, public_key_bytes, verify_consistency
 
@@ -198,53 +200,81 @@ class _Verified:
     key: tuple[int, int, int]
     chain_ok: bool
     problem: str | None
-    size: int
+    log: VerifiedLog | None  # the verified rows (None when the check failed)
 
 
 # Full verification result per clinic (only the newest), reused while the log is unchanged. The
 # key is (rows, highest seq, highest xmin): a new event changes the first two, and an UPDATE or
 # DELETE by the database owner gives the touched rows a new xmin or lowers the count, so an edit
 # is checked again on the next refresh instead of hiding behind the cache.
+#
+# When rows were only appended, only the new rows are checked: the verified rows (seq up to the
+# cached highest seq) must still number the same and have the same highest xmin, which any UPDATE,
+# DELETE or re-insert among them would change; then each new payload is re-hashed and each new
+# chain link recomputed from the last verified chain hash. Anything else runs the full check.
 _verified: dict[uuid.UUID, _Verified] = {}
+# How many times each kind of check ran, for tests.
+check_stats = {"full": 0, "appended": 0}
 
 
-async def log_fingerprint(db: AsyncSession, clinic_id: uuid.UUID) -> tuple[int, int, int]:
-    row = (
-        await db.execute(
-            text(
-                "SELECT count(*), coalesce(max(seq), 0), coalesce(max(xmin::text::bigint), 0)"
-                " FROM audit_events WHERE clinic_id = :c"
-            ),
-            {"c": clinic_id},
-        )
-    ).one()
+_FINGERPRINT = (
+    "SELECT count(*), coalesce(max(seq), 0), coalesce(max(xmin::text::bigint), 0)"
+    " FROM audit_events WHERE clinic_id = :c AND seq <= :s"
+)
+
+
+async def log_fingerprint(
+    db: AsyncSession, clinic_id: uuid.UUID, up_to_seq: int | None = None
+) -> tuple[int, int, int]:
+    """(rows, highest seq, highest xmin) of the clinic's log, or of its rows with seq up to
+    `up_to_seq`."""
+    bound = up_to_seq if up_to_seq is not None else 2**63 - 1
+    row = (await db.execute(text(_FINGERPRINT), {"c": clinic_id, "s": bound})).one()
     return int(row[0]), int(row[1]), int(row[2])
+
+
+async def _only_appended(
+    db: AsyncSession, clinic_id: uuid.UUID, cached: _Verified, key: tuple[int, int, int]
+) -> bool:
+    if not cached.chain_ok or cached.log is None or key[1] <= cached.key[1]:
+        return False
+    return await log_fingerprint(db, clinic_id, cached.key[1]) == cached.key
 
 
 async def verified_tree(
     db: AsyncSession, clinic_id: uuid.UUID
 ) -> tuple[MerkleTree | None, str | None, int]:
     """(tree or None if the log fails its own hashes, problem, event count). Runs the full check
-    (in a worker thread, see load_tree) only when the log changed since the last one."""
+    (in a worker thread, see load_tree) only when the log changed other than by appending since
+    the last one; appended rows alone are checked by themselves."""
     key = await log_fingerprint(db, clinic_id)
     cached = _verified.get(clinic_id)
     if cached is not None and cached.key == key:
-        if not cached.chain_ok:
+        if cached.log is None:
             return None, cached.problem, 0
-        entry = await tree_cache.tree_for(db, clinic_id, cached.size)
-        return entry.tree, None, cached.size
+        return cached.log.entry.tree, None, cached.log.entry.size
     try:
-        tree, seqs = await load_tree(db, clinic_id)
+        if (
+            cached is not None
+            and cached.log is not None
+            and await _only_appended(db, clinic_id, cached, key)
+        ):
+            check_stats["appended"] += 1
+            log = await verify_appended(db, clinic_id, cached.log, key[1])
+        else:
+            check_stats["full"] += 1
+            log = await verify_log(db, clinic_id, key[1])
     except LedgerIntegrityError as exc:
-        _verified[clinic_id] = _Verified(key, False, str(exc), 0)
+        _verified[clinic_id] = _Verified(key, False, str(exc), None)
         return None, str(exc), 0
-    tree_cache.install(clinic_id, seqs, tree)
-    _verified[clinic_id] = _Verified(key, True, None, tree.size)
-    return tree, None, tree.size
+    tree_cache.install(clinic_id, log.entry)
+    _verified[clinic_id] = _Verified(key, True, None, log)
+    return log.entry.tree, None, log.entry.size
 
 
 def clear_verified() -> None:
     _verified.clear()
+    check_stats.update(full=0, appended=0)
 
 
 async def audit_status(

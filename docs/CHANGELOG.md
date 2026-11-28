@@ -154,6 +154,28 @@ this heading existed are in section 9 of experiments/PREREGISTRATION.md.
     but a new run "with recording" also writes version leaves, so it is not comparable with the
     committed `experiments/results/load` run.
 
+### Startup warm-up and append-only audit check (fix for slow first calls on v0.1.9)
+
+- On v0.1.9 the 502 was gone, but the first integrity check after the deploy took 5.88 s and the
+  first admin audit page 14.39 s on the VM (about 86,000 events per clinic; timed from the laptop
+  by a one-off client, not a script in this repo). Both caches are per API process and empty
+  after a start.
+- `app/anchor/warmup.py`: each API process starts a background task that, clinic by clinic,
+  builds the proof tree up to the latest checkpoint and runs the full audit check once. Startup
+  and `/ready` do not wait for it; it logs "warmup start" and "warmup done" with seconds per
+  clinic; a failure is logged and ignored. Skipped with `APP_ENV=test` unless a test turns it on.
+- `app/anchor/receipts.py` `verified_tree`: when the log only grew since the last check (the
+  verified rows still have the same count and highest xmin), only the new rows are checked and
+  the tree is extended. Before, any new access event (every patient-data read writes one) made
+  the next audit page re-run the full check. An edit to a verified row still runs the full check.
+- `app/ledger/checkpoint.py`: `verify_log` and `verify_appended` (the full check up to a seq, and
+  the check of appended rows from the last verified chain hash); `load_tree` is unchanged.
+- Tests: `apps/api/tests/anchor/test_warmup.py` (warm-up fills both caches; requests after it
+  fetch no leaves and run no full check; appended rows checked alone give the full check's root;
+  a changed appended row fails; an edit to a verified row forces the full check; a warm-up error
+  does not stop startup; `/ready` answers while the warm-up runs; skipped in tests by default).
+  `test_large_log.py` also times the appended-row check and the warm-up (ADR 0011).
+
 ### Proofs without re-hashing the log (fix for the 502 after v0.1.8)
 
 - After the v0.1.8 deploy, `GET /api/v1/records/{record_type}/{record_id}/integrity` answered 502

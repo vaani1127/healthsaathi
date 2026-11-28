@@ -15,8 +15,9 @@ Cache: per API process, one entry per clinic (only the newest tree), holding the
 tree of the first `size` leaves in seq order. A request for a size the entry already covers is
 served from memory (MerkleTree answers roots and proofs for any smaller size); a larger size
 fetches only the missing leaves and rebuilds the tree in a worker thread. The admin audit page
-installs the tree it has just verified in full, so proofs follow the current rows. Memory cost:
-see ADR 0011 (measured by tests/ledger/test_tree_cache.py).
+installs the tree it has just verified (the same object, no copy) unless the cached one is
+larger. The startup warm-up fills it (app/anchor/warmup.py). Memory cost: see ADR 0011
+(measured by tests/ledger/test_tree_cache.py).
 """
 
 import asyncio
@@ -98,9 +99,12 @@ async def tree_for(db: AsyncSession, clinic_id: uuid.UUID, size: int) -> Entry:
         return entry
 
 
-def install(clinic_id: uuid.UUID, seqs: list[int], tree: MerkleTree) -> None:
-    """Replace the clinic's entry with a tree just verified in full (the admin audit page)."""
-    _entries[clinic_id] = Entry(array("q", seqs), tree)
+def install(clinic_id: uuid.UUID, entry: Entry) -> None:
+    """Replace the clinic's entry with a tree just verified (the admin audit page), unless the
+    cached one is larger. The same object is kept by the verification cache, so no copy."""
+    current = _entries.get(clinic_id)
+    if current is None or current.size <= entry.size:
+        _entries[clinic_id] = entry
 
 
 def clear() -> None:

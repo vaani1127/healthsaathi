@@ -176,6 +176,28 @@ claim earlier coverage.
   full re-hash took 3.41 s inside the event loop; now the integrity check took 0.56 s with a cold
   cache, a receipt 0.14 s, the admin audit page's full check 4.22 s in a worker thread and 0.04 s
   when the log was unchanged; the slowest health answer while these ran was 0.233 s.
+- **Startup warm-up and appended rows (28 November 2026, after the v0.1.9 deploy).** Both caches
+  are per process and empty after a start. On v0.1.9 the first integrity check after the deploy
+  took 5.88 s and the first admin audit page 14.39 s on the VM (about 86,000 events per clinic;
+  timed from the laptop by a one-off client during the deploy check, not by a script in this
+  repo); later calls took about 0.3 s. Two changes:
+  - `app/anchor/warmup.py`: when an API process starts, a background task (startup and `/ready`
+    do not wait for it) builds each clinic's proof tree up to its latest checkpoint and runs the
+    full audit check once, one clinic after another, logging "warmup start" and "warmup done"
+    with seconds per clinic. A failure is logged and ignored. Each of the two API worker
+    processes warms its own caches, so the two warm-ups can run at the same time.
+  - Every patient-data read appends an access event, which changes the log's fingerprint, so
+    the audit page would have re-run the full check after any use of the app. Now, when the
+    rows verified last time still number the same and have the same highest xmin (one SQL
+    query over seq up to the last verified seq), only the appended rows are checked: each new
+    payload re-hashed and each new chain link recomputed from the last verified chain hash, and
+    the tree extended. Any UPDATE, DELETE or re-insert among the verified rows changes that
+    count or xmin, so it still runs the full check. The verification cache and the proof cache
+    share one tree object after each check, so this adds no second tree in the usual case.
+  - Timings on the same 100,004 event log, a later run on the laptop (slower than the run above:
+    the full re-hash took 6.26 s, the full audit check 8.06 s): the audit page with rows appended
+    since the last check took 0.35 s, the startup warm-up of the clinic from empty caches 9.28 s,
+    and health answered within 0.311 s while it ran (`test_large_log.py`).
 - The records check reads and decrypts every committed row of the clinic when it is not cached.
   Not measured.
 - The records check cache can be stale between checkpoints: a row changed after the cached result
